@@ -1,0 +1,11 @@
+---
+# Disable firewall
+# systemctl disable --now firewalld
+- name: Disable firewall
+  ansible.builtin.service:
+    name: firewalld
+    enabled: false
+  when:
+    ( inventory_hostname in groups[nt_sms] or inventory_hostname in groups[nt_cnodes] )
+
+
