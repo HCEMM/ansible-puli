@@ -1,2 +1,2 @@
 [sms]
-0.0.0.0
+localhost ansible_connection=local ansible_user=hcemm
