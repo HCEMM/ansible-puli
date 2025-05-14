@@ -6,6 +6,4 @@
     name: firewalld
     enabled: false
   when:
-    ( inventory_hostname in groups[nt_sms] or inventory_hostname in groups[nt_cnodes] )
-
-
+    ( inventory_hostname in groups['sms'] )
