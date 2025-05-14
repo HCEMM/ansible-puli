@@ -1,9 +1,10 @@
 ---
 
-- name: Apply common configuration to all hosts
+- name: Build PULI
   hosts: all
   any_errors_fatal: true
   become: true
+  gather_facts: true
 
   roles:
     - common
