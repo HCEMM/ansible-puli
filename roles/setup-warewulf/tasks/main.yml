@@ -1,0 +1,121 @@
+---
+# perl -pi -e "s/ipaddr:.*/ipaddr: ${sms_ip}/" /etc/warewulf/warewulf.conf
+# perl -pi -e "s/netmask:.*/netmask: ${internal_netmask}/" /etc/warewulf/warewulf.conf
+# perl -pi -e "s/network:.*/network: ${internal_network}/" /etc/warewulf/warewulf.conf
+# perl -pi -e 's/template:.*/template: static/' /etc/warewulf/warewulf.conf
+- name: Configure warewulf.conf
+  ansible.builtin.replace:
+    path: /etc/warewulf/warewulf.conf
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - { regexp: 'ipaddr:.*', replace: 'ipaddr: {{ sms_ip }}' }
+    - { regexp: 'netmask:.*', replace: 'netmask: {{ internal_netmask }}' }
+    - { regexp: 'network:.*', replace: 'network: {{ internal_network }}' }
+    - { regexp: 'template:.*', replace: 'template: static' }
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# sed '/range start:/d;/range end:/d;' -i /etc/warewulf/warewulf.conf
+- name: Remove range start and end lines from warewulf.conf
+  ansible.builtin.lineinfile:
+    path: /etc/warewulf/warewulf.conf
+    state: absent
+    regexp: 'range (start|end):'
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# perl -pi -e "s/defaults,noauto,nofail,ro/defaults,nofail,ro/" /etc/warewulf/nodes.conf
+- name: Update defaults in nodes.conf
+  ansible.builtin.replace:
+    path: /etc/warewulf/nodes.conf
+    regexp: 'defaults,noauto,nofail,ro'
+    replace: 'defaults,nofail,ro'
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# wwctl profile add nodes --profile default --comment "Nodes profile"
+# wwctl profile set -y nodes --netname=default --netdev=${eth_provision}
+# wwctl profile set -y nodes --netname=default --netmask=${internal_netmask}
+# wwctl profile set -y nodes --netname=default --gateway=${ipv4_gateway}
+# wwctl profile set -y nodes --netname=default --nettagadd=DNS=${dns_servers}
+- name: Add "nodes" profile and set network configuration
+  ansible.builtin.command: >
+    wwctl profile set -y nodes --netname=default --netdev={{ eth_provision }} --netmask={{ internal_netmask }} --gateway={{ ipv4_gateway }}
+    --nettagadd=DNS={{ dns_servers }}
+  when:
+    ( inventory_hostname in groups['sms'] )
+  changed_when: >
+    ( ansible.builtin.command('wwctl profile list').stdout_lines | select('match', '^nodes\s') | list | length == 0 )
+
+# systemctl start warewulfd - this is not in the tutorial, but is needed for the next steps, no idea why not for the previous ones
+- name: Start warewulfd service
+  ansible.builtin.service:
+    name: warewulfd
+    state: started
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# wwctl overlay create nodeconfig
+# wwctl profile set --yes nodes --system-overlays nodeconfig --runtime-overlays syncuser
+- name: Create nodeconfig overlay
+  ansible.builtin.command: >
+    wwctl overlay create nodeconfig
+  args:
+    creates: /srv/warewulf/overlays/nodeconfig
+  when:
+    inventory_hostname in groups['sms']
+
+- name: Get details of nodes profile
+  ansible.builtin.command: wwctl profile list nodes -a
+  register: ww_profile_details
+  changed_when: false
+  when: inventory_hostname in groups['sms']
+
+- name: Set system and runtime overlays for nodes profile if needed
+  ansible.builtin.command: >
+    wwctl profile set --yes nodes
+    --system-overlays nodeconfig
+    --runtime-overlays syncuser
+  when:
+    - inventory_hostname in groups['sms']
+  changed_when:
+    - "'SystemOverlay' not in ww_profile_details.stdout or 'nodeconfig' not in ww_profile_details.stdout"
+    - "'RuntimeOverlay' not in ww_profile_details.stdout or 'syncuser' not in ww_profile_details.stdout"
+
+# wwctl overlay cat host /etc/hosts.ww | \
+# sed -e 's_\({{$node.Id}}{{end}}\)_{{$node.Id}}.localdomain \1_g' | \
+# EDITOR=tee wwctl overlay edit host /etc/hosts.ww
+- name: Patch /etc/hosts.ww overlay
+  ansible.builtin.shell: |
+    set -o pipefail
+    wwctl overlay cat host /etc/hosts.ww | \
+    sed -e 's_\({{$node.Id}}{{end}}\)_{{$node.Id}}.localdomain \1_g' | \
+    EDITOR=tee wwctl overlay edit host /etc/hosts.ww
+  args:
+    executable: /bin/bash
+  register: hosts_patch
+  changed_when: "'wwctl overlay edit' in hosts_patch.stdout or 'wwctl overlay edit' in hosts_patch.stderr"
+  when: inventory_hostname in groups['sms']
+
+# systemctl enable --now warewulfd
+- name: Enable and start warewulfd
+  ansible.builtin.systemd:
+    name: warewulfd
+    enabled: true
+    state: started
+  when: inventory_hostname in groups['sms']
+
+# wwctl configure --all
+- name: Configure all Warewulf components
+  ansible.builtin.command: wwctl configure --all
+  register: configure_result
+  changed_when: "'Skipping, key already exists' not in configure_result.stdout"
+  when: inventory_hostname in groups['sms']
+
+# bash /etc/profile.d/ssh_setup.sh
+- name: Run SSH setup script
+  ansible.builtin.command: bash /etc/profile.d/ssh_setup.sh
+  args:
+    creates: /root/.ssh/id_ed25519
+  when: inventory_hostname in groups['sms']

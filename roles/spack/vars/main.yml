@@ -1,0 +1,11 @@
+spack_gcc: "11.5.0"
+spack_modules:
+  - bwa
+  - sratoolkit
+  - picard
+  - samtools
+  - py-macs3
+  - bedtools2
+  - py-pandas
+  - miniconda3
+  - apptainer

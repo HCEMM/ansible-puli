@@ -1,0 +1,30 @@
+---
+# systemctl enable chronyd.service
+- name: Enable chronyd service
+  ansible.builtin.service:
+    name: chronyd
+    enabled: true
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# echo "local stratum 10" >> /etc/chrony.conf
+# echo "server ${ntp_server}" >> /etc/chrony.conf
+# echo "allow all" >> /etc/chrony.conf
+- name: Configure chrony
+  ansible.builtin.lineinfile:
+    dest: /etc/chrony.conf
+    line: "{{ item }}"
+  loop:
+    - "local stratum 10"
+    - "server {{ ntp_server }}"
+    - "allow all"
+  when:
+    ( inventory_hostname in groups['sms'] )
+
+# systemctl restart chronyd
+- name: Restart chronyd
+  ansible.builtin.service:
+    name: chronyd
+    state: restarted
+  when:
+    ( inventory_hostname in groups['sms'] )
