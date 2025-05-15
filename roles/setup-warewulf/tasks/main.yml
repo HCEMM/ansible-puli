@@ -71,8 +71,7 @@
     --nettagadd=DNS={{ dns_servers | join(',') }}
   when:
     - ( inventory_hostname in groups['sms'] )
-  changed_when: >
-    not output_match_found
+  changed_when: not output_match_found
 
 # systemctl start warewulfd - this is not in the tutorial, but is needed for the next steps, no idea why not for the previous ones
 - name: Start warewulfd service
@@ -93,10 +92,14 @@
     inventory_hostname in groups['sms']
 
 - name: Get details of nodes profile
-  ansible.builtin.command: wwctl profile list nodes -a
-  register: ww_profile_details
-  changed_when: false
-  when: inventory_hostname in groups['sms']
+  ansible.builtin.include_tasks: roles/utils/tasks/check_output_for_matches.yml
+  vars:
+    cmd: 'wwctl profile list nodes -a'
+    patterns:
+      - 'SystemOverlay'
+      - 'nodeconfig'
+      - 'RuntimeOverlay'
+      - 'syncuser'
 
 - name: Set system and runtime overlays for nodes profile if needed
   ansible.builtin.command: >
@@ -105,9 +108,7 @@
     --runtime-overlays syncuser
   when:
     - inventory_hostname in groups['sms']
-  changed_when:
-    - "'SystemOverlay' not in ww_profile_details.stdout or 'nodeconfig' not in ww_profile_details.stdout"
-    - "'RuntimeOverlay' not in ww_profile_details.stdout or 'syncuser' not in ww_profile_details.stdout"
+  changed_when: not output_match_found
 
 # wwctl overlay cat host /etc/hosts.ww | \
 # sed -e 's_\({{$node.Id}}{{end}}\)_{{$node.Id}}.localdomain \1_g' | \
