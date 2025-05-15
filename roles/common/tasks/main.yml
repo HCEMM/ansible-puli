@@ -25,7 +25,7 @@
   when:
     ( inventory_hostname in groups['sms'] )
 
-# sysctl -w net.ipv4.ip_forward=1
+# sysctl -w net.ipv4.ip_forward=1 - so computes have internet
 - name: Enable IP forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
