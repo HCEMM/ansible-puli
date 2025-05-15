@@ -8,3 +8,7 @@
 
   roles:
     - common
+    - chronyd
+    - setup-ohpc
+    - setup-warewulf
+#    - setup-slurm
