@@ -10,26 +10,17 @@
 
 # timedatectl set-timezone Europe/Budapest
 - name: Set timezone
-  ansible.general.timezone:
+  community.general.timezone:
     name: Europe/Budapest
   when:
     ( inventory_hostname in groups['sms'] or inventory_hostname in groups['computes'] )
 
 # ip link set dev ${sms_eth_internal} up
-
-- name: Set internal network interface up
-  community.general.nmcli:
-    conn_name: {{ sms_eth_internal }}
-    state: up
-  when:
-    ( inventory_hostname in groups['sms'] )
-
 # ip address add ${sms_ip}/${internal_netmask} broadcast + dev ${sms_eth_internal}
 - name: Set internal network interface address
   community.general.nmcli:
-    conn_name: {{ sms_eth_internal }}
-    ip4: "{{ sms_ip }}/{{ internal_netmask }}"
+    conn_name: "{{ sms_eth_internal }}"
+    ip4: "{{ sms_ip }}/{{ '24' if internal_netmask == '255.255.255.0' else '32' }}"
     state: present
   when:
     ( inventory_hostname in groups['sms'] )
-
