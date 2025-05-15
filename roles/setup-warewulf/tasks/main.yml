@@ -69,8 +69,6 @@
     - not output_match_found
   changed_when: >
     not output_match_found
-  failed_when: >
-    not output_match_found
 
 # systemctl start warewulfd - this is not in the tutorial, but is needed for the next steps, no idea why not for the previous ones
 - name: Start warewulfd service
