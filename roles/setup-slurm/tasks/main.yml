@@ -1,0 +1,11 @@
+---
+# git clone https://github.com/HCEMM/cluster-admin
+- name: Clone cluster-admin repo
+  ansible.builtin.git:
+    repo: https://github.com/HCEMM/cluster-admin
+    dest: /home/{{ ansible_user_id }}/cluster-admin
+    force: true
+
+# cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
+# cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
+# perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf

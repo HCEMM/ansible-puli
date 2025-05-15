@@ -1,0 +1,8 @@
+- name: Run command and check output against regex
+  ansible.builtin.command: "{{ cmd }}"
+  register: command_output
+  changed_when: false
+
+- name: Set fact if regex matches in stdout_lines
+  ansible.builtin.set_fact:
+    output_match_found: "{{ command_output.stdout_lines | select('match', pattern) | list | length > 0 }}"

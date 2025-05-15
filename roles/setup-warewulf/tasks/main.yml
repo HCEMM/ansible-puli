@@ -39,14 +39,25 @@
 # wwctl profile set -y nodes --netname=default --netmask=${internal_netmask}
 # wwctl profile set -y nodes --netname=default --gateway=${ipv4_gateway}
 # wwctl profile set -y nodes --netname=default --nettagadd=DNS=${dns_servers}
+- name: Check if "nodes" profile exists
+  ansible.builtin.include_tasks: roles/utils/tasks/check_output_for_match.yml
+  vars:
+    cmd: 'wwctl profile list'
+    pattern: '^nodes\s'
+
 - name: Add "nodes" profile and set network configuration
   ansible.builtin.command: >
     wwctl profile set -y nodes --netname=default --netdev={{ eth_provision }} --netmask={{ internal_netmask }} --gateway={{ ipv4_gateway }}
     --nettagadd=DNS={{ dns_servers }}
   when:
-    ( inventory_hostname in groups['sms'] )
+    - ( inventory_hostname in groups['sms'] )
+    - not output_match_found
+  register: profile_set_result
   changed_when: >
-    ( ansible.builtin.command('wwctl profile list').stdout_lines | select('match', '^nodes\s') | list | length == 0 )
+    not output_match_found
+  failed_when: >
+    not output_match_found
+
 
 # systemctl start warewulfd - this is not in the tutorial, but is needed for the next steps, no idea why not for the previous ones
 - name: Start warewulfd service
