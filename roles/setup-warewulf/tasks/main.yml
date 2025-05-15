@@ -55,18 +55,22 @@
 # wwctl profile set -y nodes --netname=default --gateway=${ipv4_gateway}
 # wwctl profile set -y nodes --netname=default --nettagadd=DNS=${dns_servers}
 - name: Check if "nodes" profile has default network configuration
-  ansible.builtin.include_tasks: roles/utils/tasks/check_output_for_match.yml
+  ansible.builtin.include_tasks: roles/utils/tasks/check_output_for_matches.yml
   vars:
     cmd: 'wwctl profile list nodes -a'
-    pattern: 'NetDevs'
+    patterns:
+      - 'NetDevs'
+      - '{{ eth_provision }}'
+      - '{{ internal_netmask }}'
+      - '{{ ipv4_gateway }}'
+      - 'DNS={{ dns_servers | join(",") }}'
 
 - name: Set default network configuration
   ansible.builtin.command: >
     wwctl profile set -y nodes --netname=default --netdev={{ eth_provision }} --netmask={{ internal_netmask }} --gateway={{ ipv4_gateway }}
-    --nettagadd=DNS={{ dns_servers }}
+    --nettagadd=DNS={{ dns_servers | join(',') }}
   when:
     - ( inventory_hostname in groups['sms'] )
-    - not output_match_found
   changed_when: >
     not output_match_found
 
