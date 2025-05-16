@@ -1,0 +1,13 @@
+---
+- name: Check if package is installed in Warewulf image
+  ansible.builtin.command: >
+    wwctl image exec --build=false {{ image }} rpm -q {{ pkg }}
+  register: "{{ pkg }}_check"
+  changed_when: false
+  failed_when: false
+
+- name: Install package into Warewulf image
+  ansible.builtin.command: >
+    wwctl image exec --build=false {{ image }} dnf -y install {{ pkg }}
+  when: lookup('vars', pkg + '_check').rc != 0
+  changed_when: lookup('vars', pkg + '_check').rc != 0

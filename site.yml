@@ -11,4 +11,5 @@
     - chronyd
     - setup-ohpc
     - setup-warewulf
-#    - setup-slurm
+    - setup-slurm
+    - build-compute-images

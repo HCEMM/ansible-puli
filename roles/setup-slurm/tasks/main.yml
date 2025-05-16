@@ -1,11 +1,19 @@
 ---
-# git clone https://github.com/HCEMM/cluster-admin
-- name: Clone cluster-admin repo
-  ansible.builtin.git:
-    repo: https://github.com/HCEMM/cluster-admin
-    dest: /home/{{ ansible_user_id }}/cluster-admin
-    force: true
-
 # cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
 # cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
+- name: Copy the files from the template directory
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/slurm/{{ item }}"
+    mode: "{{ '0600' if item == 'slurmdbd.conf' else '0644' }}"
+  loop:
+    - slurm.conf
+    - slurmdbd.conf
+    - cgroup.conf
+    - acct_gather.conf
+    - topology.conf
+  when:
+    ( inventory_hostname in groups['sms'] )
+  notify:
+    - restart slurmctld

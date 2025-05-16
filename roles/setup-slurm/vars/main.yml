@@ -1,0 +1,3 @@
+accounting_storage_user: slurm
+slurm_user: slurm
+cluster_name: sccluster

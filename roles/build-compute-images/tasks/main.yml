@@ -1,0 +1,79 @@
+---
+# wwctl image import docker://ghcr.io/warewulf/warewulf-almalinux:9 almalinux-9 --syncuser
+- name: Check if Alma Linux image is already imported
+  ansible.builtin.command: >
+    wwctl image show almalinux-9
+  register: alma_image_present
+  changed_when: false
+  failed_when: false    # wwctl will report "ERROR: almalinux-91 is not a valid image if image is not present"
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Import Alma Linux image
+  ansible.builtin.command: >
+    wwctl image import docker://ghcr.io/warewulf/warewulf-almalinux:9 almalinux-9 --syncuser
+  changed_when: not alma_image_present
+  when:
+    - inventory_hostname in groups['sms']
+
+# wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
+#   dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+#   dnf -y update
+# EOF
+- name: Check if OpenHPC repo is installed inside image
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 rpm -q ohpc-release
+  register: ohpc_repo_check   # warewulf will fail with "ERROR: no such file or directory" if it can't find a release
+  changed_when: false
+  failed_when: false
+
+- name: Install OpenHPC repo inside image
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+  when: ohpc_repo_check.rc != 0
+
+# export CHROOT=$(wwctl image show almalinux-9)
+- name: Get Warewulf chroot path for almalinux-9
+  ansible.builtin.command: wwctl image show almalinux-9
+  register: base_chroot
+  changed_when: false
+
+# wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
+#   dnf -y install ohpc-base-compute
+# EOF
+# wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
+#   Add Slurm client support meta-package and enable munge and slurmd
+#   dnf -y install ohpc-slurm-client
+#   systemctl enable munge
+#   systemctl enable slurmd
+#   Add Network Time Protocol (NTP) support
+#   dnf -y install chrony
+#   Include modules user environment
+#   dnf -y install lmod-ohpc
+# EOF
+- name: Install required packages into Warewulf image
+  ansible.builtin.include_tasks: install_pkg_on_image.yml
+  loop:
+    - ohpc-base-compute
+    - ohpc-slurm-client
+    - chrony
+    - lmod-ohpc
+  args:
+    image: almalinux-9
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Update packages inside image
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 dnf -y update
+  changed_when: true   # Force mark as changed; hard to detect diff
+
+- name: Enable required services into Warewulf image
+  ansible.builtin.include_tasks: enable_service_on_image.yml
+  loop:
+    - munge
+    - slurmd
+  args:
+    image: almalinux-9
+  when:
+    - inventory_hostname in groups['sms']
