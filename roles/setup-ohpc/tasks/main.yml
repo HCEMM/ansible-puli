@@ -25,7 +25,7 @@
 
 # dnf -y install ohpc-base
 # dnf -y install warewulf-ohpc hwloc-ohpc
-- name: Install OpenHPC base packages
+- name: Install OpenHPC base (and other) packages
   ansible.builtin.dnf:
     name:
       - ohpc-base
@@ -35,3 +35,7 @@
     state: present
   when:
     ( inventory_hostname in groups['sms'] )
+
+# dnf -y install nhc-ohpc
+# dnf -y install cuda-repo-ohpc
+# dnf -y install nvidia-driver-cuda cuda-devel-ohpc

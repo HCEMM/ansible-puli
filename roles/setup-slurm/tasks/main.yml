@@ -4,7 +4,7 @@
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
 - name: Copy the files from the template directory
   ansible.builtin.template:
-    src: "{{ item }}"
+    src: "{{ item }}.j2"
     dest: "/etc/slurm/{{ item }}"
     mode: "{{ '0600' if item == 'slurmdbd.conf' else '0644' }}"
   loop:
@@ -15,5 +15,3 @@
     - topology.conf
   when:
     ( inventory_hostname in groups['sms'] )
-  notify:
-    - restart slurmctld
