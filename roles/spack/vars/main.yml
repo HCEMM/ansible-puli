@@ -9,3 +9,4 @@ spack_modules:
   - py-pandas
   - miniconda3
   - apptainer
+  - py-multiqc
