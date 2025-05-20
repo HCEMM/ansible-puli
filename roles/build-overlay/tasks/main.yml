@@ -1,0 +1,101 @@
+---
+# wwctl overlay import --parents nodeconfig /etc/subuid
+# wwctl overlay import --parents nodeconfig /etc/subgid
+# echo 'server {{.Tags.ntpserver}} iburst' | \
+# wwctl overlay import --parents nodeconfig <(cat) /etc/chrony.conf.ww
+# ####
+# cat <<- EOF | wwctl overlay import --parents nodeconfig <(cat) \
+# /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf
+# [Service]
+# ExecStart=/usr/bin/nm-online -q
+# EOF
+# echo SLURMD_OPTIONS='--conf-server {{.Tags.slurmctld}}' | \
+# wwctl overlay import --parents nodeconfig <(cat) /etc/sysconfig/slurmd.ww
+# wwctl overlay import --parents nodeconfig /etc/munge/munge.key
+- name: Support unprivileged user namespaces, and configure chrony, systemd and NetworkManager, and Slurm server
+  ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ src }}
+  args:
+    creates: /srv/warewulf/overlays/nodeconfig/etc/{{ dest }}
+  loop:
+    - { src: /etc/subuid, dest: subuid }
+    - { src: /etc/subgid, dest: subgid }
+    - { src: files/chrony.conf.ww, dest: chrony.conf.ww }
+    - { src: files/override.conf, dest: systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    - { src: files/slurmd.ww, dest: sysconfig/slurmd.ww }
+    - { src: /etc/munge/munge.key, dest: munge/munge.key }
+  when:
+    - ( inventory_hostname in groups['sms'] )
+
+# wwctl profile set --yes nodes --tagadd ntpserver=${sms_ip}
+# wwctl profile set --yes nodes --tagadd slurmctld=${sms_ip}
+- name: Check if master host is identified as local NTP server
+  ansible.builtin.include_tasks: roles/utils/tasks/check_output_for_matches.yml
+  vars:
+    cmd: 'wwctl profile list nodes -a'
+    patterns:
+      - '^nodes\s*Tags[ntpserver]\s*{{ sms_ip }}'
+      - '^nodes\s*Tags[slurmctld]\s*{{ sms_ip }}'
+  when:
+    - ( inventory_hostname in groups['sms'] )
+
+- name: Identify master host as local NTP server
+  ansible.builtin.command: wwctl profile set --yes nodes --tagadd ntpserver={{ sms_ip }} --tagadd slurmctld={{ sms_ip }}
+  changed_when: >
+    not output_match_found
+  when:
+    - ( inventory_hostname in groups['sms'] )
+    - not output_match_found
+
+# wwctl overlay chown nodeconfig /etc/munge/munge.key $(id -u munge) $(id -g munge)
+# wwctl overlay chown nodeconfig /etc/munge $(id -u munge) $(id -g munge)
+# wwctl overlay chmod nodeconfig /etc/munge 0700
+- name: Get munge UID
+  ansible.builtin.command: id -u munge
+  register: munge_uid
+  changed_when: false
+
+- name: Get munge GID
+  ansible.builtin.command: id -g munge
+  register: munge_gid
+  changed_when: false
+
+- name: Check current ownership of munge.key in overlay
+  ansible.builtin.stat:
+    path: /srv/warewulf/overlays/nodeconfig/rootfs/etc/munge/munge.key
+  register: munge_key_stat
+
+- name: Set permissions of munge
+  ansible.builtin.command: >
+    wwctl overlay chown nodeconfig /etc/munge/munge.key {{ munge_uid.stdout }} {{ munge_gid.stdout }}
+  when: >
+    - ( inventory_hostname in groups['sms'] )
+    munge_key_stat.stat.pw_uid != (munge_uid.stdout | int) or
+    munge_key_stat.stat.pw_gid != (munge_gid.stdout | int)
+  changed_when: >
+    munge_key_stat.stat.pw_uid != (munge_uid.stdout | int) or
+    munge_key_stat.stat.pw_gid != (munge_gid.stdout | int)
+
+- name: Check current ownership of /etc/munge dir in overlay
+  ansible.builtin.stat:
+    path: /srv/warewulf/overlays/nodeconfig/rootfs/etc/munge
+  register: munge_dir_stat
+
+- name: Set ownership of /etc/munge dir in overlay
+  ansible.builtin.command: >
+    wwctl overlay chown nodeconfig /etc/munge {{ munge_uid.stdout }} {{ munge_gid.stdout }}
+  when: >
+    - ( inventory_hostname in groups['sms'] )
+    munge_dir_stat.stat.pw_uid != (munge_uid.stdout | int) or
+    munge_dir_stat.stat.pw_gid != (munge_gid.stdout | int)
+  changed_when: >
+    munge_dir_stat.stat.pw_uid != (munge_uid.stdout | int) or
+    munge_dir_stat.stat.pw_gid != (munge_gid.stdout | int)
+
+- name: Set permissions on /etc/munge dir in overlay
+  ansible.builtin.command: >
+    wwctl overlay chmod nodeconfig /etc/munge 0700
+  when: >
+    - ( inventory_hostname in groups['sms'] )
+    munge_dir_stat.stat.mode != '0700'
+  changed_when: >
+    munge_dir_stat.stat.mode != '0700'
