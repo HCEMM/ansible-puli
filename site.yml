@@ -14,3 +14,4 @@
     - setup-slurm
     - build-compute-images
     - customize-nodes
+    - build-overlay
