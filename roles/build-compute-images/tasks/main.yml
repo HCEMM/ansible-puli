@@ -39,12 +39,6 @@
     - ( "package ohpc-release is not installed" in ohpc_repo_check.stdout )
     - inventory_hostname in groups['sms']
 
-# export CHROOT=$(wwctl image show almalinux-9)
-- name: Get Warewulf chroot path for almalinux-9
-  ansible.builtin.command: wwctl image show almalinux-9
-  register: base_chroot
-  changed_when: false
-
 # wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
 #   dnf -y install ohpc-base-compute
 # EOF
@@ -59,7 +53,7 @@
 #   dnf -y install lmod-ohpc
 # EOF
 - name: Install required packages into Warewulf image
-  ansible.builtin.include_tasks: install_pkg_on_image.yml
+  ansible.builtin.include_tasks: roles/utils/tasks/install_pkg_on_image.yml
   vars:
     image: almalinux-9
     pkg: "{{ item }}"

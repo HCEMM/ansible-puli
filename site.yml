@@ -13,3 +13,4 @@
     - setup-warewulf
     - setup-slurm
     - build-compute-images
+    - customize-nodes
