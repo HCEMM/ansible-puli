@@ -35,7 +35,3 @@
     state: present
   when:
     ( inventory_hostname in groups['sms'] )
-
-# dnf -y install nhc-ohpc
-# dnf -y install cuda-repo-ohpc
-# dnf -y install nvidia-driver-cuda cuda-devel-ohpc
