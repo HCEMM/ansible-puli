@@ -104,6 +104,8 @@
     path: "/etc/rsyslog.d/ohpc.conf"
     line: "{{ item }}"
     state: present
+    create: true
+    mode: '0644'
   loop:
     - "module(load=\"imudp\")"
     - "input(type=\"imudp\" port=\"514\")"
@@ -125,6 +127,10 @@
     path: "{{ chroot_path }}/etc/rsyslog.d/ohpc.conf"
     line: "*.* action(type=\"omfwd\" Target=\"${sms_ip}\" Port=\"514\" Protocol=\"udp\")"
     state: present
+    create: true
+    mode: '0644'
+  when:
+    - ( inventory_hostname in groups['sms'] )
 
 # perl -pi -e "s/^\*\.info/\\#\*\.info/" $CHROOT/etc/rsyslog.conf
 # perl -pi -e "s/^authpriv/\\#authpriv/" $CHROOT/etc/rsyslog.conf
