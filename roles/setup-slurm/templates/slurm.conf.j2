@@ -69,8 +69,8 @@ TreeWidth=32
 PartitionName=cpu Nodes=scc-cpu[01-11]-10G MaxTime=30-00:00:00 AllowAccounts=CPU CpuBind=core DefMemPerCPU=5333 Default=YES
 PartitionName=highmem Nodes=scc-mem02-10G MaxTime=10-00:00:00 AllowAccounts=MEM CpuBind=core DefMemPerCPU=42777
 PartitionName=gpu Nodes=scc-gpu[01-02]-10G MaxTime=10-00:00:00 AllowAccounts=GPU AllowGroups=LAMSA CpuBind=core DefMemPerCPU=5333
-NodeName=scc-cpu[01-11]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 CpuBind=core
-NodeName=scc-mem02-10G CPUs=32 Sockets=4 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=1024000 Features=highmem CpuBind=core
-NodeName=scc-gpu[01-02]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
+NodeName=scc-cpu[01-11]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=256000 CpuBind=core
+NodeName=scc-mem02-10G CPUs=32 Sockets=4 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=2048000 Features=highmem CpuBind=core
+NodeName=scc-gpu[01-02]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=256000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
 NodeSet=rack6 Nodes=scc-mem02-10G,scc-gpu02-10G,scc-cpu[02,04,06,08,10]-10G
 NodeSet=rack7 Nodes=scc-gpu01-10G,scc-cpu[01,03,05,07,09,11]-10G

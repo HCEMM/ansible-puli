@@ -2,12 +2,12 @@
 # export CHROOT=$(wwctl image show almalinux-9)
 - name: Get Warewulf chroot path for almalinux-9
   ansible.builtin.command: wwctl image show almalinux-9
-  register: computes_chroot
+  register: chroot_path_result
   changed_when: false
 
 - name: Extract chroot path from wwctl output
   ansible.builtin.set_fact:
-    chroot_path: "{{ computes_chroot.stdout_lines | select('match', '^chroot dir') | map('regex_replace', '^.*:\\s*', '') | list | first }}"
+    chroot_path: "{{ chroot_path_result.stdout }}"
 
 # perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' /etc/security/limits.conf
 # perl -pi -e 's/# End of file/\* hard memlock unlimited\n$&/s' /etc/security/limits.conf
@@ -63,7 +63,7 @@
     state: present
   when:
     - ( inventory_hostname in groups['sms'] )
-    - install_nvidia_drivers
+    - cn_install_nvidia_drivers
 
 # wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
 # dnf -y install cuda-repo-ohpc
@@ -81,7 +81,7 @@
   failed_when: false
   when:
     - inventory_hostname in groups['sms']
-    - install_nvidia_driver
+    - cn_install_nvidia_drivers
 
 - name: Install and configure CUDA and NVIDIA packages on compute nodes
   ansible.builtin.shell:
@@ -95,7 +95,7 @@
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )
   when:
     - ( inventory_hostname in groups['sms'] )
-    - install_nvidia_drivers
+    - cn_install_nvidia_drivers
 
 # echo 'module(load="imudp")' >> /etc/rsyslog.d/ohpc.conf
 # echo 'input(type="imudp" port="514")' >> /etc/rsyslog.d/ohpc.conf
@@ -153,7 +153,7 @@
     state: present
   when:
     - ( inventory_hostname in groups['sms'] )
-    - install_nhc
+    - cn_install_nhc
 
 # dnf -y --installroot=$CHROOT install nhc-ohpc
 - name: Check if NHC is installed inside image
@@ -163,6 +163,6 @@
     pkg: nhc-ohpc
   when:
     - inventory_hostname in groups['sms']
-    - install_nhc
+    - cn_install_nhc
 
 # ulimit -v unlimited - TODO - lets see - probably not needed, I think users can set this up themselves on an ad hoc basis
