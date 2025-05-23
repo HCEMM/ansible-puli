@@ -1,8 +1,20 @@
 ---
-- name: Support unprivileged user namespaces, and configure chrony, systemd and NetworkManager, and Slurm server
+- name: Check if overlay file exists
+  ansible.builtin.stat:
+    path: /srv/warewulf/overlays/nodeconfig/etc/{{ item.dest }}
+  loop:
+    - { src: /etc/subuid, dest: subuid }
+    - { src: /etc/subgid, dest: subgid }
+    - { src: "{{ role_path }}/files/chrony.conf.ww", dest: chrony.conf.ww }
+    - { src: "{{ role_path }}/files/override.conf", dest: systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    - { src: "{{ role_path }}/files/slurmd.ww", dest: sysconfig/slurmd.ww }
+    - { src: /etc/munge/munge.key, dest: munge/munge.key }
+  register: overlay_file_stat
+  when:
+    - ( inventory_hostname in groups['sms'] )
+
+- name: Support unprivileged user namespaces, and configure chrony, systemd, NetworkManager and Slurm server
   ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ item.src }}
-  args:
-    creates: /srv/warewulf/overlays/nodeconfig/etc/{{ item.dest }}
   loop:
     # wwctl overlay import --parents nodeconfig /etc/subuid
     - { src: /etc/subuid, dest: subuid }
@@ -24,6 +36,8 @@
     - { src: /etc/munge/munge.key, dest: munge/munge.key }
   when:
     - ( inventory_hostname in groups['sms'] )
+    - not overlay_file_stat.results[loop.index0].stat.exists
+  changed_when: true
 
 # wwctl profile set --yes nodes --tagadd ntpserver=${sms_ip}
 # wwctl profile set --yes nodes --tagadd slurmctld=${sms_ip}
