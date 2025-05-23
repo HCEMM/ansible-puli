@@ -1,27 +1,26 @@
 ---
-# wwctl overlay import --parents nodeconfig /etc/subuid
-# wwctl overlay import --parents nodeconfig /etc/subgid
-# echo 'server {{.Tags.ntpserver}} iburst' | \
-# wwctl overlay import --parents nodeconfig <(cat) /etc/chrony.conf.ww
-# ####
-# cat <<- EOF | wwctl overlay import --parents nodeconfig <(cat) \
-# /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf
-# [Service]
-# ExecStart=/usr/bin/nm-online -q
-# EOF
-# echo SLURMD_OPTIONS='--conf-server {{.Tags.slurmctld}}' | \
-# wwctl overlay import --parents nodeconfig <(cat) /etc/sysconfig/slurmd.ww
-# wwctl overlay import --parents nodeconfig /etc/munge/munge.key
 - name: Support unprivileged user namespaces, and configure chrony, systemd and NetworkManager, and Slurm server
-  ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ src }}
+  ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ item.src }}
   args:
-    creates: /srv/warewulf/overlays/nodeconfig/etc/{{ dest }}
+    creates: /srv/warewulf/overlays/nodeconfig/etc/{{ item.dest }}
   loop:
+    # wwctl overlay import --parents nodeconfig /etc/subuid
     - { src: /etc/subuid, dest: subuid }
+    # wwctl overlay import --parents nodeconfig /etc/subgid
     - { src: /etc/subgid, dest: subgid }
-    - { src: files/chrony.conf.ww, dest: chrony.conf.ww }
-    - { src: files/override.conf, dest: systemd/system/NetworkManager-wait-online.service.d/override.conf }
-    - { src: files/slurmd.ww, dest: sysconfig/slurmd.ww }
+    # echo 'server {{.Tags.ntpserver}} iburst' | \
+    # wwctl overlay import --parents nodeconfig <(cat) /etc/chrony.conf.ww
+    - { src: "{{ role_path }}/files/chrony.conf.ww", dest: chrony.conf.ww }
+    # cat <<- EOF | wwctl overlay import --parents nodeconfig <(cat) \
+    # /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf
+    # [Service]
+    # ExecStart=/usr/bin/nm-online -q
+    # EOF
+    - { src: "{{ role_path }}/files/override.conf", dest: systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    # echo SLURMD_OPTIONS='--conf-server {{.Tags.slurmctld}}' | \
+    # wwctl overlay import --parents nodeconfig <(cat) /etc/sysconfig/slurmd.ww
+    - { src: "{{ role_path }}/files/slurmd.ww", dest: sysconfig/slurmd.ww }
+    # wwctl overlay import --parents nodeconfig /etc/munge/munge.key
     - { src: /etc/munge/munge.key, dest: munge/munge.key }
   when:
     - ( inventory_hostname in groups['sms'] )
