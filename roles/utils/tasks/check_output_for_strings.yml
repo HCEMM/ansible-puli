@@ -1,0 +1,25 @@
+- name: Run command and capture output
+  ansible.builtin.command: "{{ cmd }}"
+  register: command_output
+  changed_when: false
+
+- name: Initialize output_match_found to true
+  ansible.builtin.set_fact:
+    output_match_found: true
+    patterns_not_found: []
+
+- name: Check each literal pattern in command output
+  vars:
+    pattern_found: "{{ command_output.stdout.find(item) != -1 }}"
+  ansible.builtin.set_fact:
+    output_match_found: false
+    patterns_not_found: "{{ patterns_not_found + [item] }}"
+  when: not pattern_found
+  loop: "{{ patterns }}"
+
+- name: Debug pattern match result
+  ansible.builtin.debug:
+    msg:
+      stdout: "{{ command_output.stdout }}"
+      patterns_not_found: "{{ patterns_not_found }}"
+      output_match_found: "{{ output_match_found }}"
