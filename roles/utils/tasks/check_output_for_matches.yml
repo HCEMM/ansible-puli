@@ -7,5 +7,20 @@
   ansible.builtin.set_fact:
     output_match_found: >-
       {{
-        patterns | map('regex_search', command_output.stdout, multiline=True) | list | select('equalto', None) | list | length == 0
+        patterns | length > 0 and
+        (
+          patterns
+          | map('regex_search', command_output.stdout, multiline=True)
+          | list
+          | select('equalto', None)
+          | list
+          | length == 0
+        )
       }}
+
+- debug:
+    msg:
+      patterns_found: >-
+        {{
+          patterns | map('regex_search', command_output.stdout, multiline=True) | list
+        }}
