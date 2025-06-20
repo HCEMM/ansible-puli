@@ -19,7 +19,7 @@
 
 - name: Decide if image is stale
   ansible.builtin.set_fact:
-    image_needs_rebuild: "{{ image_age_minutes > image_max_age_minutes }}"
+    image_needs_rebuild: "{{ image_age_minutes | int > fp_image_max_age }}"
 
 - name: Build image if stale
   ansible.builtin.command: wwctl image build almalinux-9
@@ -40,7 +40,7 @@
 #   --ipaddr=${c_ip[$i]} --hwaddr=${c_mac[$i]} ${c_name[i]}
 # done
 - name: Check if node exists
-  ansible.builtin.include_tasks: check_output_for_strings.yml
+  ansible.builtin.include_tasks: roles/utils/tasks/check_outputs_for_strings.yml
   vars:
     cmd: "wwctl node list"
     patterns: ["{{ item.c_name }}"]
@@ -48,6 +48,16 @@
   loop_control:
     label: "{{ item.c_name }}"
   register: node_check_results
+
+- name: See full result
+  ansible.builtin.debug:
+    msg: "{{ node_check_results }}"
+
+- name: See matches
+  ansible.builtin.debug:
+    msg: "Node {{ item.c_name }} already exists in Warewulf."
+  when: item.output_match_found | default(false)
+  loop: "{{ node_check_results.results }}"
 
 - name: Add node if it does not exist
   ansible.builtin.command: >
@@ -97,7 +107,9 @@
     name: slurmctld
     enabled: true
     state: started
-  when: ( inventory_hostname in groups['sms'] )
+  when:
+    - ( inventory_hostname in groups['sms'] )
+    - env == 'production'
 
 # for ((i=0; i<${num_computes}; i++)) ; do
 #   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} -P ${bmc_password} chassis power reset
@@ -116,7 +128,7 @@
         | map('regex_search', '^(\\S+).*?(\\d+)$')
         | selectattr('1', 'defined')
         | selectattr('1', 'int')
-        | selectattr('1', 'int', '>', node_lastseen_threshold)
+        | selectattr('1', 'int', '>', fp_node_lastseen_threshold)
         | map('first')
         | list
       }}
@@ -132,6 +144,7 @@
   when:
     - nodes_to_reset | length > 0
     - ( inventory_hostname in groups['sms'] )
+    - env == 'production'
 
 # pdsh -w $(IFS=','; echo "${c_name[*]}") "/usr/sbin/nhc-genconf -H '*' -c -" | dshbak -c
 - name: Generate NHC configuration on compute nodes
@@ -140,4 +153,6 @@
     /usr/sbin/nhc-genconf -H '*' -c - | dshbak -c
   args:
     creates: /etc/nhc/nhc.conf
-  when: ( inventory_hostname in groups['computes'] )
+  when:
+    - ( inventory_hostname in groups['computes'] )
+    - env == 'production'

@@ -1,3 +1,4 @@
-accounting_storage_user: slurm
-slurm_user: slurm
-cluster_name: sccluster
+slurm_accounting_storage_user: slurm
+slurm_storage_pass: password
+slurm_cluster_name: sccluster
+slurm_slurm_user: slurm

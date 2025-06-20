@@ -1,3 +1,5 @@
+# This playbook checks if specific strings are present in the output of a command.
+# It returns one value of "output_match_found" as true if all patterns are found, and false otherwise.
 - name: Run command and capture output
   ansible.builtin.command: "{{ cmd }}"
   register: command_output
@@ -16,10 +18,3 @@
     patterns_not_found: "{{ patterns_not_found + [item] }}"
   when: not pattern_found
   loop: "{{ patterns }}"
-
-- name: Debug pattern match result
-  ansible.builtin.debug:
-    msg:
-      stdout: "{{ command_output.stdout }}"
-      patterns_not_found: "{{ patterns_not_found }}"
-      output_match_found: "{{ output_match_found }}"
