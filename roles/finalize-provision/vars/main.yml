@@ -1,0 +1,2 @@
+image_max_age: 10                # minutes - set this so the image is not built over and over, when doing consecutive quick tests
+node_lastseen_threshold: 3600    # seconds - Warewulf's default is 100 seconds to consider unresponsive, but I don't want to risk always be reseting nodes

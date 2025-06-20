@@ -1,5 +1,4 @@
 ---
-
 - name: Build PULI
   hosts: all
   any_errors_fatal: true
@@ -15,3 +14,4 @@
     - build-compute-images
     - customize-nodes
     - build-overlay
+    - finalize-provision
