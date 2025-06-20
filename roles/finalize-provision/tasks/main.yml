@@ -1,0 +1,143 @@
+---
+# wwctl image build almalinux-9
+# wwctl overlay build
+- name: Get current time
+  ansible.builtin.command: date +%s
+  register: now_ts
+  changed_when: false
+
+- name: Get image modification time
+  ansible.builtin.shell: >
+    set -o pipefail
+    date -d "$(wwctl image list --long | grep almalinux-9 | awk '{print $(NF-5)" "$(NF-4)" "$(NF-3)')" +%s
+  register: image_mod_ts
+  changed_when: false
+
+- name: Calculate image age in minutes
+  ansible.builtin.set_fact:
+    image_age_minutes: "{{ (now_ts.stdout | int - image_mod_ts.stdout | int) // 60 }}"
+
+- name: Decide if image is stale
+  ansible.builtin.set_fact:
+    image_needs_rebuild: "{{ image_age_minutes > image_max_age_minutes }}"
+
+- name: Build image if stale
+  ansible.builtin.command: wwctl image build almalinux-9
+  changed_when: image_needs_rebuild
+  when:
+    - image_needs_rebuild
+    - ( inventory_hostname in groups['sms'] )
+
+- name: Build overlays if image was rebuilt
+  ansible.builtin.command: wwctl overlay build
+  changed_when: image_needs_rebuild
+  when:
+    - image_needs_rebuild
+    - ( inventory_hostname in groups['sms'] )
+
+# for ((i=0; i<$num_computes; i++)) ; do
+#   wwctl node add --image=almalinux-9 --profile=nodes --netname=default \
+#   --ipaddr=${c_ip[$i]} --hwaddr=${c_mac[$i]} ${c_name[i]}
+# done
+- name: Check if node exists
+  ansible.builtin.include_tasks: check_output_for_strings.yml
+  vars:
+    cmd: "wwctl node list"
+    patterns: ["{{ item.c_name }}"]
+  loop: "{{ compute_nodes }}"
+  loop_control:
+    label: "{{ item.c_name }}"
+  register: node_check_results
+
+- name: Add node if it does not exist
+  ansible.builtin.command: >
+    wwctl node add
+    --image=almalinux-9
+    --profile nodes
+    --netname=default
+    --ipaddr {{ item.c_ip }}
+    --hwaddr {{ item.c_mac }}
+    {{ item.c_name }}
+  loop: "{{ compute_nodes }}"
+  loop_control:
+    label: "{{ item.c_name }}"
+  changed_when: >
+    not node_check_results.results[loop.index0].output_match_found | default(false)
+  when:
+    - ( not (node_check_results.results[loop.index0].output_match_found | default(false)) )
+    - ( inventory_hostname in groups['sms'] )
+
+- name: Trigger overlay/configure after node add
+  ansible.builtin.set_fact:
+    overlay_needs_rebuild: "{{ not output_match_found }}"
+
+# wwctl overlay build
+- name: Build overlays if node config changed
+  ansible.builtin.command: wwctl overlay build
+  changed_when: overlay_needs_rebuild
+  when: overlay_needs_rebuild
+
+# wwctl configure --all
+- name: Configure warewulf if node config changed
+  ansible.builtin.command: wwctl configure --all
+  changed_when: overlay_needs_rebuild
+  when: overlay_needs_rebuild
+
+# systemctl enable --now munge
+- name: Enable and start munge service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+  when: ( inventory_hostname in groups['sms'] )
+
+# systemctl enable --now slurmctld
+- name: Enable and start slurmctld service
+  ansible.builtin.systemd:
+    name: slurmctld
+    enabled: true
+    state: started
+  when: ( inventory_hostname in groups['sms'] )
+
+# for ((i=0; i<${num_computes}; i++)) ; do
+#   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} -P ${bmc_password} chassis power reset
+# done
+- name: Get WW node status
+  ansible.builtin.command: wwctl node status
+  register: node_status
+  changed_when: false
+
+- name: Get nodes needing reset
+  ansible.builtin.set_fact:
+    nodes_to_reset: >-
+      {{
+        node_status.stdout_lines
+        | select('match', '^scc-')
+        | map('regex_search', '^(\\S+).*?(\\d+)$')
+        | selectattr('1', 'defined')
+        | selectattr('1', 'int')
+        | selectattr('1', 'int', '>', node_lastseen_threshold)
+        | map('first')
+        | list
+      }}
+
+- name: Reset nodes that are overdue
+  ansible.builtin.command: >
+    ipmitool -E -I lanplus -H {{ hostvars[item].bmc_ip }}
+    -U {{ bmc_username }} -P {{ bmc_password }} chassis power reset
+  loop: "{{ nodes_to_reset }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: nodes_to_reset | length > 0
+  when:
+    - nodes_to_reset | length > 0
+    - ( inventory_hostname in groups['sms'] )
+
+# pdsh -w $(IFS=','; echo "${c_name[*]}") "/usr/sbin/nhc-genconf -H '*' -c -" | dshbak -c
+- name: Generate NHC configuration on compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/sbin/nhc-genconf -H '*' -c - | dshbak -c
+  args:
+    creates: /etc/nhc/nhc.conf
+  when: ( inventory_hostname in groups['computes'] )
