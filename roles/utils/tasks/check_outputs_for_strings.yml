@@ -1,0 +1,20 @@
+# This playbook checks if specific strings are present in the output of a command.
+# It returns a true/false "output_match_found" value for each pattern checked.
+# These utils functions need better names.
+- name: Run command and capture output
+  ansible.builtin.command: "{{ cmd }}"
+  register: command_output
+  changed_when: false
+
+- name: Initialize pattern results dict
+  ansible.builtin.set_fact:
+    pattern_results: {}
+
+- name: Check if each pattern is in output
+  vars:
+    found: "{{ command_output.stdout.find(pattern) != -1 }}"
+  ansible.builtin.set_fact:
+    pattern_results: "{{ pattern_results | combine({ pattern: found }) }}"
+  loop: "{{ patterns }}"
+  loop_control:
+    loop_var: pattern
