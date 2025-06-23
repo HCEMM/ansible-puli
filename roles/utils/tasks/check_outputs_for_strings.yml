@@ -6,6 +6,10 @@
   register: command_output
   changed_when: false
 
+- name: See results of command
+  ansible.builtin.debug:
+    msg: "{{ command_output.stdout }}"
+
 - name: Initialize pattern results dict
   ansible.builtin.set_fact:
     pattern_results: {}
@@ -14,7 +18,7 @@
   vars:
     found: "{{ command_output.stdout.find(pattern) != -1 }}"
   ansible.builtin.set_fact:
-    pattern_results: "{{ pattern_results | combine({ pattern: found }) }}"
+    pattern_results: "{{ pattern_results | combine({pattern: found}) }}"
   loop: "{{ patterns }}"
   loop_control:
     loop_var: pattern

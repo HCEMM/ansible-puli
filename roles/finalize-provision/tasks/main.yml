@@ -39,47 +39,46 @@
 #   wwctl node add --image=almalinux-9 --profile=nodes --netname=default \
 #   --ipaddr=${c_ip[$i]} --hwaddr=${c_mac[$i]} ${c_name[i]}
 # done
-- name: Check if node exists
-  ansible.builtin.include_tasks: roles/utils/tasks/check_outputs_for_strings.yml
-  vars:
-    cmd: "wwctl node list"
-    patterns: ["{{ item.c_name }}"]
-  loop: "{{ compute_nodes }}"
-  loop_control:
-    label: "{{ item.c_name }}"
-  register: node_check_results
+- name: Get current node list
+  ansible.builtin.command: wwctl node list
+  register: wwctl_node_list
+  changed_when: false
 
-- name: See full result
-  ansible.builtin.debug:
-    msg: "{{ node_check_results }}"
+- name: Initialize extracted node names list
+  ansible.builtin.set_fact:
+    extracted_node_names: []
 
-- name: See matches
-  ansible.builtin.debug:
-    msg: "Node {{ item.c_name }} already exists in Warewulf."
-  when: item.output_match_found | default(false)
-  loop: "{{ node_check_results.results }}"
+- name: Extract node names from wwctl output
+  ansible.builtin.set_fact:
+    extracted_node_names: "{{ extracted_node_names + [item.split(' ')[0]] }}"
+  loop: "{{ wwctl_node_list.stdout_lines }}"
+  when: item is search('^scc-')  # skip headers
+
+- name: Filter nodes that are not yet present
+  ansible.builtin.set_fact:
+    nodes_to_add_filtered: >-
+      {{ compute_nodes | rejectattr('c_name', 'in', extracted_node_names) | list }}
 
 - name: Add node if it does not exist
   ansible.builtin.command: >
     wwctl node add
     --image=almalinux-9
-    --profile nodes
+    --profile=nodes
     --netname=default
-    --ipaddr {{ item.c_ip }}
-    --hwaddr {{ item.c_mac }}
+    --ipaddr={{ item.c_ip }}
+    --hwaddr={{ item.c_mac }}
     {{ item.c_name }}
-  loop: "{{ compute_nodes }}"
+  loop: "{{ nodes_to_add_filtered }}"
   loop_control:
     label: "{{ item.c_name }}"
-  changed_when: >
-    not node_check_results.results[loop.index0].output_match_found | default(false)
+  changed_when:
+    - nodes_to_add_filtered | length > 0
   when:
-    - ( not (node_check_results.results[loop.index0].output_match_found | default(false)) )
-    - ( inventory_hostname in groups['sms'] )
+    - inventory_hostname in groups['sms']
 
 - name: Trigger overlay/configure after node add
   ansible.builtin.set_fact:
-    overlay_needs_rebuild: "{{ not output_match_found }}"
+    overlay_needs_rebuild: nodes_to_add_filtered | length > 0
 
 # wwctl overlay build
 - name: Build overlays if node config changed
@@ -133,7 +132,7 @@
         | list
       }}
 
-- name: Reset nodes that are overdue
+- name: Reset non-available nodes
   ansible.builtin.command: >
     ipmitool -E -I lanplus -H {{ hostvars[item].bmc_ip }}
     -U {{ bmc_username }} -P {{ bmc_password }} chassis power reset
