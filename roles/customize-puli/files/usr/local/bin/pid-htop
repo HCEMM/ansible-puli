@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# This script uses htop to monitor the processes/children of a given PID
+
+usage() {
+    echo "Usage: $0 <PID> "
+    exit 1
+}
+
+PID=$1          # Get the PID of the process to monitor
+
+ml htop
+
+htop -p `pstree -p $PID | perl -ne 'push @t, /\((\d+)\)/g; END { print join ",", @t }'`

@@ -15,3 +15,7 @@
     - customize-nodes
     - build-overlay
     - finalize-provision
+    - setup-modules
+    - configure-shares
+    - configure-users
+    - customize-puli

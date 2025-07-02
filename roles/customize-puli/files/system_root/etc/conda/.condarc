@@ -1,0 +1,4 @@
+channels:       # explicitly doesn't mention "defaults" here to silence deprecation warning
+  - conda-forge
+  - bioconda
+  - r

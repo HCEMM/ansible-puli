@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Prompt for the suggestion message
+echo "Please enter your suggestion (one line) and press Enter:"
+
+# Capture the suggestion message (single line input)
+read suggestion
+
+# Check if the input is not empty
+if [ -z "$suggestion" ]; then
+    echo "No suggestion entered. Exiting."
+    exit 1
+fi
+
+# Write the suggestion to /root/user_suggestions.txt with a timestamp
+echo -e "$(date '+%Y-%m-%d %H:%M:%S') - Suggestion from $USER: $suggestion\n" >> /root/user_suggestions.txt
+
+# Confirm the suggestion was submitted
+echo "Your suggestion has been recorded. Thank you!"

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo
+echo "=================================================================================================="
+echo "To cite the PULI HPC cluster, please copy the following line into your acknowledgements section:"
+echo
+echo "The study utilized the high-performance computer capabilities of the PULI HPC cluster at HCEMM."
+echo
+echo "U･ᴥ･U PULI thanks for the recognition. U･ᴥ･U"
+echo "=================================================================================================="
+echo

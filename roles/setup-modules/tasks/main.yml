@@ -1,10 +1,22 @@
 ---
-# install spack_modules:
-- name: Install Spack modules
-  ansible.builtin.include_role:
-    name: spack
-  vars:
-    spack_gcc: "{{ sm_spack_gcc }}"
-    spack_modules: "{{ sm_spack_modules }}"
+- name: Set Spack module management
+  ansible.builtin.replace:
+    path: /path/to/your/file.yml
+    regexp: 'enable:\s*\["tcl"\]'
+    replace: 'enable: ["lmod"]'
 
-# remove defaults from .condarc
+- name: Install Spack packages
+  ansible.builtin.shell: spack find {{ item }} || spack install {{ item }}   # `spack find` returns 0 if the package is installed, otherwise it returns 1
+  loop: "{{ sm_spack_packages }}"
+  register: spack_result
+  changed_when: "'Installing' in spack_result.stdout"
+  when:
+    - inventory_hostname in groups['sms']
+    - sm_spack_packages is defined
+    - sm_spack_packages | length > 0
+
+- name: Refresh Spack modules
+  ansible.builtin.command: spack module lmod refresh
+  changed_when: spack_result.changed
+  when:
+    - inventory_hostname in groups['sms']
