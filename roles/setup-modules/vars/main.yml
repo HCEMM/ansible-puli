@@ -1,0 +1,14 @@
+sm_spack_gcc: "11.5.0"
+sm_spack_modules:
+  - bwa
+  - sratoolkit
+  - picard
+  - samtools
+  - py-macs3
+  - bedtools2
+  - py-pandas
+  - miniconda3
+  - apptainer
+  - py-multiqc
+  - seqkit
+  - cd-hit

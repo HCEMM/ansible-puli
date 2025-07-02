@@ -1,0 +1,10 @@
+---
+# install spack_modules:
+- name: Install Spack modules
+  ansible.builtin.include_role:
+    name: spack
+  vars:
+    spack_gcc: "{{ sm_spack_gcc }}"
+    spack_modules: "{{ sm_spack_modules }}"
+
+# remove defaults from .condarc
