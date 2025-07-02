@@ -17,10 +17,3 @@
           | length == 0
         )
       }}
-
-- debug:
-    msg:
-      patterns_found: >-
-        {{
-          patterns | map('regex_search', command_output.stdout, multiline=True) | list
-        }}
