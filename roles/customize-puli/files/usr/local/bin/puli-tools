@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo
+echo "PULI cluster provides some useful tools/commands:"
+echo
+echo "======================================================================================================================================"
+echo "* \`cite-cluster\`     get a sample text of how to properly cite the PULI cluster."
+echo "* \`suggestion-box\`   send a message to the managers of PULI, give some cool suggestions for the cluster, or some random thoughts."
+echo "* \`sq\`               get current running jobs for your user, with a little more space on job name (useful for BIG names)."
+echo "* \`pid-htop <PID>\`   monitor the processes/children of a given PID using htop."
+echo "* \`sac\`              an extended version of the \`sacct\` command, with more information about the jobs."
+echo "======================================================================================================================================"
+echo

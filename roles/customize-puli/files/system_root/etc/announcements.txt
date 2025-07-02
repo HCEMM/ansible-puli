@@ -1,0 +1,10 @@
+#1.[A] [2025-03-01] The Cluster will undergo maintenance next Tuesday, 11th of March. The Cluster will be turned off at 4 PM, and will be restarted the next day, after the first coffee of the 4th ACF.
+#2.[W] [2025-03-01] The Cluster will shutdown in one hour. Take care to save your results, and stop your analyses gracefully until 16h30. Files in the HOME and SCRATCH folders are safe.
+#3.[A] [2025-03-01] The Cluster is currently without a name. If you are feeling creative, you can run the "suggestion_box" command to suggest a new name for the cluster!
+#4.[A] [2025-03-14] System-wide default Conda channels have been set in the "/etc/conda/.condarc" file, to remove the annoying deprecation warning. If you intend to use other channels, specify them with "-c <channel>".
+#5.[W] [2025-03-14] Currently testing 2 Factor-Authentication, access may be lost.
+#6.[W] [2025-03-17] fail2ban (https://github.com/fail2ban/fail2ban) is now securing the server. Three failed attempts to connect will result in a 1 hour ban.
+#7.[W] [2025-03-17] 2 Factor-Authentication has blocked access to the compute nodes. Currently trying to fix it.
+#8.[W] [2025-03-24] Management is currently experimenting with setting up a mail server. Disruptions to server access may occur.
+9.[A] [2025-05-19] Some changes have been made to the cluster. For loading conda, please run `ml spack; ml conda`. For loading other modules, always run `ml spack` first.
+10.[A] [2025-05-19] `midnight-commander` is now available in the system! For more information, see: https://www.redhat.com/en/blog/midnight-commander-file-manager

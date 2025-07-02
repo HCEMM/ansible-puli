@@ -1,0 +1,8 @@
+cs_storage_ip: 10.0.50.187
+cs_storage_groups:
+  - klamsa
+  - sjuhasz
+  - csensen
+  - tpankotai
+  - jsequeira
+  - lpongor

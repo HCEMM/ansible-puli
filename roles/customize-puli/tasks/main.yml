@@ -1,0 +1,45 @@
+---
+- name: Copy system_root into /
+  ansible.builtin.copy:
+    src: system_root/
+    dest: /
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Copy user executables into /usr/local/bin
+  ansible.builtin.copy:
+    src: usr/local/bin
+    dest: /usr/local/bin
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Copy root executables into /root/bin
+  ansible.builtin.copy:
+    src: root/bin
+    dest: /root/bin
+    owner: root
+    group: root
+    mode: "0700"
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Create groups
+  ansible.builtin.group:
+    name: { item.name }
+    gid: { item.gid }
+  loop: groups
+
+- name: Create users
+  ansible.builtin.user:
+    name: jsequeira
+    uid: { item.uid }
+    groups: { item.groups }
+    shell: /bin/bash
+    create_home: true
+  loop: cu_users
