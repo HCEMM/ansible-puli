@@ -1,0 +1,10 @@
+---
+- name: Mount NFS shares
+  ansible.posix.mount:
+    src: "{{ configure_shares_storage_ip }}:/mnt/MirrorHDD/scratch/{{ item }}"
+    path: /scratch/{{ item }}
+    opts: rw,sync,soft      # For hard vs soft - https://kb.netapp.com/on-prem/ontap/da/NAS/NAS-KBs/What_are_the_differences_between_hard_mount_and_soft_mount
+    boot: true              # automatically mounted on boot
+    state: mounted          # ensures the mount is present and configured in fstab
+    fstype: nfs
+  loop: configure_shares_storage_groups

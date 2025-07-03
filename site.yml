@@ -8,13 +8,13 @@
   roles:
     - common
     - chronyd
-    - setup-ohpc
-    - setup-warewulf
-    - setup-slurm
-    - build-compute-images
-    - customize-nodes
-    - build-overlay
-    - finalize-provision
-    - setup-modules
-    - configure-shares
-    - customize-puli
+    - setup_ohpc
+    - setup_warewulf
+    - setup_slurm
+    - build_compute_images
+    - customize_nodes
+    - build_overlay
+    - finalize_provision
+    - setup_modules
+    - configure_shares
+    - customize_puli

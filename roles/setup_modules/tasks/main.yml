@@ -1,0 +1,22 @@
+---
+- name: Set Spack module management
+  ansible.builtin.replace:
+    path: /path/to/your/file.yml
+    regexp: 'enable:\s*\["tcl"\]'
+    replace: 'enable: ["lmod"]'
+
+- name: Install Spack packages
+  ansible.builtin.shell: spack find {{ item }} || spack install {{ item }}   # `spack find` returns 0 if the package is installed, otherwise it returns 1
+  loop: "{{ setup_modules_spack_packages }}"
+  register: spack_result
+  changed_when: "'Installing' in spack_result.stdout"
+  when:
+    - inventory_hostname in groups['sms']
+    - setup_modules_spack_packages is defined
+    - setup_modules_spack_packages | length > 0
+
+- name: Refresh Spack modules
+  ansible.builtin.command: spack module lmod refresh
+  changed_when: spack_result.changed
+  when:
+    - inventory_hostname in groups['sms']

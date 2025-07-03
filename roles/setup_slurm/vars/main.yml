@@ -1,0 +1,4 @@
+setup_slurm_accounting_storage_user: slurm
+setup_slurm_storage_pass: password
+setup_slurm_cluster_name: sccluster
+setup_slurm_slurm_user: slurm
