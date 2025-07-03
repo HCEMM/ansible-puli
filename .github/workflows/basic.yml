@@ -1,0 +1,36 @@
+name: Ansible CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:9
+      options: --user root
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          dnf -y update
+          dnf -y install python3 python3-pip git
+          pip3 install --upgrade pip
+          pip3 install ansible ansible-lint
+          ansible-galaxy collection install community.general:==10.6.0
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Ansible vault password file
+        shell: bash
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass.txt
+
+      - name: Run ansible-lint
+        run: ansible-lint site.yml
+
+      #- name: Run ansible-playbook
+      #  run: ansible-playbook -i inventory/test_hosts site.yml -e "env=test"

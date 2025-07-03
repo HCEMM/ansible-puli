@@ -1,0 +1,6 @@
+customize_nodes_install_nvidia_drivers: true
+customize_nodes_install_nhc: true
+customize_nodes_max_memory_soft: 9437184      # Max 9GB (in KB) of address space (virtual memory)
+customize_nodes_max_memory_hard: 10485760     # Max 10GB (in KB) of address space (virtual memory)
+customize_nodes_max_cpu_soft: 3240            # Max 0.9 hours (3240 seconds) of CPU time per process
+customize_nodes_max_cpu_hard: 3600            # Max 1 hour (3600 seconds) of CPU time per process

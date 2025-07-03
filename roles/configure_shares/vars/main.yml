@@ -1,0 +1,8 @@
+configure_shares_storage_ip: 10.0.50.187
+configure_shares_storage_groups:
+  - klamsa
+  - sjuhasz
+  - csensen
+  - tpankotai
+  - jsequeira
+  - lpongor
