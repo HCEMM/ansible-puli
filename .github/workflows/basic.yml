@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Ansible vault password file
         shell: bash
-        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault-password
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /__w/ansible-puli/ansible-puli/.vault-password
 
       - name: Run ansible-lint
         run: ansible-lint site.yml
