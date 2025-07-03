@@ -25,8 +25,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create Ansible vault password file
+        shell: bash
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault-password
+
       - name: Run ansible-lint
-        run: ansible-lint site.yml --vault-password-file="${{ secrets.ANSIBLE_VAULT_PASSWORD }}"
+        run: ansible-lint site.yml
 
       - name: Run ansible-playbook
-        run: ansible-playbook -i inventory/test_hosts site.yml -e "env=test" --vault-password-file="${{ secrets.ANSIBLE_VAULT_PASSWORD }}"
+        run: ansible-playbook -i inventory/test_hosts site.yml -e "env=test"
