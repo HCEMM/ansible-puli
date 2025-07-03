@@ -24,7 +24,7 @@ jobs:
           ansible-galaxy collection install community.general:>=10.6.0 -p ./collections
 
       - name: Check collections
-        run: ls ./collections
+        run: ls ./collections/ansible_collections
 
       - name: Checkout repository
         uses: actions/checkout@v4
