@@ -12,4 +12,4 @@ sm_spack_packages:
   - apptainer
   - py-multiqc
   - seqkit
-  - cd-hit
+  - cdhit
