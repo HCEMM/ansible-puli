@@ -1,0 +1,13 @@
+platforms:
+  - name: localhost
+    image: quay.io/almalinuxorg/almalinux
+    pre_build_image: true
+    privileged: true
+provisioner:
+  name: ansible
+  inventory:
+    hosts: ../../inventory/test_hosts
+  env:
+    env: test
+  playbooks:
+    converge: ../../site.yml
