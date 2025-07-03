@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: almalinux:9
-      options: --user hcemm
+      options: --user root
 
     steps:
       - name: Install system dependencies
