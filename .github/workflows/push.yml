@@ -2,30 +2,28 @@ name: Molecule
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   molecule:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        scenario:
-          - almalinux-9
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          path: "${{ github.repository }}"
-      - name: Molecule
-        uses: gofrolist/molecule-action@v2
-        with:
-          molecule_options: --debug --base-config molecule/_shared/base.yml
-          molecule_command: test
-          molecule_args: --scenario-name ${{ matrix.scenario }}
+          python-version: '3.11'
+
+      - name: Install Molecule with Docker support
+        run: |
+          python -m pip install --upgrade pip
+          pip install molecule[docker] ansible
+
+      - name: Run Molecule
+        run: molecule test -s default
         env:
           ANSIBLE_FORCE_COLOR: '1'
