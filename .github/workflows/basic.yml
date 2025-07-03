@@ -21,7 +21,10 @@ jobs:
           dnf -y install python3 python3-pip git
           pip3 install --upgrade pip
           pip3 install ansible ansible-lint
-          ansible-galaxy collection install community.general:>=10.6.0 -p ./collections
+          ansible-galaxy collection install community.general:>=10.6.0
+
+      - name: Check collections
+        run: ls ~/.ansible/collections/ansible_collections/
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,10 +35,6 @@ jobs:
 
       - name: Run ansible-lint
         run: ansible-lint site.yml
-        env:
-          ANSIBLE_COLLECTIONS_PATHS: ./collections
 
       - name: Run ansible-playbook
         run: ansible-playbook -i inventory/test_hosts site.yml -e "env=test"
-        env:
-          ANSIBLE_COLLECTIONS_PATHS: ./collections
