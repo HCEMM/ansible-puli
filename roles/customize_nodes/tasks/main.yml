@@ -19,10 +19,10 @@
     state: present
     insertbefore: '^# End of file'
   loop:
-    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock {{ cn_max_memory_soft }}' }
-    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock {{ cn_max_memory_hard }}' }
-    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time {{ cn_max_cpu_soft }}' }
-    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time {{ cn_max_cpu_hard }}' }
+    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock {{ customize_nodes_max_memory_soft }}' }
+    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock {{ customize_nodes_max_memory_hard }}' }
+    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time {{ customize_nodes_max_cpu_soft }}' }
+    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time {{ customize_nodes_max_cpu_hard }}' }
   when:
     - ( inventory_hostname in groups['sms'] )
 
@@ -63,7 +63,7 @@
     state: present
   when:
     - ( inventory_hostname in groups['sms'] )
-    - cn_install_nvidia_drivers
+    - customize_nodes_install_nvidia_drivers
 
 # wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
 # dnf -y install cuda-repo-ohpc
@@ -81,7 +81,7 @@
   failed_when: false
   when:
     - inventory_hostname in groups['sms']
-    - cn_install_nvidia_drivers
+    - customize_nodes_install_nvidia_drivers
 
 - name: Install and configure CUDA and NVIDIA packages on compute nodes
   ansible.builtin.shell:
@@ -95,7 +95,7 @@
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )
   when:
     - ( inventory_hostname in groups['sms'] )
-    - cn_install_nvidia_drivers
+    - customize_nodes_install_nvidia_drivers
 
 # echo 'module(load="imudp")' >> /etc/rsyslog.d/ohpc.conf
 # echo 'input(type="imudp" port="514")' >> /etc/rsyslog.d/ohpc.conf
@@ -159,7 +159,7 @@
     state: present
   when:
     - ( inventory_hostname in groups['sms'] )
-    - cn_install_nhc
+    - customize_nodes_install_nhc
 
 # dnf -y --installroot=$CHROOT install nhc-ohpc
 - name: Check if NHC is installed inside image
@@ -169,6 +169,6 @@
     pkg: nhc-ohpc
   when:
     - inventory_hostname in groups['sms']
-    - cn_install_nhc
+    - customize_nodes_install_nhc
 
 # ulimit -v unlimited - TODO - lets see - probably not needed, I think users can set this up themselves on an ad hoc basis

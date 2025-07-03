@@ -19,7 +19,7 @@
 
 - name: Decide if image is stale
   ansible.builtin.set_fact:
-    image_needs_rebuild: "{{ image_age_minutes | int > fp_image_max_age }}"
+    image_needs_rebuild: "{{ image_age_minutes | int > finalize_provision_image_max_age }}"
 
 - name: Build image if stale
   ansible.builtin.command: wwctl image build almalinux-9
@@ -127,7 +127,7 @@
         | map('regex_search', '^(\\S+).*?(\\d+)$')
         | selectattr('1', 'defined')
         | selectattr('1', 'int')
-        | selectattr('1', 'int', '>', fp_node_lastseen_threshold)
+        | selectattr('1', 'int', '>', finalize_provision_node_lastseen_threshold)
         | map('first')
         | list
       }}
