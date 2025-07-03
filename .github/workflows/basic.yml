@@ -18,7 +18,9 @@ jobs:
         run: |
           dnf -y update
           dnf -y install git
-          python3 -m pip install --user ansible
+          dnf -y install python3 python3-pip git
+          pip3 install --upgrade pip
+          pip3 install ansible ansible-lint
           ansible-galaxy collection install community.general:>=10.6.0
 
       - name: Checkout repository
