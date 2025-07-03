@@ -23,9 +23,6 @@ jobs:
           pip3 install ansible ansible-lint
           ansible-galaxy collection install community.general:==7.5.2
 
-      - name: Check collections
-        run: ls ./collections/ansible_collections
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
