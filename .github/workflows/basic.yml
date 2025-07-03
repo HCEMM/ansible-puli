@@ -17,8 +17,7 @@ jobs:
       - name: Install system dependencies
         run: |
           dnf -y update
-          dnf -y install git
-          dnf -y install python3 python3-pip git
+          dnf -y install python3 python3-pip git firewalld
           pip3 install --upgrade pip
           pip3 install ansible ansible-lint
           ansible-galaxy collection install community.general:==10.6.0
