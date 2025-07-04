@@ -1,0 +1,25 @@
+---
+# dnf -y install ohpc-autotools
+# dnf -y install EasyBuild-ohpc
+# dnf -y install spack-ohpc
+# dnf -y install gnu14-compilers-ohpc
+# dnf -y install openmpi5-pmix-gnu14-ohpc mpich-ofi-gnu14-ohpc
+# dnf -y install lmod-defaults-gnu14-openmpi5-ohpc
+- name: Install base HPC packages
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ hpc_toolchain_packages }}"
+  when:
+    - inventory_hostname in groups['sms']
+
+# dnf -y install hwloc-ohpc
+# dnf -y install valgrind-ohpc
+# dnf -y install ohpc-gnu14-perf-tools
+- name: Install HPC performance packages
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ hpc_toolchain_performance_packages }}"
+  when:
+    - inventory_hostname in groups['sms']
