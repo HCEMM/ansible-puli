@@ -7,9 +7,8 @@
 # dnf -y install lmod-defaults-gnu14-openmpi5-ohpc
 - name: Install base HPC packages
   ansible.builtin.dnf:
-    name: "{{ item }}"
+    name: "{{ hpc_toolchain_packages }}"
     state: present
-  loop: "{{ hpc_toolchain_packages }}"
   when:
     - inventory_hostname in groups['sms']
 
@@ -18,8 +17,8 @@
 # dnf -y install ohpc-gnu14-perf-tools
 - name: Install HPC performance packages
   ansible.builtin.dnf:
-    name: "{{ item }}"
+    name: "{{ hpc_toolchain_performance_packages }}"
     state: present
-  loop: "{{ hpc_toolchain_performance_packages }}"
   when:
     - inventory_hostname in groups['sms']
+    - hpc_toolchain_install_performance_packages

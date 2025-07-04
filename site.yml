@@ -16,9 +16,9 @@
     - build_overlay
     - finalize_provision
     - hpc_toolchain
+    - customize_puli
     - setup_modules
     - configure_shares
-    - customize_puli
 
     # - role: thinlinc
     #   vars:
