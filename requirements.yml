@@ -1,0 +1,11 @@
+---
+roles:
+  - src: https://github.com/cendio/ansible-role-thinlinc-server.git
+    scm: git
+    name: thinlinc-server
+    version: v1.10
+
+collections:
+  - name: community.general
+    version: ">=10.6.0"
+    source: https://galaxy.ansible.com

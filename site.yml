@@ -18,3 +18,16 @@
     - setup_modules
     - configure_shares
     - customize_puli
+
+    # - role: thinlinc
+    #   vars:
+    #     thinlinc_accept_eula: "yes"
+    #     thinlinc_version: "4.18.0"
+    #     thinlinc_bundle_path: "/root/tl-{{ thinlinc_version }}-server.zip"
+    #     thinlinc_autoinstall_dependencies: "yes"
+    #     thinlinc_printers: "no"
+    #     thinlinc_webaccess_port: 443
+    #     thinlinc_webaccess_login_page: ""
+    #     thinlinc_webadm_port: 1010
+    #     thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
+    #     thinlinc_agent_hostname: "{{ inventory_hostname }}"
