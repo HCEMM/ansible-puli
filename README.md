@@ -5,7 +5,7 @@ To setup
 ```bash
 git clone https://github.com/HCEMM/ansible-puli
 cd ansible-puli
-ansible-galaxy collection install community.general:>=10.6.0
+ansible-galaxy role install -r roles/requirements.yml
 ```
 
 Run in testing environment: 
