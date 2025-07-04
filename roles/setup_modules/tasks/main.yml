@@ -1,7 +1,7 @@
 ---
 - name: Set Spack module management
   ansible.builtin.replace:
-    path: /path/to/your/file.yml
+    path: /opt/ohpc/pub/apps/spack/{{ setup_modules_spack_version }}/etc/spack/defaults/modules.yaml
     regexp: 'enable:\s*\["tcl"\]'
     replace: 'enable: ["lmod"]'
 

@@ -15,6 +15,7 @@
     - customize_nodes
     - build_overlay
     - finalize_provision
+    - hpc_toolchain
     - setup_modules
     - configure_shares
     - customize_puli

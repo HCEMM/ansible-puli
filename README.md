@@ -5,7 +5,7 @@ To setup
 ```bash
 git clone https://github.com/HCEMM/ansible-puli
 cd ansible-puli
-ansible-galaxy role install -r roles/requirements.yml
+ansible-galaxy role install -r requirements.yml
 ```
 
 Run in testing environment: 
