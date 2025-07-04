@@ -31,15 +31,15 @@
 
 - name: Create groups
   ansible.builtin.group:
-    name: { item.name }
-    gid: { item.gid }
-  loop: groups
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+  loop: "{{ user_groupnames }}"
 
 - name: Create users
   ansible.builtin.user:
-    name: jsequeira
-    uid: { item.uid }
-    groups: { item.groups }
+    name: "{{ item.username }}"
+    uid: "{{ item.uid }}"
+    groups: "{{ item.groups }}"
     shell: /bin/bash
     create_home: true
-  loop: cu_users
+  loop: "{{ user_usernames }}"
