@@ -7,4 +7,8 @@
     boot: true              # automatically mounted on boot
     state: mounted          # ensures the mount is present and configured in fstab
     fstype: nfs
-  loop: configure_shares_storage_groups
+  loop: "{{ configure_shares_storage_groups }}"
+  when:
+    - inventory_hostname in groups['sms']
+    - configure_shares_storage_ip is defined
+    - configure_shares_storage_groups is defined
