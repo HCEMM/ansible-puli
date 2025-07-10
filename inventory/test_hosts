@@ -1,3 +1,14 @@
 [sms]
-localhost ansible_connection=local ansible_user=hcemm
+vbox ansible_connection=local ansible_user=hcemm
+
 [computes]
+
+[thinlinc_masters]
+vbox
+
+[thinlinc_agents]
+vbox
+
+[thinlinc_servers:children]
+thinlinc_masters
+thinlinc_agents
