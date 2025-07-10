@@ -19,6 +19,7 @@
     - customize_puli
     - setup_modules
     - configure_shares
+    - fail2ban
 
     # - role: thinlinc
     #   vars:
