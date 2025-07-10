@@ -1,0 +1,42 @@
+---
+# According to the instructions at https://www.redhat.com/en/blog/protect-systems-fail2ban
+- name: Install fail2ban
+  ansible.builtin.dnf:
+    name: fail2ban
+    state: present
+  when:
+    - inventory_hostname in groups['sms']
+
+- name: Copy fail2ban custom configuration file into place.
+  ansible.builtin.copy:
+    src: /etc/fail2ban/jail.conf
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "644"
+  when:
+    - inventory_hostname in groups['sms']
+  notify:
+    - Restart fail2ban
+
+- name: Copy jail custom configuration file into place.
+  ansible.builtin.copy:
+    src: sshd.local
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: "644"
+  when:
+    - inventory_hostname in groups['sms']
+  notify:
+    - Restart fail2ban
+
+- name: Ensure fail2ban is configured to ignore specific IPs.
+  ansible.builtin.lineinfile:
+    path: /etc/fail2ban/jail.local
+    regexp: '^ignoreip ='
+    line: "ignoreip = {{ fail2ban_ignoreips | join(' ') }}"
+  when:
+    - inventory_hostname in groups['sms']
+  notify:
+    - Restart fail2ban
