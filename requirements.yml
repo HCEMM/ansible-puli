@@ -3,7 +3,7 @@ roles:
   - name: thinlinc-server
     src: https://github.com/cendio/ansible-role-thinlinc-server.git
     scm: git
-    version: v1.10
+    version: v1.13
 
 collections:
   - name: community.general
