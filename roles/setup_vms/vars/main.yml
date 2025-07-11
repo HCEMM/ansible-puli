@@ -1,0 +1,29 @@
+setup_vms_specs:
+  slurmctld1:
+    memory: 4096      # in MiB
+    vcpus: 4
+    disk_size: 20G
+  slurmctld2:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+  login1:
+    memory: 8192
+    vcpus: 4
+    disk_size: 30G
+  login2:
+    memory: 8192
+    vcpus: 4
+    disk_size: 30G
+  tlmaster1:
+    memory: 4096
+    vcpus: 2
+    disk_size: 20G
+  tlmaster2:
+    memory: 4096
+    vcpus: 2
+    disk_size: 20G
+  checkmk:
+    memory: 2048
+    vcpus: 1
+    disk_size: 15G

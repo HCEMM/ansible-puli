@@ -1,0 +1,13 @@
+---
+# defaults file for kvm_provision
+setup_vms_base_image_name: AlmaLinux-10.0-x86_64-minimal.iso
+setup_vms_base_image_url: "https://repo.almalinux.org/almalinux/10/isos/x86_64/{{ setup_vms_base_image_name }}"
+setup_vms_base_image_sha: e73ccc95ff21a43ab23eebe227257fa34df091570b2bcf8a23f918bf9b662fc3
+setup_vms_libvirt_pool_dir: "/var/lib/libvirt/images"
+setup_vms_vm_name: f34-dev
+setup_vms_vm_vcpus: 2
+setup_vms_vm_ram_mb: 2048
+setup_vms_vm_net: default
+setup_vms_vm_root_pass: test123
+setup_vms_cleanup_tmp: false
+setup_vms_ssh_key: /root/.ssh/id_rsa.pub
