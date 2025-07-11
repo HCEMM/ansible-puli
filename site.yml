@@ -1,6 +1,8 @@
 ---
 - name: Build PULI
-  hosts: all
+  hosts:
+    - sms
+    - computes
   any_errors_fatal: true
   become: true
   gather_facts: true
