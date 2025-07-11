@@ -1,8 +1,7 @@
 ---
-- name: Build PULI
+- name: Build main server
   hosts:
     - sms
-    - computes
   any_errors_fatal: true
   become: true
   gather_facts: true
@@ -16,12 +15,22 @@
     - build_compute_images
     - customize_nodes
     - build_overlay
-    - finalize_provision
     - hpc_toolchain
     - customize_puli
     - setup_modules
     - configure_shares
     - fail2ban
+    - setup_vms
+
+- name: Provision computes
+  hosts:
+    - sms
+    - computes
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - finalize_provision
 
 - name: Install ThinLinc Server
   hosts: thinlinc_servers
