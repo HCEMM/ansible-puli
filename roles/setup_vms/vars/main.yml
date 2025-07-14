@@ -1,4 +1,4 @@
-setup_vms_specs:
+setup_vms_vm_list:
   slurmctld1:
     memory: 4096      # in MiB
     vcpus: 4

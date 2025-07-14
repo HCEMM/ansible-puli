@@ -28,42 +28,62 @@
   register: existing_vms
   changed_when: false
 
-- name: Create VM if not exists
-  when: "setup_vms_vm_name not in existing_vms.list_vms"
+- name: Process each VM
+  vars:
+    vm_name: "{{ item.key }}"
+    vm_params: "{{ item.value }}"
+  loop: "{{ setup_vms_vm_list | dict2items }}"
   block:
-    - name: Download base image
-      ansible.builtin.get_url:
-        url: "{{ setup_vms_base_image_url }}"
-        dest: "/tmp/{{ setup_vms_base_image_name }}"
-        checksum: "sha256:{{ setup_vms_base_image_sha }}"
-        mode: "0660"
 
-    - name: Copy base image to libvirt directory
-      ansible.builtin.copy:
-        dest: "{{ setup_vms_libvirt_pool_dir }}/{{ setup_vms_vm_name }}.qcow2"
-        src: "/tmp/{{ setup_vms_base_image_name }}"
-        force: false
-        remote_src: true
-        mode: "0660"
-      register: copy_results
-      notify: Configure the image
-
-    - name: Define vm
+    - name: Get list of existing VMs
       community.libvirt.virt:
-        command: define
-        xml: "{{ lookup('template', 'vm-template.xml.j2') }}"
+        command: list_vms
+      register: existing_vms
+      changed_when: false
+      run_once: true  # Only needs to be done once
 
-- name: Ensure VM is started
-  community.libvirt.virt:
-    name: "{{ setup_vms_vm_name }}"
-    state: running
-  register: vm_start_results
-  until: "vm_start_results is success"
-  retries: 15
-  delay: 2
+    - name: Create VM if it doesn't exist
+      when: "vm_name not in existing_vms.list_vms"
+      block:
 
-- name: Ensure temporary file is deleted
-  ansible.builtin.file:
-    path: "/tmp/{{ setup_vms_base_image_name }}"
-    state: absent
-  when: setup_vms_cleanup_tmp | bool
+        - name: Download base image
+          ansible.builtin.get_url:
+            url: "{{ setup_vms_base_image_url }}"
+            dest: "/tmp/{{ setup_vms_base_image_name }}"
+            checksum: "sha256:{{ setup_vms_base_image_sha }}"
+            mode: "0660"
+
+        - name: Copy base image to libvirt directory
+          ansible.builtin.copy:
+            dest: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
+            src: "/tmp/{{ setup_vms_base_image_name }}"
+            force: false
+            remote_src: true
+            mode: "0660"
+          notify: Configure the image
+
+        - name: Generate XML definition of image
+          community.libvirt.virt:
+            command: define
+            xml: "{{ lookup('template', 'vm.xml.j2', convert_data=False) }}"
+          vars:
+            xml_vm_name: "{{ vm_name }}"
+            xml_memory: "{{ vm_params.memory }}"
+            xml_vcpus: "{{ vm_params.vcpus }}"
+            xml_disk: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
+            vm_net: "{{ setup_vms_network }}"
+
+    - name: Ensure VM is started
+      community.libvirt.virt:
+        name: "{{ vm_name }}"
+        state: running
+      register: vm_start_results
+      until: vm_start_results is success
+      retries: 15
+      delay: 2
+
+    - name: Ensure temporary file is deleted
+      ansible.builtin.file:
+        path: "/tmp/{{ setup_vms_base_image_name }}"
+        state: absent
+      when: setup_vms_cleanup_tmp | bool
