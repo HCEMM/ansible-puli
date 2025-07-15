@@ -3,27 +3,34 @@ setup_vms_vm_list:
     memory: 4096      # in MiB
     vcpus: 4
     disk_size: 20G
+    mac: '52:54:00:aa:bb:01'
   slurmctld2:
     memory: 4096
     vcpus: 4
     disk_size: 20G
+    mac: '52:54:00:aa:bb:02'
   login1:
     memory: 8192
     vcpus: 4
     disk_size: 30G
+    mac: '52:54:00:aa:bb:03'
   login2:
     memory: 8192
     vcpus: 4
     disk_size: 30G
+    mac: '52:54:00:aa:bb:04'
   tlmaster1:
     memory: 4096
     vcpus: 2
     disk_size: 20G
+    mac: '52:54:00:aa:bb:05'
   tlmaster2:
     memory: 4096
     vcpus: 2
     disk_size: 20G
+    mac: '52:54:00:aa:bb:06'
   checkmk:
     memory: 2048
     vcpus: 1
     disk_size: 15G
+    mac: '52:54:00:aa:bb:07'

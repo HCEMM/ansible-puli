@@ -1,17 +1,73 @@
-[sms]
-10.0.50.143
-[computes]
-10.0.50.146
-10.0.50.149
-10.0.50.152
-10.0.50.155
-10.0.50.158
-10.0.50.161
-10.0.50.164
-10.0.50.167
-10.0.50.170
-10.0.50.173
-10.0.50.176
-10.0.50.179
-10.0.50.182
-10.0.50.185
+# inventory/inventory.yml
+
+all:
+  children:
+    sms:
+      hosts:
+        sms1:
+          ansible_host: 10.0.50.143
+
+    computes:
+      hosts:
+        compute1:
+          ansible_host: 10.0.50.146
+        compute2:
+          ansible_host: 10.0.50.149
+        compute3:
+          ansible_host: 10.0.50.152
+        compute4:
+          ansible_host: 10.0.50.155
+        compute5:
+          ansible_host: 10.0.50.158
+        compute6:
+          ansible_host: 10.0.50.161
+        compute7:
+          ansible_host: 10.0.50.164
+        compute8:
+          ansible_host: 10.0.50.167
+        compute9:
+          ansible_host: 10.0.50.170
+        compute10:
+          ansible_host: 10.0.50.173
+        compute11:
+          ansible_host: 10.0.50.176
+        compute12:
+          ansible_host: 10.0.50.179
+        compute13:
+          ansible_host: 10.0.50.182
+        compute14:
+          ansible_host: 10.0.50.185
+
+    slurmctld:
+      hosts:
+        slurmctld1:
+        slurmctld2:
+
+    login_nodes:
+      hosts:
+        login1:
+        login2:
+
+    thinlinc_masters:
+      hosts:
+        thinlinc1:
+        thinlinc2:
+
+    thinlinc_agents:
+      hosts:
+        login1:
+        login2:
+
+    thinlinc_servers:
+      children:
+        thinlinc_masters:
+        thinlinc_agents:
+
+    monitoring:
+      hosts:
+        checkmk:
+
+  vars:
+    ansible_user: root
+    ansible_connection: ssh
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
