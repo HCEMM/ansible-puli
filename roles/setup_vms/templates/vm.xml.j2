@@ -17,7 +17,7 @@
     </disk>
     <interface type='network'>
       <source network='{{ setup_vms_vm_net }}'/>
-      <mac address='52:54:00:{{ vm_name | hash('md5')[:6] | regex_replace('(..)', '\\1:') }}'/>   <!-- Generate a unique MAC address based on VM name - essential for fixed IPs -->
+      <mac address='{{ xml_mac}}'/>   <!-- Generate a unique MAC address for fixed IPs -->
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
     </interface>
