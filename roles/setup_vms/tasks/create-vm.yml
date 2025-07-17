@@ -1,14 +1,12 @@
 - name: Create VM if it doesn't exist
   when: "vm_name not in existing_vms.list_vms"
   block:
-    - name: Copy base image to libvirt directory
-      ansible.builtin.copy:
-        dest: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
-        src: "/tmp/{{ setup_vms_base_image_name }}"
-        force: false
-        remote_src: true
-        mode: "0660"
-      notify: Configure the image
+    - name: Create VM disk from base image (with resize)
+      ansible.builtin.command: >
+        qemu-img convert -f raw -O qcow2 /tmp/{{ setup_vms_base_image_name }} {{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2;
+        qemu-img resize {{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2 +{{ vm_params.disk_size }}
+      args:
+        creates: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
 
     - name: Generate XML definition of image
       community.libvirt.virt:

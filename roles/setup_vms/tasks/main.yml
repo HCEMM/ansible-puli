@@ -21,9 +21,11 @@
     groups: libvirt
     append: true
 
-- name: Download base image
-  ansible.builtin.debug:
-    msg: "Downloading base image from {{ setup_vms_base_image_url }} to /tmp/{{ setup_vms_base_image_name }} with checksum sha256:{{ setup_vms_base_image_sha }} and mode 0660"
+- name: Configure br0 bridge on host with DHCP
+  ansible.builtin.include_tasks: create-bridge.yml
+  vars:
+    bridge_name: "{{ setup_vms_vm_net }}"
+    physical_interface: "{{ ansible_default_ipv4.interface }}"
 
 - name: Download base image
   ansible.builtin.get_url:

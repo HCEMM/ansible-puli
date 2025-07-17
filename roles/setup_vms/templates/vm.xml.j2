@@ -1,23 +1,23 @@
-<domain type='kvm'>
-  <name>{{ xml_vm_name }}</name>
-  <memory unit='MiB'>{{ xml_memory }}</memory>
-  <vcpu placement='static'>{{ xml_vcpus }}</vcpu>
+<domain type='qemu'>
+  <name>slurmctld1</name>
+  <memory unit='MiB'>4096</memory>
+  <vcpu placement='static'>4</vcpu>
   <os>
-    <type arch='x86_64' machine='pc-q35-5.2'>hvm</type>     <!-- hvm -> OS is to run on bare metal, so requires full virtualization. For arch/machine, see: https://libvirt.org/formatcaps.html -->
+    <type arch='x86_64' machine='pc-q35-rhel9.6.0'>hvm</type>     <!-- hvm -> OS is to run on bare metal, so requires full virtualization. For arch/machine, see: https://libvirt.org/formatcaps.html -->
     <boot dev='hd'/>                                        <!-- Boot from hard disk first -->      
   </os>
   <cpu mode='host-model' check='none'/>
   <devices>
-    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='{{ setup_vms_libvirt_pool_dir }}/{{ xml_vm_name }}.qcow2'/>
+      <source file='/var/lib/libvirt/images/slurmctld1.qcow2'/>
       <target dev='vda' bus='virtio'/>
       <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
     </disk>
     <interface type='network'>
-      <source network='{{ setup_vms_vm_net }}'/>
-      <mac address='{{ xml_mac}}'/>   <!-- Generate a unique MAC address for fixed IPs -->
+      <source network='br0'/>
+      <mac address='52:54:00:aa:bb:01'/>   <!-- Generate a unique MAC address for fixed IPs -->
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
     </interface>
@@ -25,23 +25,11 @@
       <target type='virtio' name='org.qemu.guest_agent.0'/>
       <address type='virtio-serial' controller='0' bus='0' port='1'/>
     </channel>
-    <channel type='spicevmc'>
-      <target type='virtio' name='com.redhat.spice.0'/>
-      <address type='virtio-serial' controller='0' bus='0' port='2'/>
-    </channel>
     <input type='tablet' bus='usb'>
       <address type='usb' bus='0' port='1'/>
     </input>
     <input type='mouse' bus='ps2'/>
     <input type='keyboard' bus='ps2'/>
-    <graphics type='spice' autoport='yes'>
-      <listen type='address'/>
-      <image compression='off'/>
-    </graphics>
-    <video>
-      <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1' primary='yes'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
-    </video>
     <memballoon model='virtio'>
       <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x0'/>
     </memballoon>
