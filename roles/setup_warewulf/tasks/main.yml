@@ -65,6 +65,14 @@
       - '{{ ipv4_gateway }}'
       - 'DNS={{ dns_servers | join(",") }}'
 
+
+- name: Enable and start warewulfd
+  ansible.builtin.systemd:
+    name: warewulfd
+    enabled: true
+    state: started
+  when: inventory_hostname in groups['sms']
+
 - name: Set default network configuration
   ansible.builtin.command: >
     wwctl profile set -y nodes --netname=default --netdev={{ eth_provision }} --netmask={{ internal_netmask }} --gateway={{ ipv4_gateway }}

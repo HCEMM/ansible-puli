@@ -53,11 +53,19 @@
     - ( inventory_hostname in groups['sms'] )
 
 # dnf -y install cuda-repo-ohpc
+- name: Install CUDA repository on SMS
+  ansible.builtin.dnf:
+    name:
+      - cuda-repo-ohpc
+    state: present
+  when:
+    - ( inventory_hostname in groups['sms'] )
+    - customize_nodes_install_nvidia_drivers
+
 # dnf -y install nvidia-driver-cuda cuda-devel-ohpc
 - name: Install CUDA and NVIDIA packages on SMS
   ansible.builtin.dnf:
     name:
-      - cuda-repo-ohpc
       - nvidia-driver-cuda
       - cuda-devel-ohpc
     state: present
@@ -170,5 +178,3 @@
   when:
     - inventory_hostname in groups['sms']
     - customize_nodes_install_nhc
-
-# ulimit -v unlimited - TODO - lets see - probably not needed, I think users can set this up themselves on an ad hoc basis

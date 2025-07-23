@@ -155,3 +155,10 @@
   when:
     - ( inventory_hostname in groups['computes'] )
     - env == 'production'
+
+- name: Create Slurm log directory    # as configured in slurm.conf
+  ansible.builtin.file:
+    path: /var/log/slurm
+    state: directory
+    mode: '0755'
+  when: ( inventory_hostname in groups['computes'] )
