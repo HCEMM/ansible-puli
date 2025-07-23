@@ -1,4 +1,13 @@
 ---
+- name: Build bridge
+  hosts:
+      - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - create_bridge
+
 - name: Build main server
   hosts:
     - sms
@@ -18,7 +27,6 @@
     - hpc_toolchain
     - customize_puli
     - setup_modules
-    - configure_shares
     - fail2ban
     - setup_vms
 
@@ -31,6 +39,7 @@
   gather_facts: true
   roles:
     - finalize_provision
+    - configure_shares
 
 - name: Install ThinLinc Server
   hosts: thinlinc_servers

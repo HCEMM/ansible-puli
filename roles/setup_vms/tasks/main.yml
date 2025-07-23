@@ -34,7 +34,18 @@
     checksum: "sha256:{{ setup_vms_base_image_sha }}"
     mode: "0660"
 
-# Next tasks from: https://www.redhat.com/en/blog/build-VM-fast-ansible
+- name: Check if HTTP server is already running
+  ansible.builtin.shell: "ss -ltn '( sport = :{{ setup_vms_kickstart_port }} )' | grep -q {{ setup_vms_kickstart_port }}"
+  register: http_port_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Start local HTTP server for kickstart files
+  ansible.builtin.shell: "nohup python3 -m http.server {{ setup_vms_kickstart_port }} --directory /tmp &"
+  changed_when: true
+  when: http_port_check.rc != 0
+
+# Next tasks from: https://www.liquidweb.com/help-docs/server-administration/linux-server-administration/install-kvm-on-linux-almalinux/
 - name: Get VMs list
   community.libvirt.virt:
     command: list_vms

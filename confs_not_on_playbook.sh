@@ -29,3 +29,16 @@ systemctl enable sssd oddjobd
 
 
 update-crypto-policies --set LEGACY
+
+
+nmcli connection add type bridge con-name br0 ifname br0
+nmcli connection add type ethernet con-name ens1f0np0-slave ifname ens1f0np0 master br0
+nmcli con mod br0 ipv4.addresses 10.0.50.185/24 gw4 10.0.50.1
+nmcli con mod br0 ipv4.dns 10.0.50.1
+nmcli con mod br0 ipv4.method manual
+nmcli con up ens1f0np0-slave
+nmcli con up br0
+
+
+mkdir -p /var/www/html/ks
+python3 -m http.server --directory /var/www/html 9876 &

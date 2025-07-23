@@ -35,9 +35,15 @@ setup_vms_vm_list:
     disk_size: 20G
     ip: '10.0.50.199'
     mac: '52:54:00:aa:bb:06'
-  checkmk:
+  checkmk1:
     memory: 2048
     vcpus: 1
     disk_size: 15G
     ip: '10.0.50.200'
     mac: '52:54:00:aa:bb:07'
+  galaxy1:
+    memory: 4096
+    vcpus: 16
+    disk_size: 20G
+    ip: '10.0.50.201'
+    mac: '52:54:00:aa:bb:08'

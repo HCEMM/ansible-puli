@@ -1,24 +1,40 @@
 - name: Create VM if it doesn't exist
   when: "vm_name not in existing_vms.list_vms"
   block:
-    - name: Create VM disk from base image (with resize)
+    - name: Create qcow2 disk
       ansible.builtin.command: >
-        qemu-img convert -f raw -O qcow2 /tmp/{{ setup_vms_base_image_name }} {{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2;
-        qemu-img resize {{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2 +{{ vm_params.disk_size }}
+        qemu-img create -f qcow2 /var/lib/libvirt/images/{{ vm_name }}.qcow2 {{ vm_params.disk_size }}G
       args:
-        creates: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
+        creates: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
 
     - name: Generate XML definition of image
       community.libvirt.virt:
         command: define
         xml: "{{ lookup('template', 'vm.xml.j2', convert_data=False) }}"
       vars:
-        xml_vm_name: "{{ vm_name }}"
-        xml_memory: "{{ vm_params.memory }}"
-        xml_vcpus: "{{ vm_params.vcpus }}"
-        xml_disk: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
+        vm_name: "{{ vm_name }}"
+        vm_memory: "{{ vm_params.memory }}"
+        vm_vcpus: "{{ vm_params.vcpus }}"
+        vm_disk: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
         vm_net: "{{ setup_vms_network }}"
-        xml_mac: "{{ vm_params.mac }}"
+        vm_mac: "{{ vm_params.mac }}"
+
+    - name: Create VM using virt-install
+      ansible.builtin.command: >
+        virt-install
+        --name {{ item.name }}
+        --memory {{ item.memory }}
+        --vcpus {{ item.vcpus }}
+        --os-variant almalinux9
+        --disk path=/var/lib/libvirt/images/{{ item.name }}.qcow2,format=qcow2
+        --network bridge=br0,mac={{ item.mac }}
+        --graphics none
+        --console pty,target_type=serial
+        --location /tmp/AlmaLinux-9.6-x86_64-minimal.iso
+        --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks-{{ item.name }}.cfg console=ttyS0"
+        --noautoconsole
+      changed_when: true
+      loop: "{{ vms }}"
 
 - name: Ensure VM is started
   community.libvirt.virt:
