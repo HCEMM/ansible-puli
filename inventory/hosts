@@ -4,54 +4,60 @@ all:
   children:
     sms:
       hosts:
-        sms1:
-          ansible_host: 10.0.50.143
+        cpu01-10G:
+          ansible_host: 10.0.50.155
 
     computes:
       hosts:
-        compute1:
+        mem01-10G:
+          ansible_host: 10.0.50.143
+        mem02-10G:
           ansible_host: 10.0.50.146
-        compute2:
+        gpu01-10G:
           ansible_host: 10.0.50.149
-        compute3:
+        gpu02-10G:
           ansible_host: 10.0.50.152
-        compute4:
-          ansible_host: 10.0.50.155
-        compute5:
+        cpu02-10G:
           ansible_host: 10.0.50.158
-        compute6:
+        cpu03-10G:
           ansible_host: 10.0.50.161
-        compute7:
+        cpu04-10G:
           ansible_host: 10.0.50.164
-        compute8:
+        cpu05-10G:
           ansible_host: 10.0.50.167
-        compute9:
+        cpu06-10G:
           ansible_host: 10.0.50.170
-        compute10:
+        cpu07-10G:
           ansible_host: 10.0.50.173
-        compute11:
+        cpu08-10G:
           ansible_host: 10.0.50.176
-        compute12:
+        cpu09-10G:
           ansible_host: 10.0.50.179
-        compute13:
+        cpu10-10G:
           ansible_host: 10.0.50.182
-        compute14:
+        cpu11-10G:
           ansible_host: 10.0.50.185
 
     slurmctld:
       hosts:
         slurmctld1:
+          ansible_host: 10.0.50.194
         slurmctld2:
+          ansible_host: 10.0.50.195
 
     login_nodes:
       hosts:
         login1:
+          ansible_host: 10.0.50.196
         login2:
+          ansible_host: 10.0.50.197
 
     thinlinc_masters:
       hosts:
         thinlinc1:
+          ansible_host: 10.0.50.198
         thinlinc2:
+          ansible_host: 10.0.50.199
 
     thinlinc_agents:
       hosts:
@@ -66,6 +72,17 @@ all:
     monitoring:
       hosts:
         checkmk:
+          ansible_host: 10.0.50.200
+
+    galaxy:
+      ansible_host: 10.0.50.201
+
+    slurmdbd:
+      hosts:
+        slurmdbd1:
+          ansible_host: 10.0.50.202
+        slurmdbd2:
+          ansible_host: 10.0.50.203
 
   vars:
     ansible_user: root

@@ -92,12 +92,12 @@
     - customize_nodes_install_nvidia_drivers
 
 - name: Install and configure CUDA and NVIDIA packages on compute nodes
-  ansible.builtin.shell:
-    set -o pipefail; echo '{{ item }}' | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command:
+    wwctl image exec --build=false almalinux-9 /bin/bash -c "{{ item }}"
   loop:
     - dnf -y install cuda-repo-ohpc
     - dnf -y module install nvidia-driver:latest-dkms
-    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
+    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
     - dkms status
   changed_when:
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )
