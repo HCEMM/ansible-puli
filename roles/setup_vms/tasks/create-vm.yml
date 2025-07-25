@@ -13,7 +13,7 @@
         dest: "/tmp/{{ vm_name }}.xml"
         mode: '0644'
       vars:
-        vm_name: "{{ vm_name }}"
+        xml_vm_name: "{{ vm_name }}"
         vm_memory: "{{ vm_params.memory }}"
         vm_vcpus: "{{ vm_params.vcpus }}"
 
@@ -23,7 +23,7 @@
         dest: "/var/www/html/ks/{{ vm_name }}-ks.cfg"
         mode: '0644'
       vars:
-        vm_name: "{{ vm_name }}"
+        xml_vm_name: "{{ vm_name }}"
         vm_ip: "{{ vm_params.ip }}"
         internal_network: "{{ ansible_default_ipv4.gateway }}"    # network gateway
         internal_netmask: "{{ ansible_default_ipv4.netmask }}"
