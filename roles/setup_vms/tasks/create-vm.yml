@@ -3,38 +3,49 @@
   block:
     - name: Create qcow2 disk
       ansible.builtin.command: >
-        qemu-img create -f qcow2 /var/lib/libvirt/images/{{ vm_name }}.qcow2 {{ vm_params.disk_size }}G
+        qemu-img create -f qcow2 /var/lib/libvirt/images/{{ vm_name }}.qcow2 {{ vm_params.disk_size }}
       args:
         creates: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
 
     - name: Generate XML definition of image
-      community.libvirt.virt:
-        command: define
-        xml: "{{ lookup('template', 'vm.xml.j2', convert_data=False) }}"
+      ansible.builtin.template:
+        src: vm.xml.j2
+        dest: "/tmp/{{ vm_name }}.xml"
+        mode: '0644'
       vars:
         vm_name: "{{ vm_name }}"
         vm_memory: "{{ vm_params.memory }}"
         vm_vcpus: "{{ vm_params.vcpus }}"
-        vm_disk: "{{ setup_vms_libvirt_pool_dir }}/{{ vm_name }}.qcow2"
-        vm_net: "{{ setup_vms_network }}"
-        vm_mac: "{{ vm_params.mac }}"
 
+    - name: Generate kickstart file into HTTP server directory
+      ansible.builtin.template:
+        src: ks.cfg.j2
+        dest: "/var/www/html/ks/{{ vm_name }}-ks.cfg"
+        mode: '0644'
+      vars:
+        vm_name: "{{ vm_name }}"
+        vm_ip: "{{ vm_params.ip }}"
+        internal_network: "{{ ansible_default_ipv4.gateway }}"    # network gateway
+        internal_netmask: "{{ ansible_default_ipv4.netmask }}"
+
+    # "--noautoconsole" prevents virt-install from trying to open an interactive console, allows to run in ansible
     - name: Create VM using virt-install
       ansible.builtin.command: >
         virt-install
-        --name {{ item.name }}
-        --memory {{ item.memory }}
-        --vcpus {{ item.vcpus }}
+        --name {{ vm_name }}
+        --memory {{ vm_params.memory }}
+        --vcpus {{ vm_params.vcpus }}
+        --cpu host-model
         --os-variant almalinux9
-        --disk path=/var/lib/libvirt/images/{{ item.name }}.qcow2,format=qcow2
-        --network bridge=br0,mac={{ item.mac }}
+        --cdrom=/tmp/AlmaLinux-9.6-x86_64-minimal.iso
+        --disk path=/var/lib/libvirt/images/{{ vm_name }}.qcow2,format=qcow2
+        --network bridge=br0,mac={{ vm_params.mac }},model=virtio
         --graphics none
         --console pty,target_type=serial
         --location /tmp/AlmaLinux-9.6-x86_64-minimal.iso
-        --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks-{{ item.name }}.cfg console=ttyS0"
+        --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks/{{ vm_name }}-ks.cfg console=ttyS0"
         --noautoconsole
       changed_when: true
-      loop: "{{ vms }}"
 
 - name: Ensure VM is started
   community.libvirt.virt:

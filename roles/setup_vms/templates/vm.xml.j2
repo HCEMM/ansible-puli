@@ -1,7 +1,7 @@
 <domain type='qemu'>
   <name>{{ vm_name }}</name>
   <memory unit='MiB'>{{ vm_memory }}</memory>
-  <vcpu placement='static'>{{ vm_vcpu }}</vcpu>
+  <vcpu placement='static'>{{ vm_vcpus }}</vcpu>
   <os>
     <type arch='x86_64' machine='pc-q35-rhel9.6.0'>hvm</type>     <!-- hvm -> OS is to run on bare metal, so requires full virtualization. For arch/machine, see: https://libvirt.org/formatcaps.html -->
     <boot dev='cdrom'/>                                           <!-- Boot from CD-ROM first -->
