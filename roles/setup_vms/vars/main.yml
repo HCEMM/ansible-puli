@@ -1,6 +1,6 @@
 setup_vms_vm_list:
   slurmctld1:
-    memory: 4096      # in MiB
+    memory: 4096
     vcpus: 4
     disk_size: 20G
     ip: '10.0.50.194'
@@ -11,6 +11,18 @@ setup_vms_vm_list:
     disk_size: 20G
     ip: '10.0.50.195'
     mac: '52:54:00:aa:bb:02'
+  slurmdbd1:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.202'
+    mac: '52:54:00:aa:bb:09'
+  slurmdbd2:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.203'
+    mac: '52:54:00:aa:bb:10'
   login1:
     memory: 8192
     vcpus: 4

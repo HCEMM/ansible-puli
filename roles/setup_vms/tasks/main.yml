@@ -21,12 +21,6 @@
     groups: libvirt
     append: true
 
-- name: Configure br0 bridge on host with DHCP
-  ansible.builtin.include_tasks: create-bridge.yml
-  vars:
-    bridge_name: "{{ setup_vms_vm_net }}"
-    physical_interface: "{{ ansible_default_ipv4.interface }}"
-
 - name: Download base image
   ansible.builtin.get_url:
     url: "{{ setup_vms_base_image_url }}"
@@ -41,7 +35,7 @@
   changed_when: false
 
 - name: Start local HTTP server for kickstart files
-  ansible.builtin.shell: "nohup python3 -m http.server {{ setup_vms_kickstart_port }} --directory /tmp &"
+  ansible.builtin.shell: "nohup python3 -m http.server {{ setup_vms_kickstart_port }} --directory /var/www/html --bind 0.0.0.0 &"
   changed_when: true
   when: http_port_check.rc != 0
 
