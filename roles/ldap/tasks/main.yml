@@ -1,0 +1,104 @@
+---
+- name: Install base LDAP packages
+  ansible.builtin.dnf:
+    name:
+      - openldap
+      - openldap-clients
+      - openldap-servers
+      - realmd
+      - sssd
+      - oddjob
+      - oddjob-mkhomedir
+      - adcli
+      - samba-common-tools
+    state: present
+
+- name: Join HCEMM realm
+  ansible.builtin.command: >
+    realm join --user={{ ldap_admin_user }} {{ ldap_domain }}
+  register: realm_join_result
+  changed_when: not 'Already joined' in realm_join_result.stdout
+
+- name: Start and enable slapd
+  ansible.builtin.service:
+    name: slapd
+    state: started
+    enabled: true
+
+- name: Make sure we have an admin user
+  community.general.ldap_entry:
+    dn: cn=admin,dc=cluster,dc=local
+    objectClass:
+      - simpleSecurityObject
+      - organizationalRole
+    attributes:
+      description: The LDAP administrator
+      userPassword: "{SSHA}{{ ldap_admin_password }}"
+
+- name: Set up base local LDAP structure (ou=People, ou=Groups)
+  community.general.ldap_entry:
+    dn: "{{ item.dn }}"
+    objectClass: "{{ item.objectClass }}"
+    attributes: "{{ item.attributes }}"
+  loop:
+    - dn: "ou=People,dc=cluster,dc=local"
+      objectClass: [organizationalUnit]
+      attributes:
+        ou: People
+    - dn: "ou=Groups,dc=cluster,dc=local"
+      objectClass: [organizationalUnit]
+      attributes:
+        ou: Groups
+    - dn: "cn=cluster_users,ou=Groups,dc=cluster,dc=local"
+      objectClass: [posixGroup]
+      attributes:
+        cn: cluster_users
+        gidNumber: "{{ ldap_cluster_users_gid_number }}"
+
+- name: Create user entries in local LDAP
+  vars:
+    local_users: "{{ ldap_local_users }}"
+  block:
+    - name: Add user entry
+      community.general.ldap_entry:
+        dn: "uid={{ item.uid }},ou=People,dc=cluster,dc=local"
+        objectClass:
+          - inetOrgPerson
+          - posixAccount
+          - shadowAccount
+        attributes:
+          uid: "{{ item.uid }}"
+          cn: "{{ item.cn }}"
+          sn: "{{ item.cn.split(' ')[-1] }}"
+          uidNumber: "{{ item.uidNumber }}"
+          gidNumber: "{{ item.gidNumber }}"
+          homeDirectory: "{{ item.home }}"
+          loginShell: "{{ item.shell }}"
+          userPassword: "{SSHA}{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+      loop: "{{ local_users }}"
+
+- name: Configure sssd.conf
+  ansible.builtin.copy:
+    src: sssd.conf
+    dest: /etc/sssd/sssd.conf
+    mode: '0600'
+  notify: restart sssd
+
+- name: Enable and start sssd
+  ansible.builtin.service:
+    name: sssd
+    enabled: true
+    state: started
+
+- name: Install cron script to sync from AD to local LDAP
+  ansible.builtin.template:
+    src: sync_ad_to_ldap.sh.j2
+    dest: /usr/local/bin/sync_ad_to_ldap.sh
+    mode: '0755'
+
+- name: Add cron job to run sync script
+  ansible.builtin.cron:
+    name: "Sync AD users to local LDAP"
+    minute: "0"
+    hour: "1"
+    job: "/usr/local/bin/sync_ad_to_ldap.sh"

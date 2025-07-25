@@ -1,12 +1,14 @@
 ---
-- name: Build bridge
+- name: Setup the foundations
   hosts:
-      - sms
+    - sms
   any_errors_fatal: true
   become: true
   gather_facts: true
   roles:
     - create_bridge
+    - ldap
+    - setup_vms
 
 - name: Build main server
   hosts:
@@ -16,21 +18,18 @@
   gather_facts: true
 
   roles:
-    - common
+    - pre_ohpc
     - chronyd
     - setup_ohpc
     - setup_warewulf
-    - setup_slurm
     - build_compute_images
     - customize_nodes
     - build_overlay
     - hpc_toolchain
     - customize_puli
     - setup_modules
-    - fail2ban
-    - setup_vms
 
-- name: Provision computes
+- name: Finalize provision
   hosts:
     - sms
     - computes
@@ -40,6 +39,22 @@
   roles:
     - finalize_provision
     - configure_shares
+
+- name: Setup Slurm controllers
+  hosts:
+    - slurmctld
+    - computes
+  become: true
+  gather_facts: true
+  roles:
+    - setup_slurm
+
+- name: Setup Login nodes
+  hosts: login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - fail2ban
 
 - name: Install ThinLinc Server
   hosts: thinlinc_servers

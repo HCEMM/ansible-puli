@@ -1,0 +1,13 @@
+#!/bin/bash
+# Sync specific users from AD to local LDAP
+
+AD_DOMAIN="hcemm.eu"
+BASE_DN="dc=hcemm,dc=eu"
+LOCAL_BASE_DN="dc=cluster,dc=local"
+LDAP_URI="ldap://localhost"
+BIND_DN="cn=admin,$LOCAL_BASE_DN"
+BIND_PW="{{ ldap_admin_password }}"
+
+ldapsearch -LLL -x -H ldap://$AD_DOMAIN -b "$BASE_DN" \
+'(memberOf=CN=cluster_users,CN=Users,DC=hcemm,DC=eu)' uid cn sn mail | \
+ldapadd -x -H $LDAP_URI -D "$BIND_DN" -w "$BIND_PW"
