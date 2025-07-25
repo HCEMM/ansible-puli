@@ -7,7 +7,6 @@
   gather_facts: true
   roles:
     - create_bridge
-    - ldap
     - setup_vms
 
 - name: Build main server
@@ -55,6 +54,7 @@
   gather_facts: true
   roles:
     - fail2ban
+    # - ldap          # for next version
 
 - name: Install ThinLinc Server
   hosts: thinlinc_servers

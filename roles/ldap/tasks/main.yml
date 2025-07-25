@@ -82,7 +82,7 @@
     src: sssd.conf
     dest: /etc/sssd/sssd.conf
     mode: '0600'
-  notify: restart sssd
+  notify: Restart sssd
 
 - name: Enable and start sssd
   ansible.builtin.service:
