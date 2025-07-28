@@ -25,7 +25,7 @@ autopart
 #---- Install root SSH key ----
 mkdir -m0700 /root/.ssh/
 cat <<EOF >/root/.ssh/authorized_keys
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKsrPvhdrXjTArtYvwftiZyqOZOOb6mCyAD335a8yaG4 root@{{ sms }}
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKsrPvhdrXjTArtYvwftiZyqOZOOb6mCyAD335a8yaG4 root@{{ master_hostname }}
 EOF
 ### set permissions
 chmod 0600 /root/.ssh/authorized_keys
