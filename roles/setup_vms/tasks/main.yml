@@ -54,3 +54,10 @@
   vars:
     vm_name: "{{ vm.key }}"
     vm_params: "{{ vm.value }}"
+
+- name: Decrypt and place root SSH private key
+  ansible.builtin.copy:
+    src: "id_puli_root"
+    dest: /root/.ssh/id_rsa
+    mode: '0600'
+    decrypt: true
