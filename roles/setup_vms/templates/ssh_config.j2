@@ -1,0 +1,7 @@
+{% for vm in setup_vms_vm_list.values() %}
+Host {{ vm.ip }}
+    User root
+    IdentityFile /root/.ssh/id_puli_root
+    IdentitiesOnly yes
+
+{% endfor %}

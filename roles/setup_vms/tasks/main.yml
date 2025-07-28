@@ -61,3 +61,14 @@
     dest: /root/.ssh/id_rsa
     mode: '0600'
     decrypt: true
+
+- name: Add VMs to SSH config
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: ~/.ssh/config
+    mode: '0600'
+
+- name: Add VMs to known_hosts file
+  ansible.builtin.command: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/root/.ssh/known_hosts {{ item.value.ip }} exit
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  changed_when: false

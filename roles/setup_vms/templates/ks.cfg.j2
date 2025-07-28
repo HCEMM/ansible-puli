@@ -21,6 +21,9 @@ autopart
 @core
 %end
 
+# prevent the initial setup screen from appearing on the first boot
+firstboot --disable
+
 %post
 #---- Install root SSH key ----
 mkdir -m0700 /root/.ssh/
@@ -33,5 +36,4 @@ chmod 0600 /root/.ssh/authorized_keys
 restorecon -R /root/.ssh/
 %end
 
-firstboot --disable
 reboot
