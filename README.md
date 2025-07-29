@@ -8,7 +8,7 @@ cd ansible-puli
 ansible-galaxy role install -r requirements.yml
 ansible-galaxy collection install -r requirements.yml
 ```
-Also need to [get the ThinLinc ZIP file](https://www.cendio.com/thinlinc/download) and place it in `/root`
+Also need to [get the ThinLinc ZIP file](https://www.cendio.com/thinlinc/download) and place it in `~/ansible-puli`.
 
 Run in testing environment: 
 ```

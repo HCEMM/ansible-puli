@@ -1,0 +1,61 @@
+post_vms_vm_list:
+  slurmctld1:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.194'
+    mac: '52:54:00:aa:bb:01'
+  slurmctld2:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.195'
+    mac: '52:54:00:aa:bb:02'
+  slurmdbd1:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.202'
+    mac: '52:54:00:aa:bb:09'
+  slurmdbd2:
+    memory: 4096
+    vcpus: 4
+    disk_size: 20G
+    ip: '10.0.50.203'
+    mac: '52:54:00:aa:bb:10'
+  login1:
+    memory: 8192
+    vcpus: 4
+    disk_size: 30G
+    ip: '10.0.50.196'
+    mac: '52:54:00:aa:bb:03'
+  login2:
+    memory: 8192
+    vcpus: 4
+    disk_size: 30G
+    ip: '10.0.50.197'
+    mac: '52:54:00:aa:bb:04'
+  tlmaster1:
+    memory: 4096
+    vcpus: 2
+    disk_size: 20G
+    ip: '10.0.50.198'
+    mac: '52:54:00:aa:bb:05'
+  tlmaster2:
+    memory: 4096
+    vcpus: 2
+    disk_size: 20G
+    ip: '10.0.50.199'
+    mac: '52:54:00:aa:bb:06'
+  checkmk1:
+    memory: 2048
+    vcpus: 1
+    disk_size: 15G
+    ip: '10.0.50.200'
+    mac: '52:54:00:aa:bb:07'
+  galaxy1:
+    memory: 4096
+    vcpus: 16
+    disk_size: 20G
+    ip: '10.0.50.201'
+    mac: '52:54:00:aa:bb:08'
