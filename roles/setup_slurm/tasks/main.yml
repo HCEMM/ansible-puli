@@ -1,6 +1,38 @@
 ---
+# dnf install -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+- name: Install OpenHPC repo
+  ansible.builtin.dnf:
+    name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+    state: present
+    disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+# dnf -y install dnf-plugins-core
+- name: Install dnf plugins
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+# dnf -y config-manager --set-enabled crb
+- name: Ensure the crb repository is enabled
+  community.general.dnf_config_manager:
+    name: crb
+    state: enabled
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+- name: Install Slurm server
+  ansible.builtin.dnf:
+    name: ohpc-slurm-server
+    state: present
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
 ### Create Users and Groups where Warewulf is stil not managing
-- name: Ensure user groups exist (VMs)
+- name: Ensure user groups exist (login nodes)
   ansible.builtin.group:
     name: "{{ item.name }}"
     gid: "{{ item.gid }}"
@@ -8,7 +40,7 @@
   loop: "{{ user_groupnames }}"
   when: inventory_hostname in groups['login_nodes']
 
-- name: Ensure users exist (VMs)
+- name: Ensure users exist (login nodes)
   ansible.builtin.user:
     name: "{{ item.username }}"
     uid: "{{ item.uid }}"
@@ -72,13 +104,13 @@
 - name: Copy slurm.conf
   ansible.builtin.template:
     src: slurm.conf.j2
-    dest: "{{ slurm_conf_dir }}/slurm.conf"
+    dest: /etc/slurm/slurm.conf
     mode: '0644'
 
 - name: Copy slurmdbd.conf
   ansible.builtin.template:
     src: slurmdbd.conf.j2
-    dest: "{{ slurm_conf_dir }}/slurmdbd.conf"
+    dest: /etc/slurm/slurmdbd.conf
     mode: '0600'
   when: inventory_hostname in groups['slurmdbd']
 
@@ -86,7 +118,7 @@
 - name: Copy other Slurm templates
   ansible.builtin.template:
     src: "{{ item }}.j2"
-    dest: "{{ slurm_conf_dir }}/{{ item }}"
+    dest: /etc/slurm/{{ item }}"
     mode: "{{ '0600' if item in ['acct_gather.conf'] else '0644' }}"
   loop:
     - cgroup.conf

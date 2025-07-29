@@ -88,12 +88,30 @@
     state: present
   loop: "{{ setup_vms_vm_list | dict2items }}"
 
-- name: Add VMs to known_hosts file (ansible user)
-  ansible.builtin.command: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts {{ item.key }} exit
+- name: Wait for SSH to become available on all VMs
+  ansible.builtin.wait_for:
+    host: "{{ item.value.ip }}"
+    port: 22
+    state: started
+    timeout: 180
   loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
+  run_once: false
+  retries: 5
+  delay: 10
+  register: ssh_wait_result
+  until: ssh_wait_result is succeeded
+
+- name: Add VMs to known_hosts file (ansible user)
+  ansible.builtin.command: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts {{ item.key }} exit
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
   changed_when: false
 
 - name: Add VMs to known_hosts file (root user)
-  ansible.builtin.command: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/root/.ssh/known_hosts {{ item.key }} exit
+  ansible.builtin.command: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/root/.ssh/known_hosts {{ item.key }} exit
   loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
   changed_when: false

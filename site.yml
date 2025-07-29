@@ -6,8 +6,8 @@
   become: true
   gather_facts: true
   roles:
-   - create_bridge
-   - setup_vms
+    - create_bridge
+    - setup_vms
 
 - name: Build main server
   hosts:
@@ -38,6 +38,13 @@
   roles:
     - finalize_provision
     - configure_shares
+
+- name: Post VMs
+  hosts: sms
+  become: true
+  gather_facts: true
+  roles:
+    - post_vms
 
 - name: Setup Slurm
   hosts:
@@ -70,7 +77,7 @@
       vars:
         thinlinc_accept_eula: "yes"
         thinlinc_version: "4.19.0"
-        thinlinc_server_bundle: "/root/tl-{{ thinlinc_version }}-server.zip"
+        thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
         thinlinc_build: "4116"
         thinlinc_autoinstall_dependencies: "yes"
         thinlinc_email: joao.sequeira@hcemm.eu
