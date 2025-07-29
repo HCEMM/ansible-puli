@@ -34,6 +34,14 @@ EOF
 chmod 0600 /root/.ssh/authorized_keys
 ### fix up selinux context
 restorecon -R /root/.ssh/
+
+#---- Configure static DNS via nmcli ----
+# Get the connection name, and then apply the DNS settings
+nmcli connection show | grep -i enp1s0 | awk '{print $1}' | while read conn; do
+  nmcli connection modify "$conn" ipv4.dns "8.8.8.8 1.1.1.1"
+  nmcli connection modify "$conn" ipv4.ignore-auto-dns yes
+  nmcli connection up "$conn"
+done
 %end
 
 reboot

@@ -6,8 +6,8 @@
   become: true
   gather_facts: true
   roles:
-    - create_bridge
-    - setup_vms
+   - create_bridge
+   - setup_vms
 
 - name: Build main server
   hosts:
@@ -39,11 +39,14 @@
     - finalize_provision
     - configure_shares
 
-- name: Setup Slurm controllers
+- name: Setup Slurm
   hosts:
     - slurmctld
+    - slurmdbd
+    - login_nodes
     - computes
   become: true
+  become_user: root
   gather_facts: true
   roles:
     - setup_slurm
@@ -54,6 +57,7 @@
   gather_facts: true
   roles:
     - fail2ban
+    - configure_shares
     # - ldap          # for next version
 
 - name: Install ThinLinc Server

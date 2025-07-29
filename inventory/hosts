@@ -1,89 +1,100 @@
 all:
   children:
-    sms:
-      hosts:
-        cpu01-10G:
-          ansible_host: 10.0.50.155
+    physical:
+      vars:
+        ansible_user: jsequeira
+        ansible_connection: local
+        ansible_become: true
 
-    computes:
-      hosts:
-        mem01-10G:
-          ansible_host: 10.0.50.143
-        mem02-10G:
-          ansible_host: 10.0.50.146
-        gpu01-10G:
-          ansible_host: 10.0.50.149
-        gpu02-10G:
-          ansible_host: 10.0.50.152
-        cpu02-10G:
-          ansible_host: 10.0.50.158
-        cpu03-10G:
-          ansible_host: 10.0.50.161
-        cpu04-10G:
-          ansible_host: 10.0.50.164
-        cpu05-10G:
-          ansible_host: 10.0.50.167
-        cpu06-10G:
-          ansible_host: 10.0.50.170
-        cpu07-10G:
-          ansible_host: 10.0.50.173
-        cpu08-10G:
-          ansible_host: 10.0.50.176
-        cpu09-10G:
-          ansible_host: 10.0.50.179
-        cpu10-10G:
-          ansible_host: 10.0.50.182
-        cpu11-10G:
-          ansible_host: 10.0.50.185
-
-    slurmctld:
-      hosts:
-        slurmctld1:
-          ansible_host: 10.0.50.194
-        slurmctld2:
-          ansible_host: 10.0.50.195
-
-    login_nodes:
-      hosts:
-        login1:
-          ansible_host: 10.0.50.196
-        login2:
-          ansible_host: 10.0.50.197
-
-    thinlinc_masters:
-      hosts:
-        thinlinc1:
-          ansible_host: 10.0.50.198
-        thinlinc2:
-          ansible_host: 10.0.50.199
-
-    thinlinc_agents:
-      hosts:
-        login1:
-        login2:
-
-    thinlinc_servers:
       children:
+        sms:
+          hosts:
+            scc-cpu11-10G:
+              ansible_host: 10.0.50.155
+
+        computes:
+          hosts:
+            scc-mem01-10G:
+              ansible_host: 10.0.50.143
+            scc-mem02-10G:
+              ansible_host: 10.0.50.146
+            scc-gpu01-10G:
+              ansible_host: 10.0.50.149
+            scc-gpu02-10G:
+              ansible_host: 10.0.50.152
+            scc-cpu02-10G:
+              ansible_host: 10.0.50.158
+            scc-cpu03-10G:
+              ansible_host: 10.0.50.161
+            scc-cpu04-10G:
+              ansible_host: 10.0.50.164
+            scc-cpu05-10G:
+              ansible_host: 10.0.50.167
+            scc-cpu06-10G:
+              ansible_host: 10.0.50.170
+            scc-cpu07-10G:
+              ansible_host: 10.0.50.173
+            scc-cpu08-10G:
+              ansible_host: 10.0.50.176
+            scc-cpu09-10G:
+              ansible_host: 10.0.50.179
+            scc-cpu10-10G:
+              ansible_host: 10.0.50.182
+            scc-cpu11-10G:
+              ansible_host: 10.0.50.185
+
+    virtual:
+      vars:
+        ansible_user: root
+        ansible_connection: ssh
+        ansible_ssh_private_key_file: ~/.ssh/id_puli_root
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+      children:
+        slurmctld:
+          hosts:
+            slurmctld1:
+              ansible_host: 10.0.50.194
+            slurmctld2:
+              ansible_host: 10.0.50.195
+
+        login_nodes:
+          hosts:
+            login1:
+              ansible_host: 10.0.50.196
+            login2:
+              ansible_host: 10.0.50.197
+
         thinlinc_masters:
+          hosts:
+            thinlinc1:
+              ansible_host: 10.0.50.198
+            thinlinc2:
+              ansible_host: 10.0.50.199
+
         thinlinc_agents:
+          hosts:
+            login1:
+            login2:
 
-    monitoring:
-      hosts:
-        checkmk:
-          ansible_host: 10.0.50.200
+        thinlinc_servers:
+          children:
+            thinlinc_masters:
+            thinlinc_agents:
 
-    galaxy:
-      ansible_host: 10.0.50.201
+        monitoring:
+          hosts:
+            checkmk1:
+              ansible_host: 10.0.50.200
 
-    slurmdbd:
-      hosts:
-        slurmdbd1:
-          ansible_host: 10.0.50.202
-        slurmdbd2:
-          ansible_host: 10.0.50.203
+        galaxy:
+          hosts:
+            galaxy1:
+              ansible_host: 10.0.50.201
 
-  vars:
-    ansible_user: root
-    ansible_connection: ssh
-    ansible_ssh_private_key_file: ~/.ssh/id_puli_root
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        slurmdbd:
+          hosts:
+            slurmdbd1:
+              ansible_host: 10.0.50.202
+            slurmdbd2:
+              ansible_host: 10.0.50.203
