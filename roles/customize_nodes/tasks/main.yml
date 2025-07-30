@@ -53,11 +53,19 @@
     - ( inventory_hostname in groups['sms'] )
 
 # dnf -y install cuda-repo-ohpc
+- name: Install CUDA repository on SMS
+  ansible.builtin.dnf:
+    name:
+      - cuda-repo-ohpc
+    state: present
+  when:
+    - ( inventory_hostname in groups['sms'] )
+    - customize_nodes_install_nvidia_drivers
+
 # dnf -y install nvidia-driver-cuda cuda-devel-ohpc
 - name: Install CUDA and NVIDIA packages on SMS
   ansible.builtin.dnf:
     name:
-      - cuda-repo-ohpc
       - nvidia-driver-cuda
       - cuda-devel-ohpc
     state: present
@@ -84,12 +92,12 @@
     - customize_nodes_install_nvidia_drivers
 
 - name: Install and configure CUDA and NVIDIA packages on compute nodes
-  ansible.builtin.shell:
-    set -o pipefail; echo '{{ item }}' | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command:
+    wwctl image exec --build=false almalinux-9 /bin/bash -c "{{ item }}"
   loop:
     - dnf -y install cuda-repo-ohpc
     - dnf -y module install nvidia-driver:latest-dkms
-    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
+    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
     - dkms status
   changed_when:
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )
@@ -170,5 +178,3 @@
   when:
     - inventory_hostname in groups['sms']
     - customize_nodes_install_nhc
-
-# ulimit -v unlimited - TODO - lets see - probably not needed, I think users can set this up themselves on an ad hoc basis

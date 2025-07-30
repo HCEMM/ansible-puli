@@ -1,25 +1,71 @@
 ---
-- name: Build PULI
-  hosts: all
+- name: Setup the foundations
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - create_bridge
+    - setup_vms
+
+- name: Build main server
+  hosts:
+    - sms
   any_errors_fatal: true
   become: true
   gather_facts: true
 
   roles:
-    - common
+    - pre_ohpc
     - chronyd
     - setup_ohpc
     - setup_warewulf
-    - setup_slurm
     - build_compute_images
     - customize_nodes
     - build_overlay
-    - finalize_provision
     - hpc_toolchain
     - customize_puli
     - setup_modules
+
+- name: Finalize provision
+  hosts:
+    - sms
+    - computes
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - finalize_provision
     - configure_shares
+
+- name: Post VMs
+  hosts: sms
+  become: true
+  gather_facts: true
+  roles:
+    - post_vms
+
+- name: Setup Slurm
+  hosts:
+    - slurmctld
+    - slurmdbd
+    - login_nodes
+    - computes
+  become: true
+  become_user: root
+  gather_facts: true
+  roles:
+    - setup_slurm
+
+- name: Setup Login nodes
+  hosts: login_nodes
+  become: true
+  gather_facts: true
+  roles:
     - fail2ban
+    - configure_shares
+    # - ldap          # for next version
 
 - name: Install ThinLinc Server
   hosts: thinlinc_servers
@@ -31,7 +77,7 @@
       vars:
         thinlinc_accept_eula: "yes"
         thinlinc_version: "4.19.0"
-        thinlinc_server_bundle: "/root/tl-{{ thinlinc_version }}-server.zip"
+        thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
         thinlinc_build: "4116"
         thinlinc_autoinstall_dependencies: "yes"
         thinlinc_email: joao.sequeira@hcemm.eu

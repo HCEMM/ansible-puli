@@ -1,0 +1,117 @@
+---
+- name: Install required packages for virtualization
+  ansible.builtin.dnf:
+    name:
+      - libvirt
+      - virt-manager
+      - virt-install
+      - libguestfs-tools
+      - python3-libvirt
+    state: present
+
+- name: Ensure libvirtd is started and enabled
+  ansible.builtin.service:
+    name: libvirtd
+    state: started
+    enabled: true
+
+- name: Add current user to libvirt group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: libvirt
+    append: true
+
+- name: Download base image
+  ansible.builtin.get_url:
+    url: "{{ setup_vms_base_image_url }}"
+    dest: "/tmp/{{ setup_vms_base_image_name }}"
+    checksum: "sha256:{{ setup_vms_base_image_sha }}"
+    mode: "0660"
+
+- name: Check if HTTP server is already running
+  ansible.builtin.shell: "ss -ltn '( sport = :{{ setup_vms_kickstart_port }} )' | grep -q {{ setup_vms_kickstart_port }}"
+  register: http_port_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Start local HTTP server for kickstart files
+  ansible.builtin.shell: "nohup python3 -m http.server {{ setup_vms_kickstart_port }} --directory /var/www/html --bind 0.0.0.0 &"
+  changed_when: true
+  when: http_port_check.rc != 0
+
+# Next tasks from: https://www.liquidweb.com/help-docs/server-administration/linux-server-administration/install-kvm-on-linux-almalinux/
+- name: Get VMs list
+  community.libvirt.virt:
+    command: list_vms
+  register: existing_vms
+  changed_when: false
+
+- name: Process each VM
+  ansible.builtin.include_tasks: create-vm.yml
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  loop_control:
+    loop_var: vm
+  vars:
+    vm_name: "{{ vm.key }}"
+    vm_params: "{{ vm.value }}"
+
+- name: Decrypt and place root SSH private key (ansible user)
+  ansible.builtin.copy:
+    src: "id_puli_root"
+    dest: ~/.ssh/id_rsa
+    mode: '0600'
+    decrypt: true
+
+- name: Decrypt and place root SSH private key (root user)
+  ansible.builtin.copy:
+    src: "id_puli_root"
+    dest: /root/.ssh/id_rsa
+    mode: '0600'
+    decrypt: true
+
+- name: Add VMs to SSH config (ansible user)
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: ~/.ssh/config
+    mode: '0600'
+
+- name: Add VMs to SSH config (root user)
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: /root/.ssh/config
+    mode: '0600'
+
+- name: Add VMs to hosts file
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ item.value.ip }} {{ item.key }}"
+    state: present
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+
+- name: Wait for SSH to become available on all VMs
+  ansible.builtin.wait_for:
+    host: "{{ item.value.ip }}"
+    port: 22
+    state: started
+    timeout: 180
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
+  run_once: false
+  retries: 5
+  delay: 10
+  register: ssh_wait_result
+  until: ssh_wait_result is succeeded
+
+- name: Add VMs to known_hosts file (ansible user)
+  ansible.builtin.command: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts {{ item.key }} exit
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Add VMs to known_hosts file (root user)
+  ansible.builtin.command: >
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/root/.ssh/known_hosts {{ item.key }} exit
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+  delegate_to: localhost
+  changed_when: false

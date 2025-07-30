@@ -1,5 +1,6 @@
+AccountingStorageBackupHost=slurmdbd2
 AccountingStorageEnforce=associations
-AccountingStorageHost={{ sms_name }}
+AccountingStorageHost=slurmdbd1
 AccountingStoragePass=/var/run/munge/global.socket.2
 AccountingStoragePort=6819
 AccountingStorageTRES=gres/gpu,gres/shard
@@ -13,9 +14,9 @@ AllowSpecResourcesUsage=NO
 AuthType=auth/munge
 BurstBufferType=burst_buffer/none
 ClusterName={{ setup_slurm_cluster_name }}
-DefMemPerCPU=5333
+DefMemPerCPU=5120
 EnforcePartLimits=ALL
-Epilog=/etc/slurm/slurm.epilog.clean
+Epilog=/etc/slurm/epilog.sh
 FairShareDampeningFactor=5
 GresTypes=gpu,shard
 GpuFreqDef=high
@@ -25,7 +26,6 @@ HealthCheckProgram=/usr/sbin/nhc
 InactiveLimit=proctrack/cgroup
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=task=30,energy=30,network=30,filesystem=30
-JobCompHost={{ sms_name }}
 JobCompLoc=slurm_jobcomp_db
 JobCompPass=password
 JobCompPort=3306
@@ -50,7 +50,8 @@ ScronParameters=enable,explicit_scancel
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core_Memory,LL_SHARED_GRES
 SlurmctldDebug=debug
-SlurmctldHost={{ sms_name }}
+SlurmctldHost=slurmctld1
+SlurmctldHost=slurmctld2
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmctldParameters=enable_configless
 SlurmctldSyslogDebug=debug
@@ -66,11 +67,11 @@ TopologyParam=RouteTree
 TopologyPlugin=topology/block
 TrackWCKey=no
 TreeWidth=32
-PartitionName=cpu Nodes=scc-cpu[01-11]-10G MaxTime=30-00:00:00 AllowAccounts=CPU CpuBind=core DefMemPerCPU=5333 Default=YES
-PartitionName=highmem Nodes=scc-mem02-10G MaxTime=10-00:00:00 AllowAccounts=MEM CpuBind=core DefMemPerCPU=42777
+NodeName=scc-cpu[02-11]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 CpuBind=core
+NodeName=scc-mem[01-2]-10G CPUs=32 Sockets=4 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=1024000 Features=highmem CpuBind=core
+NodeName=scc-gpu[01-02]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
+NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
+NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
+PartitionName=cpu Nodes=scc-cpu[02-11]-10G MaxTime=30-00:00:00 AllowAccounts=CPU CpuBind=core DefMemPerCPU=5333 Default=YES
+PartitionName=highmem Nodes=scc-mem[01-02]-10G MaxTime=10-00:00:00 AllowAccounts=MEM CpuBind=core DefMemPerCPU=42777
 PartitionName=gpu Nodes=scc-gpu[01-02]-10G MaxTime=10-00:00:00 AllowAccounts=GPU AllowGroups=LAMSA CpuBind=core DefMemPerCPU=5333
-NodeName=scc-cpu[01-11]-10G CPUs=48 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=256000 CpuBind=core
-NodeName=scc-mem02-10G CPUs=48 Sockets=4 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=2048000 Features=highmem CpuBind=core
-NodeName=scc-gpu[01-02]-10G CPUs=48 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=256000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
-NodeSet=rack6 Nodes=scc-mem02-10G,scc-gpu02-10G,scc-cpu[02,04,06,08,10]-10G
-NodeSet=rack7 Nodes=scc-gpu01-10G,scc-cpu[01,03,05,07,09,11]-10G
