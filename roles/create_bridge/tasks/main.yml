@@ -1,0 +1,58 @@
+---
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ master_hostname }}"
+
+- name: Ensure NetworkManager is installed
+  ansible.builtin.package:
+    name: NetworkManager
+    state: present
+
+- name: Build bridge
+  when: not bridge_name in ansible_facts['interfaces']    # if br0 already exists in devices, skip creation
+
+  block:
+    # nmcli connection add type bridge con-name br0 ifname br0
+    - name: Create bridge interface
+      community.general.nmcli:
+        conn_name: "{{ bridge_name }}"
+        ifname: "{{ bridge_name }}"
+        type: bridge
+        autoconnect: true
+        state: present
+
+    # nmcli connection add type ethernet con-name ens1f0np0-slave ifname ens1f0np0 master br0
+    - name: Add slave interface to bridge
+      community.general.nmcli:
+        conn_name: "{{ eth_provision }}-slave"
+        ifname: "{{ eth_provision }}"
+        type: ethernet
+        master: "{{ bridge_name }}"
+        autoconnect: true
+        state: present
+
+    # nmcli con mod br0 ipv4.addresses 10.0.50.185/24 gw4 10.0.50.1
+    # nmcli con mod br0 ipv4.dns 10.0.50.1
+    # nmcli con mod br0 ipv4.method manual
+    - name: Configure static IP and DNS on bridge
+      community.general.nmcli:
+        conn_name: "{{ bridge_name }}"
+        type: bridge
+        ip4: "{{ sms_ip }}/24"
+        gw4: "{{ ansible_default_ipv4.network | regex_replace('^(\\d+\\.\\d+\\.\\d+)\\.\\d+$', '\\1.1') }}"
+        dns4:
+          - "{{ bridge_dns }}"
+        method4: manual
+        state: present
+
+    # nmcli con up ens1f0np0-slave
+    - name: Bring up slave connection
+      community.general.nmcli:
+        conn_name: "{{ eth_provision }}-slave"
+        state: up
+
+    # nmcli con up br0
+    - name: Bring up bridge connection
+      community.general.nmcli:
+        conn_name: "{{ bridge_name }}"
+        state: up

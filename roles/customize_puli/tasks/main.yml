@@ -12,7 +12,7 @@
 - name: Copy user executables into /usr/local/bin
   ansible.builtin.copy:
     src: usr/local/bin
-    dest: /usr/local/bin
+    dest: /usr/local
     owner: root
     group: root
     mode: "0755"
@@ -22,7 +22,7 @@
 - name: Copy root executables into /root/bin
   ansible.builtin.copy:
     src: root/bin
-    dest: /root/bin
+    dest: /root
     owner: root
     group: root
     mode: "0700"

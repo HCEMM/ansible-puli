@@ -1,17 +1,163 @@
 ---
+# dnf install -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+- name: Install OpenHPC repo
+  ansible.builtin.dnf:
+    name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+    state: present
+    disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+# dnf -y install dnf-plugins-core
+- name: Install dnf plugins
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+# dnf -y config-manager --set-enabled crb
+- name: Ensure the crb repository is enabled
+  community.general.dnf_config_manager:
+    name: crb
+    state: enabled
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+- name: Install Slurm server
+  ansible.builtin.dnf:
+    name: ohpc-slurm-server
+    state: present
+  when:
+    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+
+### Create Users and Groups where Warewulf is stil not managing
+- name: Ensure user groups exist (login nodes)
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: present
+  loop: "{{ user_groupnames }}"
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Ensure users exist (login nodes)
+  ansible.builtin.user:
+    name: "{{ item.username }}"
+    uid: "{{ item.uid }}"
+    groups: "{{ item.groups | join(',') }}"
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+  loop: "{{ user_usernames }}"
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Ensure munge user and group exist
+  ansible.builtin.user:
+    name: munge
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+    state: present
+
+- name: Ensure munge group exists
+  ansible.builtin.group:
+    name: munge
+    system: true
+    state: present
+
+- name: Create munge folder
+  ansible.builtin.file:
+    path: /etc/munge
+    state: directory
+    owner: munge
+    group: munge
+    mode: '0700'
+
+- name: Copy munge.key
+  ansible.builtin.copy:
+    src: munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+
+# systemctl enable --now munge
+- name: Enable and start munge service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+
+- name: Create slurm folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/slurm
+    - /var/log/slurm
+    - /var/spool/slurm
+
 # cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
-# cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
-- name: Copy the files from the template directory
+- name: Copy slurm.conf
+  ansible.builtin.template:
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+
+- name: Copy slurmdbd.conf
+  ansible.builtin.template:
+    src: slurmdbd.conf.j2
+    dest: /etc/slurm/slurmdbd.conf
+    mode: '0600'
+  when: inventory_hostname in groups['slurmdbd']
+
+# cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
+- name: Copy other Slurm templates
   ansible.builtin.template:
     src: "{{ item }}.j2"
-    dest: "/etc/slurm/{{ item }}"
-    mode: "{{ '0600' if item == 'slurmdbd.conf' else '0644' }}"
+    dest: /etc/slurm/{{ item }}"
+    mode: "{{ '0600' if item in ['acct_gather.conf'] else '0644' }}"
   loop:
-    - slurm.conf
-    - slurmdbd.conf
     - cgroup.conf
     - acct_gather.conf
     - topology.conf
+  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
+
+- name: Deploy epilog.sh
+  ansible.builtin.copy:
+    src: epilog.sh
+    dest: /etc/slurm/epilog.sh
+    mode: '0755'
+
+# systemctl enable --now slurmctld
+- name: Enable and start slurmctld service
+  ansible.builtin.systemd:
+    name: slurmctld
+    enabled: true
+    state: started
   when:
-    ( inventory_hostname in groups['sms'] )
+    - ( inventory_hostname in groups['slurmctld'] )
+    - env == 'production'
+
+- name: Enable and start slurmd service
+  ansible.builtin.systemd:
+    name: slurmd
+    enabled: true
+    state: started
+  when:
+    - ( inventory_hostname in groups['computes'] )
+    - env == 'production'
+
+# pdsh -w $(IFS=','; echo "${c_name[*]}") "/usr/sbin/nhc-genconf -H '*' -c -" | dshbak -c
+- name: Generate NHC configuration on compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/sbin/nhc-genconf -H '*' -c - | dshbak -c
+  args:
+    creates: /etc/nhc/nhc.conf
+  when:
+    - ( inventory_hostname in groups['computes'] )
+    - env == 'production'

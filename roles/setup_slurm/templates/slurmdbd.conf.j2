@@ -1,7 +1,8 @@
 AuthInfo=socket=/var/run/munge/munge.socket.2
 AuthType=auth/munge
 CommitDelay=0
-DbdHost={{ sms_name }}
+DbdBackupHost=slurmdbd2
+DbdHost=slurmdbd1
 DebugFlags=AuditRPCs,DB_ARCHIVE,DB_ASSOC,DB_EVENT,DB_JOB,DB_QOS,DB_QUERY,DB_RESERVATION,DB_RESOURCE,DB_STEP,DB_TRES,DB_USAGE,DB_WCKEY,FEDERATION,Network,NetworkRaw,TLS
 DebugLevel=debug
 DebugLevelSyslog=debug
@@ -14,9 +15,10 @@ PurgeSuspendAfter=365days
 PurgeTXNAfter=365days
 PurgeUsageAfter=365days
 SlurmUser={{ setup_slurm_slurm_user }}
-StorageHost={{ sms_name }}
+StorageBackupHost=slurmdbd2
+StorageHost=slurmdbd1
 StorageLoc=slurm_acct_db
-StoragePass={{ setup_slurm_storage_pass }}
+StoragePass=password
 StorageType=accounting_storage/mysql
 StorageUser={{ setup_slurm_slurm_user }}
 TrackSlurmctldDown=yes
