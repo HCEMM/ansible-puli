@@ -100,23 +100,22 @@
   register: node_status
   changed_when: false
 
-- name: Get nodes needing reset
+- name: Find nodes that are missing or stale
   ansible.builtin.set_fact:
     nodes_to_reset: >-
       {{
         node_status.stdout_lines
         | select('match', '^scc-')
-        | map('regex_search', '^(\\S+).*?(\\d+)$')
-        | selectattr('1', 'defined')
-        | selectattr('1', 'int')
-        | selectattr('1', 'int', '>', finalize_provision_node_lastseen_threshold)
-        | map('first')
+        | map('split')
+        | selectattr('3', 'defined')
+        | selectattr('3', 'in', ['--'] + (range(finalize_provision_node_lastseen_threshold, 1000000) | map('string') | list))
+        | map(attribute=0)
         | list
       }}
 
 - name: Reset non-available nodes
   ansible.builtin.command: >
-    ipmitool -E -I lanplus -H {{ hostvars[item].bmc_ip }}
+    ipmitool -E -I lanplus -H {{ (compute_nodes | selectattr('c_name', 'equalto', item) | first).c_bmc }}
     -U {{ bmc_username }} -P {{ bmc_password }} chassis power reset
   loop: "{{ nodes_to_reset }}"
   loop_control:
