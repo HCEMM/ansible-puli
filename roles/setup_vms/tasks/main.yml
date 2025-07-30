@@ -28,6 +28,12 @@
     checksum: "sha256:{{ setup_vms_base_image_sha }}"
     mode: "0660"
 
+- name: Disable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+
 - name: Check if HTTP server is already running
   ansible.builtin.shell: "ss -ltn '( sport = :{{ setup_vms_kickstart_port }} )' | grep -q {{ setup_vms_kickstart_port }}"
   register: http_port_check

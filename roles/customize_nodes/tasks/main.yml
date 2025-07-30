@@ -82,8 +82,8 @@
 # dkms status
 # EOF
 - name: Check if CUDA and NVIDIA packages are installed in image
-  ansible.builtin.shell: |
-    set -o pipefail; echo rpm -q cuda-repo-ohpc nvidia-driver nvidia-driver-cuda cuda-devel-ohpc dkms | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command:
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'rpm -q cuda-repo-ohpc nvidia-driver nvidia-driver-cuda cuda-devel-ohpc dkms'
   register: nvidia_cuda_pkgs
   changed_when: false
   failed_when: false

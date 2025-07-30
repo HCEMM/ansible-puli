@@ -1,47 +1,46 @@
 all:
   children:
     physical:
-      vars:
-        ansible_user: jsequeira
-        ansible_connection: local
-        ansible_become: true
-
       children:
         sms:
           hosts:
-            scc-cpu11-10G:
-              ansible_host: 10.0.50.155
+            scc-cpu01-10G:
+              ansible_host: 10.0.50.101
+          vars:
+            ansible_user: hcemm
+            ansible_connection: local
+            ansible_become: true
 
         computes:
           hosts:
-            scc-mem01-10G:
-              ansible_host: 10.0.50.143
-            scc-mem02-10G:
-              ansible_host: 10.0.50.146
-            scc-gpu01-10G:
-              ansible_host: 10.0.50.149
-            scc-gpu02-10G:
-              ansible_host: 10.0.50.152
             scc-cpu02-10G:
-              ansible_host: 10.0.50.158
+              ansible_host: 10.0.150.104
             scc-cpu03-10G:
-              ansible_host: 10.0.50.161
+              ansible_host: 10.0.150.107
             scc-cpu04-10G:
-              ansible_host: 10.0.50.164
+              ansible_host: 10.0.150.110
             scc-cpu05-10G:
-              ansible_host: 10.0.50.167
+              ansible_host: 10.0.150.113
             scc-cpu06-10G:
-              ansible_host: 10.0.50.170
+              ansible_host: 10.0.150.116
             scc-cpu07-10G:
-              ansible_host: 10.0.50.173
+              ansible_host: 10.0.150.119
             scc-cpu08-10G:
-              ansible_host: 10.0.50.176
+              ansible_host: 10.0.150.176
             scc-cpu09-10G:
-              ansible_host: 10.0.50.179
+              ansible_host: 10.0.150.179
             scc-cpu10-10G:
-              ansible_host: 10.0.50.182
+              ansible_host: 10.0.150.182
             scc-cpu11-10G:
-              ansible_host: 10.0.50.185
+              ansible_host: 10.0.150.185
+            scc-mem01-10G:
+              ansible_host: 10.0.150.104
+            scc-mem02-10G:
+              ansible_host: 10.0.150.146
+            scc-gpu01-10G:
+              ansible_host: 10.0.150.149
+            scc-gpu02-10G:
+              ansible_host: 10.0.150.152
 
     virtual:
       vars:
@@ -54,23 +53,23 @@ all:
         slurmctld:
           hosts:
             slurmctld1:
-              ansible_host: 10.0.50.194
+              ansible_host: 10.0.150.194
             slurmctld2:
-              ansible_host: 10.0.50.195
+              ansible_host: 10.0.150.195
 
         login_nodes:
           hosts:
             login1:
-              ansible_host: 10.0.50.196
+              ansible_host: 10.0.150.196
             login2:
-              ansible_host: 10.0.50.197
+              ansible_host: 10.0.150.197
 
         thinlinc_masters:
           hosts:
             thinlinc1:
-              ansible_host: 10.0.50.198
+              ansible_host: 10.0.150.198
             thinlinc2:
-              ansible_host: 10.0.50.199
+              ansible_host: 10.0.150.199
 
         thinlinc_agents:
           hosts:
@@ -85,16 +84,16 @@ all:
         monitoring:
           hosts:
             checkmk1:
-              ansible_host: 10.0.50.200
+              ansible_host: 10.0.150.200
 
         galaxy:
           hosts:
             galaxy1:
-              ansible_host: 10.0.50.201
+              ansible_host: 10.0.150.201
 
         slurmdbd:
           hosts:
             slurmdbd1:
-              ansible_host: 10.0.50.202
+              ansible_host: 10.0.150.202
             slurmdbd2:
-              ansible_host: 10.0.50.203
+              ansible_host: 10.0.150.203

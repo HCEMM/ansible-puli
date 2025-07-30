@@ -22,8 +22,8 @@
 #   dnf -y update
 # EOF
 - name: Check if OpenHPC repo is installed inside image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'rpm -q ohpc-release' | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'rpm -q ohpc-release'
   register: ohpc_repo_check
   changed_when: false
   failed_when: false    # warewulf will fail with "package ohpc-release is not installed (exit code 127)"
@@ -31,9 +31,9 @@
     - inventory_hostname in groups['sms']
 
 - name: Install OpenHPC repo inside image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm; dnf -y update' |
-    wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c
+    'dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm; dnf -y update'
   changed_when: ohpc_repo_check.rc != 0
   when:
     - ( "package ohpc-release is not installed" in ohpc_repo_check.stdout )
@@ -66,8 +66,8 @@
     - inventory_hostname in groups['sms']
 
 - name: Enable services inside Warewulf image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'systemctl enable {{ item }}' | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'systemctl enable {{ item }}'
   changed_when: true   # systemctl doesn't mark change - and I could check for "Created symlink..." but it would be a bit messy
   loop:
     - munge
