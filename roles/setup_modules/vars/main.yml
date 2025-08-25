@@ -1,5 +1,5 @@
 setup_modules_spack_version: "0.23.1"
-setup_modules_spack_gcc: "11.5.0"
+setup_modules_spack_gcc: "14.2.0"
 setup_modules_spack_packages:
   - bwa
   - sratoolkit
