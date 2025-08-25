@@ -19,6 +19,7 @@
     - setup_modules_spack_packages is defined
     - setup_modules_spack_packages | length > 0
 
+# TODO - this is to be a handler
 - name: Refresh Spack modules
   ansible.builtin.shell: source /etc/profile.d/lmod.sh; ml spack; spack module lmod refresh -y
   register: refresh_result

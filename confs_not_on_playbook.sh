@@ -39,6 +39,18 @@ nmcli con mod br0 ipv4.method manual
 nmcli con up ens1f0np0-slave
 nmcli con up br0
 
+# install Xfce
+dnf groupinstall "Xfce" "base-x"
+systemctl set-default graphical.target
 
-mkdir -p /var/www/html/ks
-python3 -m http.server --directory /var/www/html 9876 &
+# Get Robert's project working
+git clone https://github.com/RobertHenschel/slurm-desktop
+pip install PyQt5
+dnf install xcb-util-wm xcb-util-keysyms
+python3 simple_slurm_viewer.py
+python3 slurm_partition_viewer.py
+
+# ThinLinc
+# - web access (:300 default)
+# - X11 forwarding
+# - those nice apps

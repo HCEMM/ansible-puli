@@ -7,9 +7,9 @@ AccountingStorageTRES=gres/gpu,gres/shard
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageUser={{ setup_slurm_accounting_storage_user }}
 AccountingStoreFlags=job_comment,job_env,job_extra,job_script
-AcctGatherNodeFreq=300
-AcctGatherEnergyType=acct_gather_energy/ipmi
-AcctGatherProfileType=acct_gather_profile/hdf5
+#AcctGatherNodeFreq=300
+#AcctGatherEnergyType=acct_gather_energy/ipmi
+#AcctGatherProfileType=acct_gather_profile/hdf5
 AllowSpecResourcesUsage=NO
 AuthType=auth/munge
 BurstBufferType=burst_buffer/none
@@ -23,7 +23,6 @@ GpuFreqDef=high
 HealthCheckInterval=300
 HealthCheckNodeState=ANY
 HealthCheckProgram=/usr/sbin/nhc
-InactiveLimit=proctrack/cgroup
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=task=30,energy=30,network=30,filesystem=30
 JobCompLoc=slurm_jobcomp_db
@@ -31,10 +30,10 @@ JobCompPass=password
 JobCompPort=3306
 JobCompType=jobcomp/mysql
 JobCompUser=job_database_mgr
-JobContainerType=job_container/tmpfs
-JobSubmitPlugins=require_timelimit,defaults,logging
+#JobContainerType=job_container/tmpfs
+#JobSubmitPlugins=require_timelimit,defaults,logging
 KillOnBadExit=1
-LaunchParameters=disable_send_gids
+LaunchParameters=use_interactive_step
 MaxNodeCount=11
 MpiDefault=none
 PriorityDecayHalfLife=7-0
@@ -64,12 +63,12 @@ SlurmSchedLogLevel=1
 SlurmUser={{ setup_slurm_slurm_user }}
 TaskPlugin=task/cgroup,task/affinity
 TopologyParam=RouteTree
-TopologyPlugin=topology/block
+TopologyPlugin=topology/tree
 TrackWCKey=no
 TreeWidth=32
-NodeName=scc-cpu[02-11]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 CpuBind=core
-NodeName=scc-mem[01-2]-10G CPUs=32 Sockets=4 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=1024000 Features=highmem CpuBind=core
-NodeName=scc-gpu[01-02]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
+NodeName=scc-cpu[02-11]-10G CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=128000 CpuBind=core
+NodeName=scc-mem[01-2]-10G CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=1024000 Features=highmem CpuBind=core
+NodeName=scc-gpu[01-02]-10G CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=128000 Features=nvidia Gres=gpu CpuBind=core
 NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
 NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
 PartitionName=cpu Nodes=scc-cpu[02-11]-10G MaxTime=30-00:00:00 AllowAccounts=CPU CpuBind=core DefMemPerCPU=5333 Default=YES

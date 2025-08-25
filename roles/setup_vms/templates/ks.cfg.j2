@@ -5,12 +5,11 @@ lang en_GB.UTF-8
 keyboard --xlayouts='hu'
 timezone Europe/Budapest --utc
 
-network --bootproto=static --ip={{ vm_ip }} --netmask={{ internal_netmask }} --gateway={{ internal_network }} --nameserver={{ internal_network }} --device=enp1s0 --onboot=on --hostname={{ vm_name }}
+network --bootproto=static --ip={{ vm_ip }} --netmask={{ internal_netmask }} --gateway={{ internal_network }} --nameserver={{ internal_network }} --device=enp0s2 --onboot=on --hostname={{ vm_name }}
 
 rootpw --iscrypted --allow-ssh {{ root_password }}
 
 firewall --enabled --service=ssh
-authselect --use-shadow --enable-feature=with-smartcard --enable-feature=with-faillock
 selinux --enforcing
 services --enabled=sshd
 
@@ -21,27 +20,20 @@ autopart
 @core
 %end
 
-# prevent the initial setup screen from appearing on the first boot
+# prevent the initial setup screen from appearing on the first boot - essential for automation
 firstboot --disable
 
 %post
 #---- Install root SSH key ----
 mkdir -m0700 /root/.ssh/
 cat <<EOF >/root/.ssh/authorized_keys
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKsrPvhdrXjTArtYvwftiZyqOZOOb6mCyAD335a8yaG4 root@{{ master_hostname }}
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMHaDgl2xOBWvznXK3uDm0k8RwACy18hMyx3SSjDsYVF root@{{ master_hostname }}
 EOF
 ### set permissions
 chmod 0600 /root/.ssh/authorized_keys
 ### fix up selinux context
 restorecon -R /root/.ssh/
 
-#---- Configure static DNS via nmcli ----
-# Get the connection name, and then apply the DNS settings
-nmcli connection show | grep -i enp1s0 | awk '{print $1}' | while read conn; do
-  nmcli connection modify "$conn" ipv4.dns "8.8.8.8 1.1.1.1"
-  nmcli connection modify "$conn" ipv4.ignore-auto-dns yes
-  nmcli connection up "$conn"
-done
 %end
 
 reboot
