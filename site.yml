@@ -6,85 +6,85 @@
   become: true
   gather_facts: true
   roles:
-    - create_bridge
+    # - create_bridge
     - setup_vms
 
-- name: Build main server
-  hosts:
-    - sms
-  any_errors_fatal: true
-  become: true
-  gather_facts: true
+# - name: Build main server
+#   hosts:
+#     - sms
+#   any_errors_fatal: true
+#   become: true
+#   gather_facts: true
 
-  roles:
-    - pre_ohpc
-    - chronyd
-    - setup_ohpc
-    - setup_warewulf
-    - build_compute_images
-    - customize_nodes
-    - build_overlay
-    - hpc_toolchain
-    - customize_puli
-    - setup_modules
+#   roles:
+#     - pre_ohpc
+#     - chronyd
+#     - setup_ohpc
+#     - setup_warewulf
+#     - build_compute_images
+#     - customize_nodes
+#     - build_overlay
+#     - hpc_toolchain
+#     - setup_modules
+#     - finalize_provision
 
-- name: Finalize provision
-  hosts:
-    - sms
-    - computes
-  any_errors_fatal: true
-  become: true
-  gather_facts: true
-  roles:
-    - finalize_provision
-    - configure_shares
+# - name: Finalize provision
+#   hosts:
+#     - sms
+#     - computes
+#   any_errors_fatal: true
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - configure_shares
 
-- name: Post VMs
-  hosts: sms
-  become: true
-  gather_facts: true
-  roles:
-    - post_vms
+# - name: Post VMs
+#   hosts: sms
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - post_vms
 
-- name: Setup Slurm
-  hosts:
-    - slurmctld
-    - slurmdbd
-    - login_nodes
-    - computes
-  become: true
-  become_user: root
-  gather_facts: true
-  roles:
-    - setup_slurm
+# - name: Setup Slurm
+#   hosts:
+#     - slurmctld
+#     - slurmdbd
+#     - login_nodes
+#     - computes
+#   become: true
+#   become_user: root
+#   gather_facts: true
+#   roles:
+#     - setup_slurm
 
-- name: Setup Login nodes
-  hosts: login_nodes
-  become: true
-  gather_facts: true
-  roles:
-    - fail2ban
-    - configure_shares
-    # - ldap          # for next version
+# - name: Setup Login nodes
+#   hosts: login_nodes
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - fail2ban
+#     - customize_puli
+#     - configure_shares
+#     # - ldap          # for next version
 
-- name: Install ThinLinc Server
-  hosts: thinlinc_servers
-  become: true
-  gather_facts: true
+# - name: Install ThinLinc Server
+#   hosts: thinlinc_servers
+#   become: true
+#   gather_facts: true
 
-  roles:
-    - role: thinlinc-server
-      vars:
-        thinlinc_accept_eula: "yes"
-        thinlinc_version: "4.19.0"
-        thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
-        thinlinc_build: "4116"
-        thinlinc_autoinstall_dependencies: "yes"
-        thinlinc_email: joao.sequeira@hcemm.eu
-        thinlinc_printers: "no"
-        thinlinc_webaccess_port: 443
-        thinlinc_webaccess_login_page: "/"    # default value, redirects to the current server
-        thinlinc_webadm_port: 1010
-        thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
-        thinlinc_hostname_choice: "hostname"
-        thinlinc_agent_hostname: "{{ inventory_hostname }}"
+#   roles:
+#     - role: thinlinc-server
+#       vars:
+#         thinlinc_accept_eula: "yes"
+#         thinlinc_version: "4.19.0"
+#         thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
+#         thinlinc_build: "4116"
+#         thinlinc_autoinstall_dependencies: "yes"
+#         thinlinc_email: joao.sequeira@hcemm.eu
+#         thinlinc_printers: "no"
+#         thinlinc_webaccess_port: 443
+#         thinlinc_webaccess_login_page: "/"    # default value, redirects to the current server
+#         thinlinc_webadm_port: 1010
+#         thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
+#         thinlinc_hostname_choice: "hostname"
+#         thinlinc_agent_hostname: "{{ inventory_hostname }}"

@@ -54,3 +54,6 @@ python3 slurm_partition_viewer.py
 # - web access (:300 default)
 # - X11 forwarding
 # - those nice apps
+
+
+# CheckMK

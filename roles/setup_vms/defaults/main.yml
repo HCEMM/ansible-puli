@@ -3,9 +3,5 @@
 setup_vms_base_image_name: AlmaLinux-9.6-x86_64-minimal.iso
 setup_vms_base_image_url: "https://repo.almalinux.org/almalinux/9/isos/x86_64/{{ setup_vms_base_image_name }}"
 setup_vms_base_image_sha: 27a346c74d8755516a4ad2057ea29c2450454f1a928628734f26e12b0b8120d7
-setup_vms_libvirt_pool_dir: "/var/lib/libvirt/images"
-setup_vms_vm_net: br0
-setup_vms_vm_root_pass: test123
 setup_vms_cleanup_tmp: false
-setup_vms_ssh_key: /root/.ssh/id_rsa.pub
 setup_vms_kickstart_port: 9876

@@ -48,7 +48,7 @@ setup_vms_vm_list:
     ip: '10.0.150.207'
     mac: '52:54:00:aa:bb:06'
   checkmk1:
-    memory: 2048
+    memory: 4096
     vcpus: 1
     disk_size: 15G
     ip: '10.0.150.208'
