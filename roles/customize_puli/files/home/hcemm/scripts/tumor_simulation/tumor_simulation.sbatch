@@ -7,7 +7,12 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 
-cd $SLURM_SUBMIT_DIR
-module load python
+ml miniconda3
 
-srun --multi-prog $SLURM_SUBMIT_DIR/multi.conf
+conda activate
+
+SUBMIT_DIR=~/scripts/tumor_simulation
+
+cd $SUBMIT_DIR
+
+srun --multi-prog $SUBMIT_DIR/multi.conf
