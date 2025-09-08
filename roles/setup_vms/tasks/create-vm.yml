@@ -7,16 +7,6 @@
       args:
         creates: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
 
-    - name: Generate XML definition of image
-      ansible.builtin.template:
-        src: vm.xml.j2
-        dest: "/tmp/{{ vm_name }}.xml"
-        mode: '0644'
-      vars:
-        xml_vm_name: "{{ vm_name }}"
-        vm_memory: "{{ vm_params.memory }}"
-        vm_vcpus: "{{ vm_params.vcpus }}"
-
     - name: Generate kickstart file into HTTP server directory
       ansible.builtin.template:
         src: ks.cfg.j2
