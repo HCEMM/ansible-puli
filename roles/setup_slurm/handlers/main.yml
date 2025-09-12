@@ -1,0 +1,20 @@
+---
+# systemctl enable --now munge
+- name: Enable and start munge service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+
+# systemctl enable --now slurmctld
+- name: Enable and start slurmctld service
+  ansible.builtin.systemd:
+    name: slurmctld
+    enabled: true
+    state: started
+
+- name: Enable and start slurmdbd
+  ansible.builtin.systemd:
+    name: slurmdbd
+    state: started
+    enabled: true
