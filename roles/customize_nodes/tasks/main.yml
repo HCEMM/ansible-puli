@@ -4,6 +4,8 @@
   ansible.builtin.command: wwctl image show almalinux-9
   register: chroot_path_result
   changed_when: false
+  when:
+    - ( inventory_hostname in groups['sms'] )
 
 - name: Extract chroot path from wwctl output
   ansible.builtin.set_fact:
@@ -19,10 +21,10 @@
     state: present
     insertbefore: '^# End of file'
   loop:
-    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock {{ customize_nodes_max_memory_soft }}' }
-    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock {{ customize_nodes_max_memory_hard }}' }
-    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time {{ customize_nodes_max_cpu_soft }}' }
-    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time {{ customize_nodes_max_cpu_hard }}' }
+    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock unlimited' }
+    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock unlimited' }
+    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time unlimited' }
+    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time unlimited' }
   when:
     - ( inventory_hostname in groups['sms'] )
 
