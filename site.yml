@@ -1,13 +1,13 @@
 ---
-- name: Setup the foundations
-  hosts:
-    - sms
-  any_errors_fatal: true
-  become: true
-  gather_facts: true
-  roles:
-    # - create_bridge
-    - setup_vms
+# - name: Setup the foundations
+#   hosts:
+#     - sms
+#   any_errors_fatal: true
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - create_bridge
+#     - setup_vms
 
 # - name: Build main server
 #   hosts:
@@ -43,16 +43,15 @@
 #   become: true
 #   gather_facts: true
 #   roles:
-#     - post_vms
+#     - post_vms    # TODO: probably this stuff is not needed anymore. In any case, to be joined with setup_vms (the useful bits)
 
 # - name: Setup Slurm
 #   hosts:
 #     - slurmctld
 #     - slurmdbd
 #     - login_nodes
-#     - computes
+#     # - computes     # TODO: access to compute nodes has to be tailored for ansible user, probably using a key shared with root
 #   become: true
-#   become_user: root
 #   gather_facts: true
 #   roles:
 #     - setup_slurm
@@ -71,20 +70,99 @@
 #   hosts: thinlinc_servers
 #   become: true
 #   gather_facts: true
-
+#   vars:
+#     thinlinc_accept_eula: "yes"
+#     thinlinc_version: "4.19.0"
+#     thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
+#     thinlinc_build: "4116"
+#     thinlinc_autoinstall_dependencies: "yes"
+#     thinlinc_email: joao.sequeira@hcemm.eu
+#     thinlinc_printers: "no"
+#     thinlinc_webaccess_port: 443
+#     thinlinc_webaccess_login_page: "/"    # default value, redirects to the current server
+#     thinlinc_webadm_port: 1010
+#     thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
+#     thinlinc_hostname_choice: "hostname"
+#     thinlinc_agent_hostname: "{{ inventory_hostname }}"
 #   roles:
 #     - role: thinlinc-server
-#       vars:
-#         thinlinc_accept_eula: "yes"
-#         thinlinc_version: "4.19.0"
-#         thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
-#         thinlinc_build: "4116"
-#         thinlinc_autoinstall_dependencies: "yes"
-#         thinlinc_email: joao.sequeira@hcemm.eu
-#         thinlinc_printers: "no"
-#         thinlinc_webaccess_port: 443
-#         thinlinc_webaccess_login_page: "/"    # default value, redirects to the current server
-#         thinlinc_webadm_port: 1010
-#         thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
-#         thinlinc_hostname_choice: "hostname"
-#         thinlinc_agent_hostname: "{{ inventory_hostname }}"
+
+- name: Setup Galaxy server
+  hosts: galaxy_server
+  vars:
+    galaxy_config_style: yaml
+    galaxy_layout: root-dir
+    galaxy_root: /srv/galaxy
+    galaxy_commit_id: release_23.0
+    galaxy_separate_privileges: true
+    galaxy_force_checkout: true
+    galaxy_create_user: true
+    galaxy_manage_paths: true
+    galaxy_manage_systemd: true
+    galaxy_user: galaxy
+    galaxy_privsep_user: gxpriv
+    galaxy_group: galaxy
+    postgresql_objects_users:
+      - name: galaxy
+        password: null
+    postgresql_objects_databases:
+      - name: galaxy
+        owner: galaxy
+    galaxy_config:
+      gravity:
+        process_manager: systemd
+        galaxy_root: "{{ galaxy_root }}/server"
+        galaxy_user: "{{ galaxy_user_name }}"
+        virtualenv: "{{ galaxy_venv_dir }}"
+        gunicorn:
+          # listening options
+          bind: "unix:{{ galaxy_mutable_config_dir }}/gunicorn.sock"
+          # performance options
+          workers: 2
+          # Other options that will be passed to gunicorn
+          # This permits setting of 'secure' headers like REMOTE_USER (and friends)
+          # https://docs.gunicorn.org/en/stable/settings.html#forwarded-allow-ips
+          extra_args: '--forwarded-allow-ips="*"'
+          # This lets Gunicorn start Galaxy completely before forking which is faster.
+          # https://docs.gunicorn.org/en/stable/settings.html#preload-app
+          preload: true
+        celery:
+          concurrency: 2
+          enable_beat: true
+          enable: true
+          queues: celery,galaxy.internal,galaxy.external
+          pool: threads
+          memory_limit: 2
+          loglevel: DEBUG
+        handlers:
+          handler:
+            processes: 2
+            pools:
+              - job-handlers
+              - workflow-schedulers
+      galaxy:
+        database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
+  pre_tasks:
+    - name: Install Dependencies
+      ansible.builtin.dnf:
+        name:
+          - sudo
+          - git
+          - make
+          - python3-venv
+          - python3-setuptools
+          - python3-dev
+          - python3-psycopg2
+          - gcc
+          - acl
+          - gnutls-bin
+          - libmagic-dev
+        state: present
+      become: true
+  roles:
+    - role: galaxyproject.postgresql
+      become: true
+    - role: galaxyproject.postgresql_objects
+      become: true
+      become_user: postgres
+    - role: galaxyproject.galaxy

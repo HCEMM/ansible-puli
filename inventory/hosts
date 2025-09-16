@@ -46,35 +46,42 @@ all:
       vars:
         ansible_user: root
         ansible_connection: ssh
-        ansible_ssh_private_key_file: ~/.ssh/id_puli_root
+        ansible_ssh_private_key_file: "~/.ssh/id_puli_root"
         ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
       children:
         slurmctld:
           hosts:
             slurmctld1:
-              ansible_host: 10.0.150.194
+              ansible_host: 10.0.150.200
             slurmctld2:
-              ansible_host: 10.0.150.195
+              ansible_host: 10.0.150.201
+
+        slurmdbd:
+          hosts:
+            slurmdbd1:
+              ansible_host: 10.0.150.202
 
         login_nodes:
           hosts:
             login1:
-              ansible_host: 10.0.150.196
+              ansible_host: 10.0.150.204
             login2:
-              ansible_host: 10.0.150.197
+              ansible_host: 10.0.150.205
 
         thinlinc_masters:
           hosts:
             thinlinc1:
-              ansible_host: 10.0.150.198
+              ansible_host: 10.0.150.206
             thinlinc2:
-              ansible_host: 10.0.150.199
+              ansible_host: 10.0.150.207
 
         thinlinc_agents:
           hosts:
             login1:
+              ansible_host: 10.0.150.204
             login2:
+              ansible_host: 10.0.150.205
 
         thinlinc_servers:
           children:
@@ -84,16 +91,9 @@ all:
         monitoring:
           hosts:
             checkmk1:
-              ansible_host: 10.0.150.200
+              ansible_host: 10.0.150.208
 
-        galaxy:
+        galaxy_server:
           hosts:
             galaxy1:
-              ansible_host: 10.0.150.201
-
-        slurmdbd:
-          hosts:
-            slurmdbd1:
-              ansible_host: 10.0.150.202
-            slurmdbd2:
-              ansible_host: 10.0.150.203
+              ansible_host: 10.0.150.209

@@ -54,9 +54,9 @@ setup_vms_vm_list:
     ip: '10.0.150.208'
     mac: '52:54:00:aa:bb:07'
   galaxy1:
-    memory: 4096
-    vcpus: 16
-    disk_size: 20G
+    memory: 32768       # to keep monitoring, see if it's enough
+    vcpus: 8
+    disk_size: 200G     # Galaxy has a lot of logs and environments and stuff... let's see how this fills up
     ip: '10.0.150.209'
     mac: '52:54:00:aa:bb:08'
   fcbi-reservation1:
@@ -64,4 +64,4 @@ setup_vms_vm_list:
     vcpus: 1
     disk_size: 10G
     ip: '10.0.150.210'
-    mac: '52:54:00:aa:bb:09'
+    mac: '52:54:00:aa:bb:11'
