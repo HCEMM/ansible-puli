@@ -31,19 +31,11 @@ systemctl enable sssd oddjobd
 update-crypto-policies --set LEGACY
 
 
-nmcli connection add type bridge con-name br0 ifname br0
-nmcli connection add type ethernet con-name ens1f0np0-slave ifname ens1f0np0 master br0
-nmcli con mod br0 ipv4.addresses 10.0.50.185/24 gw4 10.0.50.1
-nmcli con mod br0 ipv4.dns 10.0.50.1
-nmcli con mod br0 ipv4.method manual
-nmcli con up ens1f0np0-slave
-nmcli con up br0
-
 # install Xfce
 dnf groupinstall "Xfce" "base-x"
 systemctl set-default graphical.target
 
-# Get Robert's project working
+# Install Robert's project
 git clone https://github.com/RobertHenschel/slurm-desktop
 pip install PyQt5
 dnf install xcb-util-wm xcb-util-keysyms
@@ -56,4 +48,8 @@ python3 slurm_partition_viewer.py
 # - those nice apps
 
 
-# CheckMK
+# CheckMK - everything about it
+
+# General VMs - setting up the repos not present/enabled in alma minimal
+
+# Make idempotent on "setup_slurm"
