@@ -1,0 +1,70 @@
+---
+# Pre tasks
+- name: Install system dependencies
+  ansible.builtin.dnf:
+    name: "{{ galaxy_dependencies }}"
+    state: present
+  become: true
+
+- name: Install pip dependencies
+  ansible.builtin.pip:
+    name: "{{ galaxy_pip_dependencies }}"
+    executable: pip3
+  become: true
+
+# Install tasks
+- name: Include PostgreSQL roles
+  ansible.builtin.include_role:
+    name: galaxyproject.postgresql
+
+- name: Setup PostgreSQL users/databases
+  become: true
+  become_user: postgres
+  block:
+    - name: Setup PostgreSQL users/databases
+      ansible.builtin.include_role:
+        name: galaxyproject.postgresql_objects
+      vars:
+        postgresql_objects_users:
+          - name: "{{ galaxy_db_user }}"
+            password: null
+        postgresql_objects_databases:
+          - name: "{{ galaxy_db_name }}"
+            owner: "{{ galaxy_db_user }}"
+
+- name: Include Galaxy role
+  ansible.builtin.include_role:
+    name: galaxyproject.galaxy
+
+# Config tasks
+- name: Deploy galaxy.yml
+  ansible.builtin.template:
+    src: galaxy.yml.j2
+    dest: "{{ galaxy_root }}/config/galaxy.yml"
+    owner: "{{ galaxy_user }}"
+    group: "{{ galaxy_group }}"
+    mode: '0644'
+  notify: Restart Galaxy
+
+- name: Deploy gravity.yml
+  ansible.builtin.template:
+    src: gravity.yml.j2
+    dest: "{{ galaxy_root }}/config/gravity.yml"
+    owner: "{{ galaxy_user }}"
+    group: "{{ galaxy_group }}"
+    mode: '0644'
+  notify: Restart Galaxy
+
+# Service tasks
+- name: Deploy systemd unit
+  ansible.builtin.template:
+    src: galaxy.service.j2
+    dest: /etc/systemd/system/galaxy.service
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Ensure Galaxy service is enabled and started
+  ansible.builtin.systemd:
+    name: galaxy
+    enabled: true
+    state: started
