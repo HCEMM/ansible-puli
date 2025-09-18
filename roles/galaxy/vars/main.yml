@@ -1,0 +1,14 @@
+galaxy_dependencies:
+  - sudo
+  - git
+  - make
+  - python3-setuptools
+  - python3-devel
+  - python3-psycopg2
+  - gcc
+  - acl
+  - gnutls-utils
+  - file-devel
+
+galaxy_pip_dependencies:
+  - virtualenv

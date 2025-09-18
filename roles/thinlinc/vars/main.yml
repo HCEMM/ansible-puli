@@ -1,0 +1,13 @@
+thinlinc_accept_eula: "yes"
+thinlinc_version: "4.19.0"
+thinlinc_server_bundle: "~/ansible-puli/tl-{{ thinlinc_version }}-server.zip"
+thinlinc_build: "4116"
+thinlinc_autoinstall_dependencies: "yes"
+thinlinc_email: joao.sequeira@hcemm.eu
+thinlinc_printers: "no"
+thinlinc_webaccess_port: 443
+thinlinc_webaccess_login_page: "/"    # default value, redirects to the current server
+thinlinc_webadm_port: 1010
+thinlinc_webadm_password: "$6$ef8b0b02b79db5e6$9d6QTuXeVYXFAQmM37UXvHAVUOtMbQBtiUUzq.9qVeY66h.1uyiSxoYNmHm2fOzOV20RIfXaTQm9SGqyx9rJg1"
+thinlinc_hostname_choice: "hostname"
+thinlinc_agent_hostname: "{{ inventory_hostname }}"
