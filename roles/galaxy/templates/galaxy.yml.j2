@@ -233,20 +233,20 @@ gravity:
 
     # Enable tusd server.
     # If enabled, you also need to set up your proxy as outlined in https://docs.galaxyproject.org/en/latest/admin/nginx.html#receiving-files-via-the-tus-protocol.
-    # enable: false
+    enable: true
 
     # Path to tusd binary
-    # tusd_path: tusd
+    tusd_path: tusd
 
     # Host to bind the tusd server to
-    # host: localhost
+    host: localhost
 
     # Port to bind the tusd server to
-    # port: 1080
+    port: 1080
 
     # Directory to store uploads in.
     # Must match ``tus_upload_store`` setting in ``galaxy:`` section.
-    # upload_dir:
+    upload_dir: /srv/galaxy/upload_store
 
     # Value of tusd -hooks-httpd option
     #
@@ -254,7 +254,7 @@ gravity:
     # other purposes such as Pulsar staging.
     #
     # The value of galaxy_infrastructure_url is automatically prepended if the option starts with a `/`
-    # hooks_http: /api/upload/hooks
+    hooks_http: /api/upload/hooks
 
     # Comma-separated string of enabled tusd hooks.
     #
@@ -797,6 +797,7 @@ galaxy:
   # Galaxy administrator (.sample used if default does not exist).
   # The value of this option will be resolved with respect to
   # <config_dir>.
+  # https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/tool_data_table_conf.xml.sample
   #tool_data_table_config_path: tool_data_table_conf.xml
 
   # XML config file that contains additional data table entries for the
@@ -813,7 +814,7 @@ galaxy:
   # Directory where data used by tools is located.  See the samples in
   # that directory and the Galaxy Community Hub for help:
   # https://galaxyproject.org/admin/data-integration
-  #tool_data_path: tool-data
+  tool_data_path: tool-data
 
   # Directory where Tool Data Table related files will be placed when
   # installed from a ToolShed. Defaults to the value of the
@@ -829,7 +830,7 @@ galaxy:
   # won't fail to load Galaxy if it is not and 'polling' which will use
   # a less efficient monitoring scheme that may work in wider range of
   # scenarios than the watchdog default.
-  #watch_tool_data_dir: 'false'
+  watch_tool_data_dir: 'true'
 
   # File containing refgenie configuration, e.g.
   # /path/to/genome_config.yaml. Can be used by refgenie backed tool
@@ -860,7 +861,7 @@ galaxy:
   # one file).
   # The value of this option will be resolved with respect to
   # <config_dir>.
-  #datatypes_config_file: datatypes_conf.xml
+  datatypes_config_file: datatypes_conf.xml
 
   # Enable sniffing of compressed datatypes. This can be
   # configured/overridden on a per-datatype basis in the
@@ -926,15 +927,6 @@ galaxy:
   # /bin/sh - so more maximum portability tool authors should assume
   # generated commands run in sh.
   #default_job_shell: /bin/bash
-
-  # This option is deprecated, and the tool document cache will be
-  # removed in the next release. Whether to enable the tool document
-  # cache. This cache stores expanded XML strings. Enabling the tool
-  # cache results in slightly faster startup times. The tool cache is
-  # backed by a SQLite database, which cannot be stored on certain
-  # network disks. The cache location is configurable with the
-  # ``tool_cache_data_dir`` tag in tool config files.
-  #enable_tool_document_cache: false
 
   # Directory in which the toolbox search index is stored. The value of
   # this option will be resolved with respect to <data_dir>.
@@ -1172,18 +1164,18 @@ galaxy:
 
   # This text will be inserted at the end of the activation email's
   # message, before the 'Your Galaxy Team' signature.
-  #custom_activation_email_message: null
+  custom_activation_email_message: "BIOINFO ON 🤘"
 
   # URL of the support resource for the galaxy instance.  Used outside
   # of web contexts such as in activation emails and in Galaxy markdown
   # report generation.
   # Example value 'https://galaxyproject.org/'
-  #instance_resource_url: null
+  instance_resource_url: 'https://galaxy.hcemm.eu/documentation'      # TODO: will it be this?'
 
   # URL used to access this Galaxy server. Used outside of web contexts
   # such as in Galaxy markdown report generation.
   # Example value 'https://usegalaxy.org'
-  #instance_access_url: null
+  instance_access_url: 'https://galaxy.hcemm.eu'
 
   # E-mail domains blocklist is used for filtering out users that are
   # using disposable email addresses at registration.  If their
@@ -1231,7 +1223,10 @@ galaxy:
   # Suffixes prefixed with <sub_addressing_delim> in the local-part of
   # an email address are ignored   (rickdeckard+anything@foo.com ==
   # rickdeckard@foo.com if delimiter is the character '+')
-  #canonical_email_rules:
+  canonical_email_rules:
+    hcemm.eu:
+      ignore_case: true
+      ignore_dots: false
   #  all:
   #    ignore_case: false
   #    ignore_dots: false
@@ -1253,38 +1248,38 @@ galaxy:
   # Registration warning message is used to discourage people from
   # registering multiple accounts.  Applies mostly for the main Galaxy
   # instance. If no message specified the warning box will not be shown.
-  #registration_warning_message: Please register only one account to ensure fair sharing of computational resources. Multiple registrations are monitored and will result in account termination and data deletion.
+  registration_warning_message: Please register only one account to ensure fair sharing of computational resources. Multiple registrations are monitored and will result in account termination and data deletion.
 
   # User account activation feature global flag.  If set to false, the
   # rest of the Account activation configuration is ignored and user
   # activation is disabled (i.e. accounts are active since
   # registration). The activation is also not working in case the SMTP
   # server is not defined.
-  #user_activation_on: false
+  user_activation_on: true
 
   # Activation grace period (in hours).  Activation is not forced (login
   # is not disabled) until grace period has passed.  Users under grace
   # period can't run jobs. Enter 0 to disable grace period.
-  #activation_grace_period: 3
+  activation_grace_period: 3
 
   # Shown in warning box to users that were not activated yet. In use
   # only if activation_grace_period is set.
-  #inactivity_box_content: Your account has not been activated yet.  Feel free to browse around and see what's available, but you won't be able to upload data or run jobs until you have verified your email address.
+  inactivity_box_content: Your account has not been activated yet.  Feel free to browse around and see what's available, but you won't be able to upload data or run jobs until you have verified your email address.
 
   # Password expiration period (in days). Users are required to change
   # their password every x days. Users will be redirected to the change
   # password screen when they log in after their password expires. Enter
   # 0 to disable password expiration.
-  #password_expiration_period: 0
+  password_expiration_period: 0
 
   # Allow users to manage their account data, change passwords or delete
   # their accounts.
-  #enable_account_interface: true
+  enable_account_interface: true
 
   # Galaxy Session Timeout This provides a timeout (in minutes) after
   # which a user will have to log back in. A duration of 0 disables this
   # feature.
-  #session_duration: 0
+  session_duration: 60
 
   # You can enter tracking code here to track visitor's behavior through
   # your Google Analytics account.  Example: UA-XXXXXXXX-Y
@@ -1347,7 +1342,7 @@ galaxy:
   # https://www.green-algorithms.org/ and
   # https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator.
   # for more detals.
-  #carbon_emission_estimates: true
+  carbon_emission_estimates: true
 
   # The estimated geographical location of the server hosting your
   # galaxy instance given as an ISO 3166 code. This is used to make
@@ -1357,7 +1352,7 @@ galaxy:
   # `geographical_server_location_code` value is invalid or unsupported.
   # To see a full list of supported locations, visit
   # https://docs.galaxyproject.org/en/master/admin/carbon_emissions.html
-  #geographical_server_location_code: GLOBAL
+  geographical_server_location_code: HU
 
   # The estimated power usage effectiveness of the data centre housing
   # the server your galaxy instance is running on. This can make carbon
@@ -1367,7 +1362,7 @@ galaxy:
   #power_usage_effectiveness: 1.67
 
   # Enable InteractiveTools.
-  #interactivetools_enable: false
+  #interactivetools_enable: false           # TODO: not for now, but soon.
 
   # Set this to false to redirect users of Interactive tools directly to
   # the Interactive tools proxy. `interactivetools_upstream_proxy`
@@ -1428,17 +1423,13 @@ galaxy:
   # Append "{brand}" text to the masthead.
   #brand: null
 
-  # This option has been deprecated, use the `logo_src` instead to
-  # change the default logo including the galaxy brand title.
-  #display_galaxy_brand: true
-
   # Format string used when showing date and time information. The
   # string may contain: - the directives used by Python time.strftime()
   # function (see
   # https://docs.python.org/library/time.html#time.strftime), - $locale
   # (complete format string for the server locale), - $iso8601 (complete
   # format string as specified by ISO 8601 international   standard).
-  #pretty_datetime_format: $locale (UTC)
+  pretty_datetime_format: $locale (UTC)
 
   # Allow import of workflows from the TRS servers configured in the
   # specified YAML or JSON file. The file should be a list with 'id',
@@ -1454,7 +1445,7 @@ galaxy:
   # preferences.
   # The value of this option will be resolved with respect to
   # <config_dir>.
-  #user_preferences_extra_conf_path: user_preferences_extra_conf.yml
+  #user_preferences_extra_conf_path: user_preferences_extra_conf.yml            # this relates to dropbox, zenodo and other external storage. TODO: look into it. But not too hard, no hurt my eyes.
 
   # Default localization for Galaxy UI. Allowed values are listed at the
   # end of client/src/nls/locale.js. With the default value (auto), the
@@ -1474,7 +1465,7 @@ galaxy:
   # with Galaxy via the API.
   # If you plan to run Interactive Tools make sure the docker container
   # can reach this URL.
-  #galaxy_infrastructure_url: http://localhost:8080
+  galaxy_infrastructure_url: http://10.0.150.209:8080
 
   # If the above URL cannot be determined ahead of time in dynamic
   # environments but the port which should be used to access Galaxy can
@@ -1499,25 +1490,25 @@ galaxy:
   #logo_src_secondary: null
 
   # The URL linked by the "Galaxy Help" link in the "Help" menu.
-  #helpsite_url: https://help.galaxyproject.org/
+  helpsite_url: https://help.galaxyproject.org/
 
   # The URL linked by the "Community Hub" link in the "Help" menu.
-  #wiki_url: https://galaxyproject.org/
+  wiki_url: https://galaxyproject.org/
 
   # The URL linked for quota information in the UI.
-  #quota_url: https://galaxyproject.org/support/account-quotas/
+  quota_url: https://galaxyproject.org/support/account-quotas/
 
   # The URL linked by the "Support" link in the "Help" menu.
-  #support_url: https://galaxyproject.org/support/
+  support_url: https://galaxyproject.org/support/
 
   # The URL linked by the "How to Cite Galaxy" link in the "Help" menu.
-  #citation_url: https://galaxyproject.org/citing-galaxy
+  citation_url: https://galaxyproject.org/citing-galaxy
 
   # The URL linked by the "Galaxy Version" link in the "Help" menu.
-  #release_doc_base_url: https://docs.galaxyproject.org/en/release_
+  release_doc_base_url: https://docs.galaxyproject.org/en/master/releases/index.html
 
   # The URL linked by the "Videos" link in the "Help" menu.
-  #screencasts_url: https://www.youtube.com/c/galaxyproject
+  screencasts_url: https://www.youtube.com/c/galaxyproject
 
   # The URL linked by the "Terms and Conditions" link in the "Help"
   # menu, as well as on the user registration and login forms and in the
@@ -1528,7 +1519,7 @@ galaxy:
   # via a proxy server. You can use these paths (or ones in the proxy
   # server) to point to your own styles. The static_* options that refer
   # to paths are relative to the current working directory.
-  #static_enabled: true
+  static_enabled: false         # our Nginx server will handle this.
 
   # Value of cache time for static content served by Galaxy. Ignored if
   # static_enabled is false.
@@ -1575,7 +1566,7 @@ galaxy:
   # X-Accel-Redirect.  This should be set to the path defined in the
   # nginx config as an internal redirect with access to Galaxy's data
   # files (see documentation linked above).
-  #nginx_x_accel_redirect_base: null
+  nginx_x_accel_redirect_base: null
 
   # If using compression in the upstream proxy server, use this option
   # to disable gzipping of dataset collection and library archives,
@@ -1630,7 +1621,7 @@ galaxy:
   # The upload store is a temporary directory in which files uploaded by
   # the tus middleware or server for user uploads will be placed.
   # Defaults to new_file_path if not set.
-  #tus_upload_store: null
+  tus_upload_store: /srv/galaxy/upload_store
 
   # The upload store is a temporary directory in which files uploaded by
   # the tus middleware or server for remote job files (Pulsar) will be

@@ -53,3 +53,14 @@ python3 slurm_partition_viewer.py
 # General VMs - setting up the repos not present/enabled in alma minimal
 
 # Make idempotent on "setup_slurm"
+
+
+
+# Galaxy server
+run.sh
+
+
+pip install watchdog
+
+
+tusd -host localhost -port 1080 -upload-dir=/scratch/galaxy/database/tmp -hooks-http=galaxy.hcemm.eu/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie

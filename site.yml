@@ -1,13 +1,13 @@
 ---
-# - name: Setup the foundations
-#   hosts:
-#     - sms
-#   any_errors_fatal: true
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - create_bridge
-#     - setup_vms
+- name: Setup the foundations
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    # - create_bridge
+    - setup_vms
 
 # - name: Build main server
 #   hosts:
@@ -71,7 +71,7 @@
 #   roles:
 #     - role: thinlinc
 
-- name: Setup Galaxy server
-  hosts: galaxy_server
-  roles:
-    - galaxy
+# - name: Setup Galaxy server
+#   hosts: galaxy_server
+#   roles:
+#     - galaxy
