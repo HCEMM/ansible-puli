@@ -1,0 +1,15 @@
+nginx_gateway_services:
+  - name: "galaxy"
+    server_name: "galaxy.{{ nginx_gateway_domain }}"
+    backends:
+      - "10.0.150.209:8080"
+    tusd: "10.0.150.209:1080"
+    static: true
+  - name: "emma"
+    server_name: "emma.{{ nginx_gateway_domain }}"
+    backends:
+      - "10.0.150.210:8080"
+  - name: "doctorllm"
+    server_name: "doctorllm.{{ nginx_gateway_domain }}"
+    backends:
+      - "10.0.150.211:8080"

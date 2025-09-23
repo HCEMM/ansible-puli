@@ -1,0 +1,62 @@
+{% for service in nginx_gateway_services %}
+upstream {{ service.name }}_backend {
+{% for backend in service.backends %}
+    server {{ backend }};
+{% endfor %}
+}
+
+server {
+    listen 80;
+    server_name {{ service.server_name }};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ service.server_name }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ service.server_name }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ service.server_name }}/privkey.pem;
+
+    # Security headers
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-Frame-Options "DENY";
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+    add_header X-XSS-Protection "1; mode=block";
+
+    {% if service.static %}
+    # Static files for Galaxy
+    location /static {
+        proxy_pass http://{{ service.backends[0] }};
+        access_log off;
+        expires 30d;
+    }
+    {% endif %}
+
+    {% if service.tusd %}
+    # tusd resumable uploads
+    location /api/upload/resumable_upload {
+        proxy_request_buffering  off;
+        proxy_buffering          off;
+        proxy_http_version       1.1;
+
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        client_max_body_size 0;
+        proxy_pass http://{{ service.tusd }}/files;
+    }
+    {% endif %}
+
+    location / {
+        proxy_pass http://{{ service.name }}_backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}
+{% endfor %}
