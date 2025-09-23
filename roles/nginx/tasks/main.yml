@@ -1,0 +1,41 @@
+---
+- name: Install Nginx and Certbot
+  ansible.builtin.package:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Deploy Nginx vhost configuration
+  ansible.builtin.template:
+    src: nginx-vhost.conf.j2
+    dest: /etc/nginx/conf.d/services.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Ensure Nginx is running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Check if certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ item.server_name }}/fullchain.pem"
+  loop: "{{ nginx_gateway_services }}"
+  register: cert_stat
+
+- name: Request/renew Let’s Encrypt certs
+  ansible.builtin.command:
+    cmd: >
+      certbot --nginx --non-interactive --agree-tos
+      -m {{ nginx_gateway_certbot_email }}
+      -d {{ item.server_name }}
+  loop: "{{ nginx_gateway_services }}"
+  changed_when: true
+  when:
+    - not cert_stat.results[loop.index0].stat.exists
+  notify: Reload Nginx
