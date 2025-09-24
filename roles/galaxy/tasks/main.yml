@@ -66,3 +66,52 @@
     name: galaxy
     enabled: true
     state: started
+
+# https://docs.galaxyproject.org/en/master/admin/nginx.html
+# sudo usermod -a -G galaxy www-data    # add `www-data` user to `galaxy` group
+- name: Add www-data to galaxy group
+  ansible.builtin.user:
+    name: www-data
+    groups: galaxy
+    append: true
+
+# sudo -iu galaxy
+# umask 027     # set umask so new files are group-readable
+- name: Set umask for galaxy user
+  ansible.builtin.lineinfile:
+    path: /home/galaxy/.bashrc
+    line: "umask 027"
+  become: true
+  become_user: galaxy
+
+- name: Install tusd from github
+  ansible.builtin.get_url:
+    url: "https://github.com/tus/tusd/releases/download/v2.8.0/tusd_linux_amd64.tar.gz"
+    dest: /home/galaxy/tusd_linux_amd64.tar.gz
+    mode: '0644'
+    owner: galaxy
+    group: galaxy
+
+- name: Extract tusd
+  ansible.builtin.unarchive:
+    src: /home/galaxy/tusd_linux_amd64.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+
+- name: Ensure tusd is executable
+  ansible.builtin.file:
+    path: /usr/local/bin/tusd
+    mode: '0755'
+
+# tusd -host localhost -port 1080 -upload-dir=<galaxy_root>/database/tmp -hooks-http=<galaxy_url>/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie
+- name: Setup tusd service
+  ansible.builtin.command: >
+    nohup tusd
+    -host localhost
+    -port 1080
+    -upload-dir={{ galaxy_root }}/database/tmp
+    -hooks-http={{ galaxy_url }}/api/upload/hooks
+    -hooks-http-forward-headers=X-Api-Key,Cookie
+    > /home/galaxy/tusd.log 2>&1 &
+  changed_when: true
+  when: not tusd_service_status.stat.exists
