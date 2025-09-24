@@ -4,13 +4,11 @@
   ansible.builtin.dnf:
     name: "{{ galaxy_dependencies }}"
     state: present
-  become: true
 
 - name: Install pip dependencies
   ansible.builtin.pip:
     name: "{{ galaxy_pip_dependencies }}"
     executable: pip3
-  become: true
 
 # Install tasks
 - name: Include PostgreSQL roles
