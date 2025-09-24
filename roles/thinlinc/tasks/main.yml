@@ -1,19 +1,20 @@
 ---
-- name: Install ThinLinc Server
-  ansible.builtin.include_role:
-    name: thinlinc-server
+- block:
+  - name: Install ThinLinc Server
+    ansible.builtin.include_role:
+      name: thinlinc-server
+    vars:
+      thinlinc_accept_eula: "{{ thinlinc_accept_eula }}"
+      thinlinc_version: "{{ thinlinc_version }}"
+      thinlinc_server_bundle: "{{ thinlinc_server_bundle }}"
+      thinlinc_build: "{{ thinlinc_build }}"
+      thinlinc_autoinstall_dependencies: "{{ thinlinc_autoinstall_dependencies }}"
+      thinlinc_email: "{{ thinlinc_email }}"
+      thinlinc_printers: "{{ thinlinc_printers }}"
+      thinlinc_webaccess_port: "{{ thinlinc_webaccess_port }}"
+      thinlinc_webaccess_login_page: "{{ thinlinc_webaccess_login_page }}"
+      thinlinc_webadm_port: "{{ thinlinc_webadm_port }}"
+      thinlinc_webadm_password: "{{ thinlinc_webadm_password }}"
+      thinlinc_hostname_choice: "{{ thinlinc_hostname_choice }}"
+      thinlinc_agent_hostname: "{{ inventory_hostname }}"
   become: true
-  vars:
-    thinlinc_accept_eula: "{{ thinlinc_accept_eula }}"
-    thinlinc_version: "{{ thinlinc_version }}"
-    thinlinc_server_bundle: "{{ thinlinc_server_bundle }}"
-    thinlinc_build: "{{ thinlinc_build }}"
-    thinlinc_autoinstall_dependencies: "{{ thinlinc_autoinstall_dependencies }}"
-    thinlinc_email: "{{ thinlinc_email }}"
-    thinlinc_printers: "{{ thinlinc_printers }}"
-    thinlinc_webaccess_port: "{{ thinlinc_webaccess_port }}"
-    thinlinc_webaccess_login_page: "{{ thinlinc_webaccess_login_page }}"
-    thinlinc_webadm_port: "{{ thinlinc_webadm_port }}"
-    thinlinc_webadm_password: "{{ thinlinc_webadm_password }}"
-    thinlinc_hostname_choice: "{{ thinlinc_hostname_choice }}"
-    thinlinc_agent_hostname: "{{ inventory_hostname }}"
