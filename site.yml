@@ -1,13 +1,13 @@
 ---
-- name: Setup the foundations
-  hosts:
-    - sms
-  any_errors_fatal: true
-  become: true
-  gather_facts: true
-  roles:
-    # - create_bridge
-    - setup_vms
+# - name: Setup the foundations
+#   hosts:
+#     - sms
+#   any_errors_fatal: true
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - create_bridge
+#     - setup_vms
 
 # - name: Build main server
 #   hosts:
@@ -45,12 +45,20 @@
 #   roles:
 #     - post_vms    # TODO: probably this stuff is not needed anymore. In any case, to be joined with setup_vms (the useful bits)
 
+- name: Setup Nginx gateway
+  hosts: nginx_gateway
+  become: true
+  gather_facts: true
+  roles:
+    - role: nginx
+      tags: nginx
+
 # - name: Setup Slurm
 #   hosts:
 #     - slurmctld
 #     - slurmdbd
 #     - login_nodes
-#     # - computes     # TODO: access to compute nodes has to be tailored for ansible user, probably using a key shared with root
+#     - computes     # TODO: access to compute nodes has to be tailored for ansible user, probably using a key shared with root
 #   become: true
 #   gather_facts: true
 #   roles:

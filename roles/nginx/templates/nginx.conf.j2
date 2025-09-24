@@ -24,7 +24,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin";
     add_header X-XSS-Protection "1; mode=block";
 
-    {% if service.static %}
+    {% if service.static is defined %}
     # Static files for Galaxy
     location /static {
         proxy_pass http://{{ service.backends[0] }};
@@ -33,7 +33,7 @@ server {
     }
     {% endif %}
 
-    {% if service.tusd %}
+    {% if service.tusd is defined %}
     # tusd resumable uploads
     location /api/upload/resumable_upload {
     # Disable request and response buffering

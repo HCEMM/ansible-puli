@@ -97,3 +97,13 @@ all:
           hosts:
             galaxy1:
               ansible_host: 10.0.150.209
+
+        fcbi_server:
+          hosts:
+            fcbi-reservation1:
+              ansible_host: 10.0.150.210
+
+        nginx_gateway:
+          hosts:
+            nginx1:
+              ansible_host: 10.0.150.211
