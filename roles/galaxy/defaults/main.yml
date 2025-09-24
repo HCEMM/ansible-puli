@@ -2,6 +2,7 @@ galaxy_root: /srv/galaxy
 galaxy_commit_id: release_23.0
 galaxy_config_style: yaml
 galaxy_layout: root-dir
+galaxy_url: https://galaxy.hcemm.eu
 
 galaxy_user: galaxy
 galaxy_group: galaxy
