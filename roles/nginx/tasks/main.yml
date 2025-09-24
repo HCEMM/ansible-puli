@@ -39,3 +39,23 @@
   when:
     - not cert_stat.results[loop.index0].stat.exists
   notify: Reload Nginx
+
+- name: Install fail2ban
+  ansible.builtin.package:
+    name: fail2ban
+    state: present
+
+- name: Deploy fail2ban jail config
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/nginx.local
+    content: |
+      [nginx-http-auth]
+      enabled = true
+
+      [nginx-botsearch]
+      enabled = true
+
+      [nginx-limit-req]
+      enabled = true
+    mode: "0644"
+  notify: Restart fail2ban
