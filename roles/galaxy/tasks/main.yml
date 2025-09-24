@@ -1,4 +1,26 @@
 ---
+# Config tasks
+- name: Deploy configs
+  ansible.builtin.template:
+    src: "{{ item }}.yml.j2"
+    dest: "{{ galaxy_root }}/config/{{ item }}.yml"
+    owner: "{{ galaxy_user }}"
+    group: "{{ galaxy_group }}"
+    mode: '0644'
+  loop:
+    - galaxy
+    - job_conf
+    - tool_conf
+    - tool_destinations
+
+# Service tasks
+# - name: Deploy systemd unit
+#   ansible.builtin.template:
+#     src: galaxy.service.j2
+#     dest: /etc/systemd/system/galaxy.service
+#     mode: '0644'
+#   notify: Reload systemd
+
 # Pre tasks
 - name: Install system dependencies
   ansible.builtin.dnf:
@@ -33,33 +55,6 @@
 - name: Include Galaxy role
   ansible.builtin.include_role:
     name: galaxyproject.galaxy
-
-# Config tasks
-- name: Deploy galaxy.yml
-  ansible.builtin.template:
-    src: galaxy.yml.j2
-    dest: "{{ galaxy_root }}/config/galaxy.yml"
-    owner: "{{ galaxy_user }}"
-    group: "{{ galaxy_group }}"
-    mode: '0644'
-  notify: Restart Galaxy
-
-- name: Deploy gravity.yml
-  ansible.builtin.template:
-    src: gravity.yml.j2
-    dest: "{{ galaxy_root }}/config/gravity.yml"
-    owner: "{{ galaxy_user }}"
-    group: "{{ galaxy_group }}"
-    mode: '0644'
-  notify: Restart Galaxy
-
-# Service tasks
-- name: Deploy systemd unit
-  ansible.builtin.template:
-    src: galaxy.service.j2
-    dest: /etc/systemd/system/galaxy.service
-    mode: '0644'
-  notify: Reload systemd
 
 - name: Ensure Galaxy service is enabled and started
   ansible.builtin.systemd:
@@ -104,14 +99,19 @@
     mode: '0755'
 
 # tusd -host localhost -port 1080 -upload-dir=<galaxy_root>/database/tmp -hooks-http=<galaxy_url>/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie
-- name: Setup tusd service
-  ansible.builtin.command: >
-    nohup tusd
-    -host localhost
-    -port 1080
-    -upload-dir={{ galaxy_root }}/database/tmp
-    -hooks-http={{ galaxy_url }}/api/upload/hooks
-    -hooks-http-forward-headers=X-Api-Key,Cookie
-    > /home/galaxy/tusd.log 2>&1 &
-  changed_when: true
-  when: not tusd_service_status.stat.exists
+- name: Install and configure tusd
+  block:
+    - name: Install and configure tusd
+      ansible.builtin.include_role:
+        name: galaxyproject.tusd
+      vars:
+        tusd_instances:
+          - name: uploads
+            user: "{{ galaxy_user }}"     # user that tusd will run as
+            group: "{{ galaxy_group }}"   # group that tusd will run as
+            args:
+              - -host=localhost
+              - -port=1080
+              - -upload-dir="{{ galaxy_root }}/upload_store"
+              - -hooks-http="{{ galaxy_url }}/api/upload"
+              - -hooks-http-forward-headers=Cookie

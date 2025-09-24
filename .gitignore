@@ -4,4 +4,5 @@ roles/thinlinc-server
 roles/galaxyproject.postgresql
 roles/galaxyproject.postgresql_objects
 roles/galaxyproject.galaxy
+roles/galaxyproject.tusd
 AlmaLinux-9.6-x86_64-minimal.iso
