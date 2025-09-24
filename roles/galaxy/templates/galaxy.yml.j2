@@ -44,7 +44,7 @@ gravity:
   # Memory limit (in GB), processes exceeding the limit will be killed. Default is no limit. If set, this is default value
   # for all services. Setting ``memory_limit`` on an individual service overrides this value. Ignored if ``process_manager``
   # is ``supervisor``.
-  # memory_limit:
+  memory_limit: 30      # VM has maximum of 32Gb
 
   # Specify Galaxy config file (galaxy.yml), if the Gravity config is separate from the Galaxy config. Assumed to be the
   # same file as the Gravity config if a ``galaxy`` key exists at the root level, otherwise, this option is required.
@@ -492,7 +492,7 @@ galaxy:
   # Pulsar.
   # The value of this option will be resolved with respect to
   # <data_dir>.
-  #new_file_path: tmp
+  new_file_path: tmp
 
   # Maximum size of uploadable files, specified in bytes (default:
   # 100GB). This value is ignored if an external upload server is
@@ -546,7 +546,7 @@ galaxy:
   # will fail.
   # The value of this option will be resolved with respect to
   # <data_dir>.
-  #tool_dependency_dir: dependencies
+  tool_dependency_dir: dependencies
 
   # Specifies the path to the standalone dependency resolvers
   # configuration file. This configuration can now be specified directly
@@ -1200,7 +1200,7 @@ galaxy:
   # Example value 'email_allowlist.conf'
   # The value of this option will be resolved with respect to
   # <config_dir>.
-  #email_domain_allowlist_file: null
+  email_domain_allowlist_file: null
 
   # E-mail ban file is used to specify email addresses that have been
   # banned. If a user attempts to register a new account using an email
@@ -1566,7 +1566,7 @@ galaxy:
   # X-Accel-Redirect.  This should be set to the path defined in the
   # nginx config as an internal redirect with access to Galaxy's data
   # files (see documentation linked above).
-  nginx_x_accel_redirect_base: null
+  nginx_x_accel_redirect_base: '/_x_accel_redirect'
 
   # If using compression in the upstream proxy server, use this option
   # to disable gzipping of dataset collection and library archives,
@@ -1592,7 +1592,7 @@ galaxy:
   # proxy in front of Galaxy - please ensure this header remains intact
   # to protect your users.  Uncomment and leave empty to not set the
   # `X-Frame-Options` header.
-  #x_frame_options: SAMEORIGIN
+  x_frame_options: SAMEORIGIN
 
   # nginx can also handle file uploads (user-to-Galaxy) via
   # nginx_upload_module. Configuration for this is complex and explained
@@ -1706,7 +1706,7 @@ galaxy:
   # standard output. If set to anything else, then it will be
   # interpreted as a path that will be used as the log file, and logging
   # to stdout will be disabled.
-  #log_destination: stdout
+  log_destination: /srv/galaxy/log/galaxy.log
 
   # Size of log file at which size it will be rotated as per the
   # documentation in
@@ -1715,25 +1715,25 @@ galaxy:
   # performed. A value of 0 (the default) means no rotation. Size can be
   # a number of bytes or a human-friendly representation like "100 MB"
   # or "1G".
-  #log_rotate_size: '0'
+  log_rotate_size: 100 MB
 
   # Number of log file backups to keep, per the documentation in
   # https://docs.python.org/library/logging.handlers.html#logging.handlers.RotatingFileHandler
   # Any additional rotated log files will automatically be pruned. If
   # log_rotate_size is not also set, no log rotation will be performed.
   # A value of 0 (the default) means no rotation.
-  #log_rotate_count: 0
+  log_rotate_count: 10
 
   # Verbosity of console log messages. Acceptable values can be found
   # here: https://docs.python.org/library/logging.html#logging-levels A
   # custom debug level of "TRACE" is available for even more verbosity.
-  #log_level: DEBUG
+  log_level: DEBUG
 
   # Controls where and how the server logs messages. If set, overrides
   # all settings in the log_* configuration options. Configuration is
   # described in the documentation at:
   # https://docs.galaxyproject.org/en/master/admin/config_logging.html
-  #logging: null
+  #logging: null            # this is for advanced logging configuration - not for now
 
   # Print database operations to the server log (warning, quite
   # verbose!).
@@ -1807,14 +1807,14 @@ galaxy:
   # use_printdebug.  It also causes the files used by PBS/SGE
   # (submission script, output, and error) to remain on disk after the
   # job is complete.
-  #debug: false
+  debug: true
 
   # Log request start as well as request end. Disables uvicorn access
   # log handler.
-  #use_access_logging_middleware: false
+  use_access_logging_middleware: true
 
   # Check for WSGI compliance.
-  #use_lint: false
+  use_lint: true
 
   # Run the Python profiler on each request.
   #use_profile: false
@@ -1941,7 +1941,7 @@ galaxy:
   # to true to enable.  Please note the security implication that this
   # will give Galaxy Admins access to anything your Galaxy user has
   # access to.
-  #allow_path_paste: false
+  allow_path_paste: true
 
   # Users may choose to download multiple files from a library in an
   # archive.  By default, Galaxy allows users to select from a few
@@ -2030,7 +2030,7 @@ galaxy:
   # One simple way to generate a value for this is with the shell
   # command:   python -c 'from __future__ import print_function; import
   # time; print(time.time())' | md5sum | cut -f 1 -d ' '
-  #id_secret: USING THE DEFAULT IS NOT SECURE!
+  id_secret: {{ galaxy_id_secret }}     # in group_vars/all.yml
 
   # User authentication can be delegated to an upstream proxy server
   # (usually Apache).  The upstream proxy should set a REMOTE_USER
@@ -2086,14 +2086,14 @@ galaxy:
   # Admin section of the server, and will have access to create users,
   # groups, roles, libraries, and more.  For more information, see:
   # https://galaxyproject.org/admin/
-  #admin_users: null
+  admin_users: joao.sequeira@hcemm.eu
 
   # Force everyone to log in (disable anonymous access).
-  #require_login: false
+  require_login: true
 
   # Show the site's welcome page (see welcome_url) alongside the login
   # page (even if require_login is true).
-  #show_welcome_with_login: false
+  show_welcome_with_login: true
 
   # Controls the order of the login page to prefer Custos-based login
   # and registration.
@@ -2104,11 +2104,11 @@ galaxy:
   #allow_user_creation: true
 
   # Allow administrators to delete accounts.
-  #allow_user_deletion: false
+  allow_user_deletion: true
 
   # Allow administrators to log in as other users (useful for
   # debugging).
-  #allow_user_impersonation: false
+  allow_user_impersonation: true
 
   # When using LDAP for authentication, allow administrators to
   # pre-populate users using an additional form on 'Create new user'
@@ -2126,13 +2126,13 @@ galaxy:
   # Allow users to remove their datasets from disk immediately
   # (otherwise, datasets will be removed after a time period specified
   # by an administrator in the cleanup scripts run via cron)
-  #allow_user_dataset_purge: true
+  allow_user_dataset_purge: true
 
   # By default, users' data will be public, but setting this to true
   # will cause it to be private.  Does not affect existing users and
   # data, only ones created after this option is set.  Users may still
   # change their default back to public.
-  #new_user_dataset_access_role_default_private: false
+  new_user_dataset_access_role_default_private: true
 
   # Expose user list.  Setting this to true will expose the user list to
   # authenticated users.  This makes sharing datasets in smaller galaxy
@@ -2143,7 +2143,7 @@ galaxy:
   # email, or vice versa.
   # If enable_beta_gdpr is set to true, then this option will be
   # overridden and set to false.
-  #expose_user_name: false
+  expose_user_name: true
 
   # Expose user list.  Setting this to true will expose the user list to
   # authenticated users.  This makes sharing datasets in smaller galaxy
@@ -2154,7 +2154,7 @@ galaxy:
   # email, or vice versa.
   # If enable_beta_gdpr is set to true, then this option will be
   # overridden and set to false.
-  #expose_user_email: false
+  expose_user_email: true
 
   # List of allowed local network addresses for "Upload from URL"
   # dialog. By default, Galaxy will deny access to the local network
@@ -2308,7 +2308,7 @@ galaxy:
   # For more information on GA4GH service definitions - check out
   # https://github.com/ga4gh-discovery/ga4gh-service-registry and
   # https://editor.swagger.io/?url=https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-registry/develop/service-registry.yaml
-  #organization_name: null
+  organization_name: Hungarian Center of Excellence for Molecular Medicine
 
   # The URL of the organization that operates this Galaxy instance.
   # Serves as the default for the GA4GH service organization name and
@@ -2318,7 +2318,7 @@ galaxy:
   # For more information on GA4GH service definitions - check out
   # https://github.com/ga4gh-discovery/ga4gh-service-registry and
   # https://editor.swagger.io/?url=https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-registry/develop/service-registry.yaml
-  #organization_url: null
+  organization_url: hcemm.eu
 
   # Service ID for GA4GH services (exposed via the service-info endpoint
   # for the Galaxy DRS API). If unset, one will be generated using the
@@ -2340,12 +2340,12 @@ galaxy:
   # For more information on GA4GH service definitions - check out
   # https://github.com/ga4gh-discovery/ga4gh-service-registry and
   # https://editor.swagger.io/?url=https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-registry/develop/service-registry.yaml
-  #ga4gh_service_environment: null
+  ga4gh_service_environment: dev
 
   # Enable tool tags (associating tools with tags).  This has its own
   # option since its implementation has a few performance implications
   # on startup for large servers.
-  #enable_tool_tags: false
+  enable_tool_tags: true
 
   # Enable a feature when running workflows.  When enabled, default
   # datasets are selected for "Set at Runtime" inputs from the history
@@ -2411,20 +2411,20 @@ galaxy:
 
   # Enable enforcement of quotas.  Quotas can be set from the Admin
   # interface.
-  #enable_quotas: false
+  enable_quotas: true
 
   # This option allows users to see the full path of datasets via the
   # "View Details" option in the history. This option also exposes the
   # command line to non-administrative users. Administrators can always
   # see dataset paths.
-  #expose_dataset_path: false
+  expose_dataset_path: true
 
   # This option allows users to view the tool wrapper source code. This
   # is safe to enable if you have not hardcoded any secrets in any of
   # the tool wrappers installed on this Galaxy server. If you have only
   # installed tool wrappers from  public tool sheds and tools shipped
   # with Galaxy there you can enable this option.
-  #enable_tool_source_display: false
+  enable_tool_source_display: true
 
   # YAML or XML config file that contains the job metric collection
   # configuration.
@@ -2450,7 +2450,7 @@ galaxy:
   #enable_legacy_sample_tracking_api: false
 
   # Allow non-admin users to view available Data Manager options.
-  #enable_data_manager_user_view: false
+  enable_data_manager_user_view: true
 
   # File where Data Managers are configured (.sample used if default
   # does not exist).
@@ -2480,7 +2480,7 @@ galaxy:
   # configuration file or the <job_config> option.
   # The value of this option will be resolved with respect to
   # <config_dir>.
-  #job_config_file: job_conf.yml
+  job_config_file: job_conf.yml
 
   # Description of job running configuration, can be embedded into
   # Galaxy configuration or loaded from an additional file with the
@@ -2604,7 +2604,7 @@ galaxy:
   # not be created by the user running the jobs (e.g. if the filesystem
   # is mounted read-only or the jobs are run by a different user than
   # the galaxy user).
-  #outputs_to_working_directory: false
+  outputs_to_working_directory: true
 
   # If your network filesystem's caching prevents the Galaxy server from
   # seeing the job's stdout and stderr files when it completes, you can
@@ -2642,7 +2642,7 @@ galaxy:
   # completion.  These bits include the job working directory, external
   # metadata temporary files, and DRM stdout and stderr files (if using
   # a DRM).  Possible values are: always, onsuccess, never
-  #cleanup_job: always
+  cleanup_job: always
 
   # When running DRMAA jobs as the Galaxy user
   # (https://docs.galaxyproject.org/en/master/admin/cluster.html#submitting-jobs-as-the-real-user)
@@ -2676,7 +2676,7 @@ galaxy:
   # galaxy_worker) who can run every job being submitted. This user
   # should not be the same user running the galaxy system. Possible
   # values are user_email (default), username or <common_system_user>
-  #real_system_username: user_email
+  real_system_username: username
 
   # File to source to set up the environment when running jobs.  By
   # default, the environment in which the Galaxy server starts is used
@@ -2877,11 +2877,11 @@ galaxy:
   # For details, see Celery documentation at
   # https://docs.celeryq.dev/en/stable/userguide/configuration.html.
   #celery_conf:
-  #  broker_url: null
-  #  result_backend: null
+  #  broker_url: null           # defaults to amqp_internal_connection -> database_connection -> postgresql
+  #  result_backend: null       # TODO: configure Redis
   #  task_routes:
-  #    galaxy.fetch_data: galaxy.external
-  #    galaxy.set_job_metadata: galaxy.external
+  #    galaxy.fetch_data: galaxy.external           # TODO: configure this if needed
+  #    galaxy.set_job_metadata: galaxy.external     # TODO: configure this if needed
 
   # If set to a non-0 value, upper limit on number of tasks that can be
   # executed per user per second.
@@ -2890,7 +2890,7 @@ galaxy:
   # Allow disabling pbkdf2 hashing of passwords for legacy situations.
   # This should normally be left enabled unless there is a specific
   # reason to disable it.
-  #use_pbkdf2: true
+  use_pbkdf2: true
 
   # Tell Galaxy that multiple domains sharing the same root are
   # associated to this instance and wants to share the same session
@@ -2955,7 +2955,7 @@ galaxy:
   # Path to dynamic tool destinations configuration file.
   # The value of this option will be resolved with respect to
   # <config_dir>.
-  #tool_destinations_config_file: tool_destinations.yml
+  tool_destinations_config_file: tool_destinations.yml
 
   # Location of New User Welcome data, a single directory containing the
   # images and JSON of Topics/Subtopics/Slides as export. This location
@@ -2968,7 +2968,7 @@ galaxy:
   #vault_config_file: vault_conf.yml
 
   # Display built-in converters in the tool panel.
-  #display_builtin_converters: true
+  display_builtin_converters: true
 
   # Optional file containing one or more themes for galaxy. If several
   # themes are defined, users can choose their preferred theme in the
@@ -2997,7 +2997,7 @@ galaxy:
   #tool_training_recommendations_api_url: https://training.galaxyproject.org/training-material/api/top-tools.json
 
   # Message to display on the export citations tool page
-  #citations_export_message_html: When writing up your analysis, remember to include all references that should be cited in order to completely describe your work. Also, please remember to <a href="https://galaxyproject.org/citing-galaxy">cite Galaxy</a>.
+  citations_export_message_html: When writing up your analysis, remember to include all references that should be cited in order to completely describe your work. Also, please remember to <a href="https://galaxyproject.org/citing-galaxy">cite Galaxy</a>.
 
   # Enables the Notification System integrated in Galaxy.
   # Users can receive automatic notifications when a certain resource is
@@ -3009,7 +3009,7 @@ galaxy:
   # to all users, including special server-wide announcements such as
   # scheduled maintenance, high load warnings, and event announcements,
   # to name a few examples.
-  #enable_notification_system: false
+  enable_notification_system: true
 
   # The interval in seconds between attempts to delete all expired
   # notifications from the database (every 24 hours by default). Runs in
@@ -3022,15 +3022,15 @@ galaxy:
 
   # The URL pointing to the Galaxy Help Forum API base URL. The API must
   # be compatible with Discourse API (https://docs.discourse.org/).
-  #help_forum_api_url: https://help.galaxyproject.org/
+  help_forum_api_url: https://help.galaxyproject.org/
 
   # Enable the integration of the Galaxy Help Forum in the tool panel.
   # This requires the help_forum_api_url to be set.
-  #enable_help_forum_tool_panel_integration: false
+  enable_help_forum_tool_panel_integration: true
 
   # Directory to store temporary files for file sources. This defaults
   # to new_file_path if not set.
-  #file_source_temp_dir: null
+  #file_source_temp_dir: null       # new_file_path -> <data_dir>/tmp
 
   # Default value for use_temp_files for webdav plugins that don't
   # explicitly declare this.
@@ -3051,7 +3051,7 @@ galaxy:
   # automatically install these dependencies if the tool_dependency_dir
   # is properly configured in the galaxy.yml file. This option should be
   # set to false if containerized versions of tools are used.
-  #install_tool_dependencies: true
+  install_tool_dependencies: true
 
   # Set the default value in the Admin UI to automatically install
   # repository dependencies when installing tools from the Tool Shed.
@@ -3060,7 +3060,7 @@ galaxy:
   # suites. Repository dependencies ensure that all necessary components
   # are installed for the tool (or suite) to work correctly within the
   # Galaxy environment.
-  #install_repository_dependencies: true
+  install_repository_dependencies: true
 
   # Set the default value in the Admin UI to automatically install
   # resolver dependencies when installing tools from the Tool Shed.
@@ -3069,11 +3069,11 @@ galaxy:
   # Galaxy uses dependency resolvers (e.g., Conda) to determine how to
   # satisfy these dependencies. This option should be set to false if
   # containerized versions of tools are used.
-  #install_resolver_dependencies: true
+  install_resolver_dependencies: true
 
   # Enables the cleanup of failed Galaxy job's working directories. Runs
   # in a Celery task.
-  #enable_failed_jobs_working_directory_cleanup: false
+  enable_failed_jobs_working_directory_cleanup: true
 
   # The number of days to keep failed Galaxy job's working directories
   # before attempting to delete them if
@@ -3085,5 +3085,5 @@ galaxy:
   # job's working directories from the filesystem (every 24 hours by
   # default) if enable_failed_jobs_working_directory_cleanup is
   # ``true``. Runs in a Celery task.
-  #failed_jobs_working_directory_cleanup_interval: 86400
+  failed_jobs_working_directory_cleanup_interval: 86400
 

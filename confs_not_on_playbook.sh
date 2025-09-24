@@ -51,6 +51,9 @@ python3 slurm_partition_viewer.py
 # CheckMK - everything about it
 
 # General VMs - setting up the repos not present/enabled in alma minimal
+dnf install -y epel-release
+dnf config-manager --set-enabled crb
+
 
 # Make idempotent on "setup_slurm"
 
