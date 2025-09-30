@@ -5,20 +5,17 @@ roles:
     scm: git
     version: v1.13
 
-  - name: galaxyproject.postgresql
-    src: https://github.com/galaxyproject/ansible-postgresql
-    scm: git
+  - src: galaxyproject.galaxy
+    version: 0.10.14
 
-  - name: galaxyproject.postgresql_objects
-    src: https://github.com/galaxyproject/ansible-postgresql-objects
-    scm: git
-    #version: ">=1.2.1"     # don't work with specifying version
+  - src: galaxyproject.postgresql
+    version: 1.1.2
 
-  - name: galaxyproject.galaxy
-    src: https://github.com/galaxyproject/ansible-galaxy
-    scm: git
+  - src: galaxyproject.postgresql_objects
+    version: 1.2.0
 
-  - src: galaxyproject.tusd
+  - src: galaxyproject.miniconda
+    version: 0.3.1
 
 collections:
   - name: community.general
