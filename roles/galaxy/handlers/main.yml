@@ -1,8 +1,0 @@
-- name: Restart Galaxy
-  ansible.builtin.systemd:
-    name: galaxy
-    state: restarted
-
-- name: Reload systemd
-  ansible.builtin.systemd:
-    daemon_reload: true
