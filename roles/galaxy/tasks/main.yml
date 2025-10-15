@@ -1,117 +1,39 @@
 ---
-# Config tasks
-- name: Deploy configs
-  ansible.builtin.template:
-    src: "{{ item }}.yml.j2"
-    dest: "{{ galaxy_root }}/config/{{ item }}.yml"
-    owner: "{{ galaxy_user }}"
-    group: "{{ galaxy_group }}"
-    mode: '0644'
-  loop:
-    - galaxy
-    - job_conf
-    - tool_conf
-    - tool_destinations
+- block:
+  - name: Install Galaxy dependencies
+    ansible.builtin.dnf:
+      name: "{{ galaxy_system_packages }}"
+      state: present
 
-# Service tasks
-# - name: Deploy systemd unit
-#   ansible.builtin.template:
-#     src: galaxy.service.j2
-#     dest: /etc/systemd/system/galaxy.service
-#     mode: '0644'
-#   notify: Reload systemd
+  - name: Install virtualenv
+    ansible.builtin.pip:
+      name: virtualenv
+      executable: pip3
 
-# Pre tasks
-- name: Install system dependencies
-  ansible.builtin.dnf:
-    name: "{{ galaxy_dependencies }}"
-    state: present
+  - name: Ensure virtualenv symlink exists
+    ansible.builtin.file:
+      src: /usr/local/bin/virtualenv
+      dest: /usr/local/sbin/virtualenv
+      state: link
 
-- name: Install pip dependencies
-  ansible.builtin.pip:
-    name: "{{ galaxy_pip_dependencies }}"
-    executable: pip3
+  - name: Install PostgreSQL repository
+    ansible.builtin.dnf:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+      disable_gpg_check: true
 
-# Install tasks
-- name: Include PostgreSQL roles
-  ansible.builtin.include_role:
-    name: galaxyproject.postgresql
+  - name: Include upstream Galaxy role
+    ansible.builtin.include_role:
+      name: galaxyproject.postgresql
+  become: true
 
-- name: Setup PostgreSQL users/databases
+- block:
+  - name: Include upstream Galaxy role
+    ansible.builtin.include_role:
+      name: galaxyproject.postgresql_objects
   become: true
   become_user: postgres
-  block:
-    - name: Setup PostgreSQL users/databases
-      ansible.builtin.include_role:
-        name: galaxyproject.postgresql_objects
-      vars:
-        postgresql_objects_users:
-          - name: "{{ galaxy_db_user }}"
-            password: null
-        postgresql_objects_databases:
-          - name: "{{ galaxy_db_name }}"
-            owner: "{{ galaxy_db_user }}"
 
-- name: Include Galaxy role
+- name: Include upstream Galaxy role
   ansible.builtin.include_role:
     name: galaxyproject.galaxy
-
-- name: Ensure Galaxy service is enabled and started
-  ansible.builtin.systemd:
-    name: galaxy
-    enabled: true
-    state: started
-
-# https://docs.galaxyproject.org/en/master/admin/nginx.html
-# sudo usermod -a -G galaxy www-data    # add `www-data` user to `galaxy` group
-- name: Add www-data to galaxy group
-  ansible.builtin.user:
-    name: www-data
-    groups: galaxy
-    append: true
-
-# sudo -iu galaxy
-# umask 027     # set umask so new files are group-readable
-- name: Set umask for galaxy user
-  ansible.builtin.lineinfile:
-    path: /home/galaxy/.bashrc
-    line: "umask 027"
-  become: true
-  become_user: galaxy
-
-- name: Install tusd from github
-  ansible.builtin.get_url:
-    url: "https://github.com/tus/tusd/releases/download/v2.8.0/tusd_linux_amd64.tar.gz"
-    dest: /home/galaxy/tusd_linux_amd64.tar.gz
-    mode: '0644'
-    owner: galaxy
-    group: galaxy
-
-- name: Extract tusd
-  ansible.builtin.unarchive:
-    src: /home/galaxy/tusd_linux_amd64.tar.gz
-    dest: /usr/local/bin/
-    remote_src: true
-
-- name: Ensure tusd is executable
-  ansible.builtin.file:
-    path: /usr/local/bin/tusd
-    mode: '0755'
-
-# tusd -host localhost -port 1080 -upload-dir=<galaxy_root>/database/tmp -hooks-http=<galaxy_url>/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie
-- name: Install and configure tusd
-  block:
-    - name: Install and configure tusd
-      ansible.builtin.include_role:
-        name: galaxyproject.tusd
-      vars:
-        tusd_instances:
-          - name: uploads
-            user: "{{ galaxy_user }}"     # user that tusd will run as
-            group: "{{ galaxy_group }}"   # group that tusd will run as
-            args:
-              - -host=localhost
-              - -port=1080
-              - -upload-dir="{{ galaxy_root }}/upload_store"
-              - -hooks-http="{{ galaxy_url }}/api/upload"
-              - -hooks-http-forward-headers=Cookie

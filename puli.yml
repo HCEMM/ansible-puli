@@ -6,7 +6,7 @@
 #   become: true
 #   gather_facts: true
 #   roles:
-#     - create_bridge
+#     # - create_bridge
 #     - setup_vms
 
 # - name: Build main server
@@ -45,13 +45,13 @@
 #   roles:
 #     - post_vms    # TODO: probably this stuff is not needed anymore. In any case, to be joined with setup_vms (the useful bits)
 
-- name: Setup Nginx gateway
-  hosts: nginx_gateway
-  become: true
-  gather_facts: true
-  roles:
-    - role: nginx
-      tags: nginx
+# - name: Setup Nginx gateway
+#   hosts: nginx_gateway
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - role: nginx
+#       tags: nginx
 
 # - name: Setup Slurm
 #   hosts:
@@ -79,7 +79,7 @@
 #   roles:
 #     - role: thinlinc
 
-# - name: Setup Galaxy server
-#   hosts: galaxy_server
-#   roles:
-#     - galaxy
+- name: Setup Galaxy server
+  hosts: galaxy_server
+  roles:
+    - role: galaxy

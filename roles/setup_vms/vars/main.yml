@@ -59,15 +59,21 @@ setup_vms_vm_list:
     disk_size: 200G     # Galaxy has a lot of logs and environments and stuff... let's see how this fills up
     ip: '10.0.150.209'
     mac: '52:54:00:aa:bb:08'
-  fcbi-reservation1:
-    memory: 2048
-    vcpus: 1
-    disk_size: 10G
-    ip: '10.0.150.210'
-    mac: '52:54:00:aa:bb:11'
+  # fcbi-reservation1:
+  #   memory: 2048
+  #   vcpus: 1
+  #   disk_size: 10G
+  #   ip: '10.0.150.210'
+  #   mac: '52:54:00:aa:bb:11'
   nginx1:
     memory: 2048
     vcpus: 1
     disk_size: 10G
     ip: '10.0.150.211'
     mac: '52:54:00:aa:bb:12'
+  galaxy2:
+    memory: 32768
+    vcpus: 8
+    disk_size: 200G
+    ip: '10.0.150.212'
+    mac: '52:54:00:aa:bb:13'
