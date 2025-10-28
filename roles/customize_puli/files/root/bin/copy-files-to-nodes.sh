@@ -7,7 +7,7 @@ usage() {
 }
 
 # Default nodes
-NODES=("scc-mem02-10G" "scc-gpu01-10G" "scc-gpu02-10G" "scc-cpu01-10G" "scc-cpu02-10G" "scc-cpu03-10G" "scc-cpu04-10G" "scc-cpu05-10G" "scc-cpu06-10G" "scc-cpu07-10G" "scc-cpu08-10G" "scc-cpu09-10G" "scc-cpu10-10G" "scc-cpu11-10G")
+NODES=("scc-mem01-10G" "scc-mem02-10G" "scc-gpu01-10G" "scc-gpu02-10G" "scc-cpu02-10G" "scc-cpu03-10G" "scc-cpu04-10G" "scc-cpu05-10G" "scc-cpu06-10G" "scc-cpu07-10G" "scc-cpu08-10G" "scc-cpu09-10G" "scc-cpu10-10G" "scc-cpu11-10G")
 
 # Parse the optional -n argument
 while getopts "n:" opt; do

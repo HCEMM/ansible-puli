@@ -7,7 +7,7 @@
     group: root
     mode: "0644"
   when:
-    - inventory_hostname in groups['sms']
+    - inventory_hostname in groups['login_nodes']
 
 - name: Copy user executables into /usr/local/bin
   ansible.builtin.copy:
@@ -17,7 +17,7 @@
     group: root
     mode: "0755"
   when:
-    - inventory_hostname in groups['sms']
+    - inventory_hostname in groups['login_nodes']
 
 - name: Copy root executables into /root/bin
   ansible.builtin.copy:
@@ -26,8 +26,6 @@
     owner: root
     group: root
     mode: "0700"
-  when:
-    - inventory_hostname in groups['sms']
 
 - name: Create groups
   ansible.builtin.group:
@@ -35,7 +33,7 @@
     gid: "{{ item.gid }}"
   loop: "{{ user_groupnames }}"
   when:
-    - inventory_hostname in groups['sms']
+    - inventory_hostname in groups['login_nodes']
 
 - name: Create users
   ansible.builtin.user:
@@ -48,4 +46,13 @@
     append: true        # add user to missing groups without removing groups already assigned
   loop: "{{ user_usernames }}"
   when:
-    - inventory_hostname in groups['sms']
+    - inventory_hostname in groups['login_nodes']
+
+# add this cronjob - 0 * * * * /usr/local/bin/enforce-2fa.sh
+- name: Add cron job to check 2FA users hourly
+  ansible.builtin.cron:
+    name: "Check 2FA users"
+    minute: "0"
+    job: "/root/bin/enforce-2fa.sh"
+  when:
+    - inventory_hostname in groups['login_nodes']
