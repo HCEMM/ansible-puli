@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sync specific users from AD to local LDAP
 
-AD_DOMAIN="hcemm.eu"
+AD_DOMAIN="{{ ldap_domain }}"
 BASE_DN="dc=hcemm,dc=eu"
 LOCAL_BASE_DN="dc=cluster,dc=local"
 LDAP_URI="ldap://localhost"

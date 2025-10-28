@@ -81,5 +81,110 @@
 
 - name: Setup Galaxy server
   hosts: galaxy_server
+  vars:
+    galaxy_config_style: yaml
+    galaxy_layout: root-dir
+    galaxy_root: /srv/galaxy
+    galaxy_commit_id: release_23.0
+    galaxy_separate_privileges: true
+    galaxy_force_checkout: true
+    galaxy_create_user: true
+    galaxy_manage_paths: true
+    galaxy_manage_systemd: true
+    galaxy_user: galaxy
+    galaxy_privsep_user: gxpriv
+    galaxy_group: galaxy
+
+    # these are custom - not in the GitHub README
+    galaxy_user_name: "{{ galaxy_user }}"
+    galaxy_venv_dir: "{{ galaxy_root }}/.venv"
+    galaxy_tusd_port: 1080
+    galaxy_tus_upload_store: /data/tus
+
+    postgresql_objects_users:
+      - name: galaxy
+        password: null
+    postgresql_objects_databases:
+      - name: galaxy
+        owner: galaxy
+    galaxy_config:
+      gravity:
+        process_manager: systemd
+        galaxy_config_file: "{{ galaxy_root }}/config/galaxy.yml"
+        galaxy_root: "{{ galaxy_root }}/server"
+        galaxy_user: "{{ galaxy_user_name }}"
+        virtualenv: "{{ galaxy_venv_dir }}"
+        gunicorn:
+          # listening options
+          bind: "0.0.0.0:8080"
+          # performance options
+          workers: 2
+          # Other options that will be passed to gunicorn
+          # This permits setting of 'secure' headers like REMOTE_USER (and friends)
+          # https://docs.gunicorn.org/en/stable/settings.html#forwarded-allow-ips
+          extra_args: '--forwarded-allow-ips="*"'
+          # This lets Gunicorn start Galaxy completely before forking which is faster.
+          # https://docs.gunicorn.org/en/stable/settings.html#preload-app
+          preload: true
+        celery:
+          concurrency: 2
+          enable_beat: true
+          enable: true
+          queues: celery,galaxy.internal,galaxy.external
+          pool: threads
+          memory_limit: 2
+          loglevel: DEBUG
+        tusd:
+          enable: true
+          tusd_path: /usr/local/sbin/tusd
+          host: 0.0.0.0
+          upload_dir: "{{ galaxy_tus_upload_store }}"
+        handlers:
+          handler:
+            processes: 2
+            pools:
+              - job-handlers
+              - workflow-schedulers
+      galaxy:
+        database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
+        # TUS
+        galaxy_infrastructure_url: "https://{{ inventory_hostname }}"
+        welcome_url: /static/welcome.html
+        tus_upload_store: "{{ galaxy_tus_upload_store }}"
+  pre_tasks:
+    - block:
+      - name: Install Dependencies
+        ansible.builtin.dnf:
+          name:
+            - sudo
+            - git
+            - make
+            # - virtualenv        # python3-venv
+            - python3-setuptools
+            - python3-devel     # python3-dev
+            - python3-psycopg2
+            - gcc
+            - acl
+            - gnutls-utils      # gnutls-bin
+            - file-devel        # libmagic-dev
+          state: present
+
+      - name: Install virtualenv
+        ansible.builtin.pip:
+          name: virtualenv
+          executable: pip3
+
+      - name: Symbolic link for virtualenv
+        ansible.builtin.file:
+          src: /usr/local/bin/virtualenv
+          dest: /usr/local/sbin/virtualenv
+          state: link
+      become: true
   roles:
-    - role: galaxy
+    # - role: galaxyproject.postgresql
+    #   become: true
+    # - role: galaxyproject.postgresql_objects
+    #   become: true
+    #   become_user: postgres
+    - role: galaxyproject.galaxy
+    - role: galaxyproject.tusd
