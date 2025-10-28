@@ -64,15 +64,26 @@
 #   roles:
 #     - setup_slurm
 
-# - name: Setup Login nodes
-#   hosts: login_nodes
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - fail2ban
-#     - customize_puli
-#     - configure_shares
-#     # - ldap          # for next version
+- name: Setup Login nodes
+  hosts:
+    - sms     # because of the root scripts
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - fail2ban
+    - customize_puli
+    - ldap
+
+- name: Setup NFS shares
+  hosts:
+    - sms
+    - login_nodes
+    - galaxy_server
+  become: true
+  gather_facts: true
+  roles:
+    - configure_shares
 
 # - name: Install ThinLinc Server
 #   hosts: thinlinc_servers
