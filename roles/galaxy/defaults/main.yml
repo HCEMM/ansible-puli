@@ -9,3 +9,5 @@ galaxy_system_packages:
   - acl
   - gnutls-utils
   - file-devel
+  - tar
+  - unzip
