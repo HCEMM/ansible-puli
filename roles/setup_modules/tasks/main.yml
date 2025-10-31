@@ -4,8 +4,6 @@
     path: /opt/ohpc/pub/apps/spack/{{ setup_modules_spack_version }}/etc/spack/defaults/modules.yaml
     regexp: 'enable:\s*\["tcl"\]'
     replace: 'enable: ["lmod"]'
-  when:
-    - inventory_hostname in groups['sms']
 
 - name: Install Spack packages
   ansible.builtin.shell: >
@@ -15,7 +13,6 @@
   register: spack_result
   changed_when: "'Installing' in spack_result.stdout"
   when:
-    - inventory_hostname in groups['sms']
     - setup_modules_spack_packages is defined
     - setup_modules_spack_packages | length > 0
 
@@ -24,5 +21,3 @@
   ansible.builtin.shell: source /etc/profile.d/lmod.sh; ml spack; spack module lmod refresh -y
   register: refresh_result
   changed_when: "'You are about to regenerate lmod module files for' in refresh_result.stdout"
-  when:
-    - inventory_hostname in groups['sms']

@@ -4,8 +4,6 @@
   ansible.builtin.dnf:
     name: fail2ban
     state: present
-  when:
-    - inventory_hostname in groups['sms']
 
 - name: Copy fail2ban custom configuration file into place.
   ansible.builtin.copy:
@@ -14,8 +12,6 @@
     owner: root
     group: root
     mode: "644"
-  when:
-    - inventory_hostname in groups['sms']
   notify:
     - Restart fail2ban
 
@@ -26,8 +22,6 @@
     owner: root
     group: root
     mode: "644"
-  when:
-    - inventory_hostname in groups['sms']
   notify:
     - Restart fail2ban
 
@@ -36,7 +30,5 @@
     path: /etc/fail2ban/jail.local
     regexp: '^ignoreip ='
     line: "ignoreip = {{ fail2ban_ignoreips | join(' ') }}"
-  when:
-    - inventory_hostname in groups['sms']
   notify:
     - Restart fail2ban

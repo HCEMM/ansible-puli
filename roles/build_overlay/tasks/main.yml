@@ -16,7 +16,6 @@
     - { src: "{{ role_path }}/files/chrony.conf.ww", dest: /etc/chrony.conf.ww }
     - { src: "{{ role_path }}/files/slurmd.ww", dest: /etc/sysconfig/slurmd.ww }
     - { src: "{{ role_path }}/files/override.conf", dest: /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf }
-  when: inventory_hostname in groups['sms']
 
 - name: Check if overlay file exists
   ansible.builtin.stat:
@@ -43,14 +42,12 @@
   loop_control:
     label: "{{ item.dest }}"
   register: overlay_file_stat
-  when: inventory_hostname in groups['sms']
 
 - name: Support unprivileged user namespaces, and configure chrony, systemd, NetworkManager and Slurm server
   ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ item.item.src }}
   loop: "{{ overlay_file_stat.results }}"
   changed_when: not item.stat.exists
   when:
-    - ( inventory_hostname in groups['sms'] )
     - not item.stat.exists
 
 # wwctl profile set --yes nodes --tagadd ntpserver=${sms_ip}
@@ -62,15 +59,12 @@
     patterns:
       - 'Tags[ntpserver]             {{ sms_ip }}'
       - 'Tags[slurmctld]             {{ sms_ip }}'
-  when:
-    - ( inventory_hostname in groups['sms'] )
 
 - name: Identify master host as local NTP server
   ansible.builtin.command: wwctl profile set --yes nodes --tagadd ntpserver={{ sms_ip }} --tagadd slurmctld={{ sms_ip }}
   changed_when: >
     not output_match_found
   when:
-    - ( inventory_hostname in groups['sms'] )
     - not output_match_found
 
 # wwctl overlay chown nodeconfig /etc/munge/munge.key $(id -u munge) $(id -g munge)
@@ -97,7 +91,6 @@
     - munge_key_stat.stat.uid != (munge_uid.stdout | int) or
       munge_key_stat.stat.gid != (munge_gid.stdout | int)
   when:
-    - ( inventory_hostname in groups['sms'] )
     - munge_key_stat.stat.uid != (munge_uid.stdout | int) or
       munge_key_stat.stat.gid != (munge_gid.stdout | int)
 
@@ -113,7 +106,6 @@
     - munge_dir_stat.stat.uid != (munge_uid.stdout | int) or
       munge_dir_stat.stat.gid != (munge_gid.stdout | int)
   when:
-    - ( inventory_hostname in groups['sms'] )
     - munge_dir_stat.stat.uid != (munge_uid.stdout | int) or
       munge_dir_stat.stat.gid != (munge_gid.stdout | int)
 
@@ -123,5 +115,32 @@
     wwctl overlay chmod nodeconfig /etc/munge 0700
   changed_when: munge_dir_stat.stat.mode != '0700'
   when:
-    - ( inventory_hostname in groups['sms'] )
     - munge_dir_stat.stat.mode != '0700'
+
+# LDAP configuration: https://ciq.com/blog/joining-warewulf-managed-compute-nodes-to-active-directory/
+# wwctl overlay create active-directory
+- name: Create active-directory overlay if it does not exist
+  ansible.builtin.command: wwctl overlay create active-directory
+  changed_when: 'Overlay "active-directory" created' in create_overlay_result.stdout
+  register: create_overlay_result
+  when: >
+    not ( 'active-directory' in
+      lookup('ansible.builtin.command', 'wwctl overlay list', wantlist=True) )
+
+# wwctl overlay import active-directory krb5.keytab.ww /etc/krb5.keytab.ww
+- name: Import krb5.keytab template into active-directory overlay
+  ansible.builtin.command: wwctl overlay import active-directory {{ role_path }}/files/krb5.keytab.ww /etc/krb5.keytab.ww
+  changed_when: 'Imported /etc/krb5.keytab.ww into overlay active-directory' in import_krb5_result.stdout
+  register: import_krb5_result
+  when: >
+    not ( 'krb5.keytab.ww' in
+      lookup('ansible.builtin.command', 'wwctl overlay list active-directory -f "{{ "{{" }}.Files{{ "}}" }}"', wantlist=True) )
+
+- name: Copy copy-krb5-keytabs.sh to /etc/cron.daily/
+  ansible.builtin.copy:
+    src: "copy-krb5-keytabs.sh"
+    dest: /etc/cron.daily/copy-krb5-keytabs.sh
+    owner: root
+    group: root
+    mode: '0755'
+
