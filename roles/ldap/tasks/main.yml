@@ -19,12 +19,9 @@
     realm join --user={{ ldap_admin_user }} {{ ldap_domain }}
   register: realm_join_result
   changed_when: not 'Already joined' in realm_join_result.stdout
-
-- name: Start and enable slapd
-  ansible.builtin.service:
-    name: slapd
-    state: started
-    enabled: true
+  notify: Start and enable slapd
+  when:
+    - inventory_hostname in groups['sms'] or inventory_hostname in groups['login_nodes']
 
 - name: Make sure we have an admin user
   community.general.ldap_entry:

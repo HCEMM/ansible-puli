@@ -122,3 +122,9 @@ python3 -m venv .env
 pip install -r requirements.txt
 python manage.py runserver 0.0.0.0:8000
 
+
+# Computes and PAM accession for ansible playbooks
+# gave up on this. Doesn't work with keys, doesn't work with these instructions: https://slurm.schedmd.com/faq.html (section "How can I exclude some users from pam_slurm?")
+# but it would be nice to be able to run playbook tasks on computes
+# for now will use pdsh for everything needed on computes
+
