@@ -1,0 +1,54 @@
+# Create jails that use the Nginx filters
+[DEFAULT]
+bantime  = 3600
+findtime = 600
+maxretry = 3
+backend = auto
+protocol = tcp
+banaction = nftables
+ignoreip = 127.0.0.1/8 ::1 {{ fail2ban_ignoreips | join(' ') }}
+
+[nginx-php-exploit]
+enabled = true
+port    = http,https
+filter  = nginx-php-exploit
+logpath = /var/log/nginx/access.log
+maxretry = 1
+bantime = 86400
+findtime = 300
+
+[nginx-lfi-rce]
+enabled = true
+port = http,https
+filter = nginx-lfi-rce
+logpath = /var/log/nginx/access.log
+maxretry = 2
+bantime = 86400
+findtime = 600
+
+[nginx-docker-actor]
+enabled = true
+port = http,https
+filter = nginx-docker-actor
+logpath = /var/log/nginx/access.log
+maxretry = 1
+bantime = 86400
+findtime = 600
+
+[nginx-actuator]
+enabled = true
+port = http,https
+filter = nginx-actuator
+logpath = /var/log/nginx/access.log
+maxretry = 2
+bantime = 86400
+findtime = 600
+
+[nginx-scanner]
+enabled = true
+port = http,https
+filter = nginx-scanner
+logpath = /var/log/nginx/access.log
+maxretry = 3
+bantime = 86400
+findtime = 900

@@ -71,9 +71,3 @@ setup_vms_vm_list:
     disk_size: 10G
     ip: '10.0.150.211'
     mac: '52:54:00:aa:bb:12'
-  galaxy2:
-    memory: 32768
-    vcpus: 8
-    disk_size: 200G
-    ip: '10.0.150.212'
-    mac: '52:54:00:aa:bb:13'

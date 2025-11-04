@@ -24,6 +24,8 @@
     mode: "644"
   notify:
     - Restart fail2ban
+  when:
+    - hostname in groups['sms']
 
 - name: Ensure fail2ban is configured to ignore specific IPs.
   ansible.builtin.lineinfile:
@@ -32,3 +34,54 @@
     line: "ignoreip = {{ fail2ban_ignoreips | join(' ') }}"
   notify:
     - Restart fail2ban
+
+- name: Activate nginx probes jail
+  ansible.builtin.copy:
+    src: nginx-probes.local.j2
+    dest: /etc/fail2ban/jail.d/nginx-probes.local
+    owner: root
+    group: root
+    mode: "644"
+  notify:
+    - Restart fail2ban
+  when:
+    - hostname in groups['nginx_gateway']
+
+- name: Copy custom fail2ban filter definitions
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/fail2ban/filter.d/{{ item }}
+    owner: root
+    group: root
+    mode: "644"
+  loop:
+    - nginx-actuator.conf
+    - nginx-docker-actor.conf
+    - nginx-lfi-rce.conf
+    - nginx-php-exploit.conf
+    - nginx-scanner.conf
+  notify:
+    - Restart fail2ban
+  when:
+    - hostname in groups['nginx_gateway']
+
+- name: Enable nginx jails in jail.local
+  ansible.builtin.blockinfile:
+    path: /etc/fail2ban/jail.local
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: Enable nginx jails"
+    block: |
+      [nginx-http-auth]
+      enabled=true
+      [nginx-limit-req]
+      enabled=true
+      [nginx-botsearch]
+      enabled=true
+      [nginx-bad-request]
+      enabled=true
+      [nginx-forbidden]
+      enabled=true
+  notify:
+    - Restart fail2ban
+  when:
+    - hostname in groups['nginx_gateway']
+
