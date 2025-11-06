@@ -34,6 +34,14 @@
   become: true
   become_user: postgres
 
+- name: Debug Galaxy configuration
+  ansible.builtin.debug:
+    var: galaxy_config.gravity.gunicorn.bind
+
 - name: Include upstream Galaxy role
   ansible.builtin.include_role:
     name: galaxyproject.galaxy
+
+- name: Include tusd role
+  ansible.builtin.include_role:
+    name: galaxyproject.tusd

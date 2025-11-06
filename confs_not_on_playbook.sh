@@ -27,6 +27,11 @@ chmod 600 /etc/sssd/sssd.conf
 systemctl restart sssd oddjobd
 systemctl enable sssd oddjobd
 
+# Computes and PAM accession for ansible playbooks
+# gave up on this. Doesn't work with keys, doesn't work with these instructions: https://slurm.schedmd.com/faq.html (section "How can I exclude some users from pam_slurm?")
+# but it would be nice to be able to run playbook tasks on computes
+# for now will use pdsh for everything needed on computes
+
 
 update-crypto-policies --set LEGACY
 
@@ -75,6 +80,13 @@ dnf config-manager --set-enabled crb
 setsebool -P httpd_use_nfs 1
 mount 10.0.150.209:/srv/galaxy /srv/galaxy
 
+### Security
+dnf install -y fail2ban
+systemctl enable fail2ban --now
+
+curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+sudo apt-get update
+sudo apt-get install crowdsec crowdsec-firewall-bouncer
 
 
 # Galaxy server
@@ -121,10 +133,4 @@ python3 -m venv .env
 . .env/bin/activate
 pip install -r requirements.txt
 python manage.py runserver 0.0.0.0:8000
-
-
-# Computes and PAM accession for ansible playbooks
-# gave up on this. Doesn't work with keys, doesn't work with these instructions: https://slurm.schedmd.com/faq.html (section "How can I exclude some users from pam_slurm?")
-# but it would be nice to be able to run playbook tasks on computes
-# for now will use pdsh for everything needed on computes
 
