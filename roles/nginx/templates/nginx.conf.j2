@@ -1,3 +1,8 @@
+# ============================================================
+# This file is managed by Ansible.
+# Manual edits will be overwritten on next deployment.
+# ============================================================
+
 {% for service in nginx_gateway_services %}
 upstream {{ service.name }} {
 {% for backend in service.backends %}
@@ -17,6 +22,8 @@ server {
 
     ssl_certificate /etc/letsencrypt/live/{{ service.server_name }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ service.server_name }}/privkey.pem;
+
+    access_log /var/log/nginx/{{ service.name }}.log;
 
     # Security headers
     add_header X-Content-Type-Options "nosniff";
