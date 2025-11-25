@@ -1,0 +1,42 @@
+---
+# git clone --recurse-submodules https://github.com/HCEMM/emma
+- name: Clone EMMA repository
+  ansible.builtin.git:
+    repo: 'https://github.com/HCEMM/emma'
+    dest: /srv/emma
+    recursive: true   # default value, but always good to be explicit
+    version: release-0.1.0
+
+# firewall-cmd --permanent --add-port=8000/tcp
+# firewall-cmd --reload
+- name: Open port 8000 on firewall for EMMA
+  ansible.posix.firewalld:
+    port: 8000/tcp
+    permanent: true
+    state: enabled
+    immediate: true
+
+# mount 10.0.150.147:/mnt/MirrorHDD/scratch/hcemm-admin/emma /mnt/emma
+- name: Mount /mnt/emma
+  ansible.posix.mount:
+    src: 10.0.150.147:/mnt/MirrorHDD/scratch/hcemm-admin/emma
+    path: /mnt/emma
+    fstype: nfs
+    opts: rw
+    state: mounted    # will write to fstab
+
+# write secret variables to .env file
+- name: Create .env file for EMMA
+  ansible.builtin.template:
+    src: .secrets.j2
+    dest: /srv/emma/.secrets
+    owner: root
+    group: root
+    mode: '0600'
+
+# bash emma/install.sh
+- name: Run EMMA installation script
+  ansible.builtin.command:
+    cmd: bash emma/install.sh
+    chdir: /srv/emma
+    creates: /srv/emma/staticfiles
