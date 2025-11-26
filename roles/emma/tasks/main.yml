@@ -3,7 +3,7 @@
 - name: Clone EMMA repository
   ansible.builtin.git:
     repo: 'https://github.com/HCEMM/emma'
-    dest: /srv/emma
+    dest: "{{ emma_dir }}"
     recursive: true   # default value, but always good to be explicit
     version: release-0.1.0
 
@@ -29,7 +29,7 @@
 - name: Create .env file for EMMA
   ansible.builtin.template:
     src: .secrets.j2
-    dest: /srv/emma/.secrets
+    dest: "{{ emma_dir }}/.secrets"
     owner: root
     group: root
     mode: '0600'
@@ -38,5 +38,5 @@
 - name: Run EMMA installation script
   ansible.builtin.command:
     cmd: bash emma/install.sh
-    chdir: /srv/emma
-    creates: /srv/emma/staticfiles
+    chdir: "{{ emma_dir }}"
+    creates: "{{ emma_dir }}/staticfiles"

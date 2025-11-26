@@ -43,6 +43,14 @@
 #     - role: nginx
 #       tags: nginx
 
+# - name: Setup EMMA webservice
+#   hosts: emma_server
+#   become: true
+#   become_user: hcemm
+#   gather_facts: true
+#   roles:
+#     - role: emma
+
 # - name: Setup Slurm
 #   hosts:
 #     - slurmctld
@@ -149,7 +157,7 @@
       galaxy:
         database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
         static_enabled: true
-        admin_users: 
+        admin_users:
           - Joao.Sequeira@hcemm.eu
           - Alessandra.Vittorini@hcemm.eu
         welcome_url: /static/welcome.html
