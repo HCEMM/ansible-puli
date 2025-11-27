@@ -1,13 +1,15 @@
 #!/bin/bash
-# Sync specific users from AD to local LDAP
 
-AD_DOMAIN="{{ ldap_domain }}"
-BASE_DN="dc=hcemm,dc=eu"
-LOCAL_BASE_DN="dc=cluster,dc=local"
-LDAP_URI="ldap://localhost"
-BIND_DN="cn=admin,$LOCAL_BASE_DN"
-BIND_PW="{{ ldap_admin_password }}"
+LDAPADD="ldapadd -x -D {{ ldap_local_admin_dn1 }} -w {{ ldap_local_admin_password }}"
+LDAPMOD="ldapmodify -x -D {{ ldap_local_admin_dn }} -w {{ ldap_local_admin_password }}"
+LDAPSEARCH_AD="ldapsearch -x -H ldap://{{ ldap_ad_server }} -D '{{ ldap_ad_bind_dn }}' -w '{{ ldap_ad_bind_password }}' -b '{{ ldap_ad_base_dn }}'"
 
-ldapsearch -LLL -x -H ldap://$AD_DOMAIN -b "$BASE_DN" \
-'(memberOf=CN=cluster_users,CN=Users,DC=hcemm,DC=eu)' uid cn sn mail | \
-ldapadd -x -H $LDAP_URI -D "$BIND_DN" -w "$BIND_PW"
+TMPDIR=$(mktemp -d)
+
+$LDAPSEARCH_AD '(objectClass=person)' sAMAccountName uidNumber gidNumber cn sn \
+  | grep -v '^#' > $TMPDIR/ad_users.ldif
+
+# Convert AD schema → OpenLDAP schema (POSIX)
+# add transformation rules here
+
+# e.g., ldapadd / ldapmodify to update local LDAP

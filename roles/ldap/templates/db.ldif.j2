@@ -1,0 +1,28 @@
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+replace: olcSuffix
+olcSuffix: {{ ldap_local_suffix }}
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+replace: olcRootDN
+olcRootDN: {{ ldap_local_admin_dn }}
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+replace: olcRootPW
+olcRootPW: {{ ldap_root_hash.stdout }}
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0}to * by dn.exact={{ ldap_local_admin_dn }} write by * read
+olcAccess: {1}to attrs=userPassword by self write by anonymous auth by * none
+olcAccess: {2}to * by self read by users read by * none
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
+replace: olcDbIndex
+olcDbIndex: uid eq
+olcDbIndex: cn,sn pres,eq,sub
+olcDbIndex: mail pres,eq

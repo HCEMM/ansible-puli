@@ -3,7 +3,7 @@
     name: sssd
     state: restarted
 
-- name: Start and enable slapd
+- name: Ensure slapd running
   ansible.builtin.service:
     name: slapd
     state: started

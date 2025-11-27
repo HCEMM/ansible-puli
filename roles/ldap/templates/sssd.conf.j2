@@ -1,0 +1,16 @@
+[sssd]
+services = nss, pam
+domains = cluster.local
+
+[domain/cluster.local]
+id_provider = ldap
+auth_provider = ldap
+ldap_uri = ldap://localhost
+ldap_search_base = {{ local_ldap_suffix }}
+ldap_default_bind_dn = {{ local_ldap_admin_dn }}
+ldap_default_authtok = {{ local_ldap_admin_password }}
+cache_credentials = true
+use_fully_qualified_names = false
+fallback_homedir = /home/%u
+default_shell = /bin/bash
+enumerate = true
