@@ -62,6 +62,11 @@ all:
             slurmdbd1:
               ansible_host: 10.0.150.202
 
+        ldap_server:
+          hosts:
+            ldap1:
+              ansible_host: 10.0.150.203
+
         login_nodes:
           hosts:
             login1:
@@ -107,4 +112,3 @@ all:
           hosts:
             nginx1:
               ansible_host: 10.0.150.211
-
