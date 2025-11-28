@@ -1,9 +1,10 @@
 ---
 # Initial LDAP database construction and configuration
-- name: Install OpenLDAP server
+- name: Install dependencies
   ansible.builtin.dnf:
     name:
       - python-ldap
+      - policycoreutils-python-utils      # for semanage
     state: present
 
 - name: Ensure slapd config directory exists
@@ -106,27 +107,6 @@
           gidNumber: "{{ ldap_cluster_users_gid_number }}"
         }
 
-# Create manually-defined local users
-- name: Add local manual users
-  community.general.ldap_entry:
-    dn: "uid={{ item.uid }},ou=People,{{ ldap_local_suffix }}"
-    objectClass:
-      - inetOrgPerson
-      - posixAccount
-      - shadowAccount
-    attributes:
-      uid: "{{ item.uid }}"
-      cn: "{{ item.cn }}"
-      sn: "{{ item.cn.split(' ')[-1] }}"
-      uidNumber: "{{ item.uidNumber }}"
-      gidNumber: "{{ item.gidNumber }}"
-      homeDirectory: "{{ item.home }}"
-      loginShell: "{{ item.shell }}"
-      userPassword: "{{ 'password123' | password_hash('sha512') }}"
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  loop: "{{ ldap_local_users }}"
-
 # Sync AD -> local LDAP
 - name: Install sync script
   ansible.builtin.template:
@@ -165,3 +145,111 @@
     name: httpd_can_connect_ldap
     state: true
     persistent: true
+
+- name: Create POSIX groups in LDAP
+  community.general.ldap_entry:
+    dn: "cn={{ item.name }},ou=Groups,{{ ldap_local_suffix }}"
+    objectClass:
+      - top
+      - posixGroup
+    attributes:
+      cn: "{{ item.name }}"
+      gidNumber: "{{ item.gid }}"
+    bind_dn: "{{ ldap_local_admin_dn }}"
+    bind_pw: "{{ ldap_local_admin_password }}"
+  loop: "{{ ldap_user_groups }}"
+
+# Add users from AD to local LDAP
+- name: Create AD users in local LDAP
+  community.general.ldap_entry:
+    dn: "uid={{ item.username }},ou=People,{{ ldap_local_suffix }}"
+    objectClass:
+      - inetOrgPerson
+      - posixAccount
+      - shadowAccount
+    attributes:
+      uid: "{{ item.username }}"
+      cn: "{{ item.username }}"
+      mail: "{{ item.email }}"
+      uidNumber: "{{ item.uid }}"
+      gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
+      homeDirectory: "/home/{{ item.username }}"
+      loginShell: "/bin/bash"
+    bind_dn: "{{ ldap_local_admin_dn }}"
+    bind_pw: "{{ ldap_local_admin_password }}"
+  loop: "{{ ldap_ad_users }}"
+
+- name: Add AD users to supplementary LDAP groups
+  community.general.ldap_attrs:
+    dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
+    attributes:
+      memberUid: "{{ item.0.username }}"
+    state: present
+    bind_dn: "{{ ldap_local_admin_dn }}"
+    bind_pw: "{{ ldap_local_admin_password }}"
+  with_subelements:
+    - "{{ ldap_ad_users }}"
+    - groups
+  vars:
+    user_primary_group: "{{ (ldap_ad_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
+  when: item.1 != user_primary_group
+
+# Create manually-defined local users
+- name: Add local manual users
+  community.general.ldap_entry:
+    dn: "uid={{ item.uid }},ou=People,{{ ldap_local_suffix }}"
+    objectClass:
+      - inetOrgPerson
+      - posixAccount
+      - shadowAccount
+    attributes:
+      uid: "{{ item.username }}"
+      cn: "{{ item.cn }}"
+      sn: "{{ item.cn.split(' ')[-1] }}"
+      uidNumber: "{{ item.uid }}"
+      gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
+      homeDirectory: "/home/{{ item.username }}"
+      loginShell: "/bin/bash"
+      userPassword: "{CRYPT}{{ item.password }}"
+    bind_dn: "{{ ldap_local_admin_dn }}"
+    bind_pw: "{{ ldap_local_admin_password }}"
+  loop: "{{ ldap_local_users }}"
+
+- name: Add local LDAP users to supplementary groups
+  community.general.ldap_attrs:
+    dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
+    attributes:
+      memberUid: "{{ item.0.username }}"
+    state: present
+    bind_dn: "{{ ldap_local_admin_dn }}"
+    bind_pw: "{{ ldap_local_admin_password }}"
+  with_subelements:
+    - "{{ ldap_local_users }}"
+    - groups
+  vars:
+    user_primary_group: "{{ (ldap_local_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
+  when: item.1 != user_primary_group
+
+- name: Copy LDAP certificates and keys
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/openldap/certs/{{ item }}"
+    owner: ldap
+    group: ldap
+    mode: "0644"
+    decrypt: true
+  loop:
+    - ca.crt      # self-signed CA certificate
+    - ca.key
+    - ldap.csr    # server Certificate Signing Request
+    - ldap.key    # server private key
+
+- name: Set TLS cert paths in cn=config
+  community.general.ldap_attrs:
+    dn: "cn=config"
+    state: exact
+    attributes:
+      olcTLSCACertificateFile: "/etc/openldap/certs/ca.crt"
+      olcTLSCertificateFile: "/etc/openldap/certs/ldap.crt"
+      olcTLSCertificateKeyFile: "/etc/openldap/certs/ldap.key"
+    server_uri: "ldapi:///"
