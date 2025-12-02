@@ -253,3 +253,14 @@
       olcTLSCertificateFile: "/etc/openldap/certs/ldap.crt"
       olcTLSCertificateKeyFile: "/etc/openldap/certs/ldap.key"
     server_uri: "ldapi:///"
+
+- name: Ensure SELinux file contexts for LDAP certs
+  ansible.builtin.command: >
+    semanage fcontext -a -t cert_t '/etc/openldap/certs(/.*)?'
+  register: semanage_result
+  changed_when: semanage_result.rc == 0
+
+- name: Restore SELinux context on LDAP certs dir
+  ansible.builtin.command: restorecon -Rv /etc/openldap/certs
+  register: restorecon_result
+  changed_when: restorecon_result.rc == 0
