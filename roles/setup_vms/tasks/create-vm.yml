@@ -30,7 +30,7 @@
         --network bridge=br0,mac={{ vm_params.mac }},model=virtio
         --graphics none
         --console pty,target_type=serial
-        --location /tmp/AlmaLinux-9.6-x86_64-minimal.iso
+        --location /tmp/{{ setup_vms_base_image_name }}
         --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks/{{ vm_name }}-ks.cfg console=ttyS0"
       changed_when: true
 

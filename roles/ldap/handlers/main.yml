@@ -2,9 +2,10 @@
   ansible.builtin.service:
     name: sssd
     state: restarted
+    enabled: true
 
-- name: Ensure slapd running
+- name: Restart slapd
   ansible.builtin.service:
     name: slapd
-    state: started
+    state: restarted
     enabled: true

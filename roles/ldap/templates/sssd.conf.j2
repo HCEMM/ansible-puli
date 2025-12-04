@@ -5,17 +5,25 @@ domains = cluster.local
 [domain/cluster.local]
 id_provider = ldap
 auth_provider = ldap
-ldap_uri = ldaps://127.0.0.1
-ldap_search_base = {{ ldap_local_suffix }}
-ldap_default_bind_dn = {{ ldap_local_admin_dn }}
-ldap_default_authtok = {{ ldap_local_admin_password }}
+chpass_provider = ldap
 
-ldap_tls_cacert = /etc/openldap/certs/ca.crt
+ldap_uri = ldaps://{{ ldap_server_ip }}:{{ ldap_port }}
+ldap_search_base = {{ ldap_local_suffix }}
+
+ldap_default_bind_dn = {{ ldap_local_bind_dn }}
+ldap_default_authtok = {{ ldap_local_bind_password }}
+
+ldap_tls_cacert = {{ ldap_tls_cacert_path }}
 ldap_id_use_start_tls = false
 ldap_tls_reqcert = demand
+
+ldap_user_search_base = ou=People,{{ ldap_local_suffix }}
+ldap_group_search_base = ou=Groups,{{ ldap_local_suffix }}
 
 cache_credentials = true
 use_fully_qualified_names = false
 fallback_homedir = /home/%u
 default_shell = /bin/bash
 enumerate = true
+
+ldap_schema = rfc2307bis
