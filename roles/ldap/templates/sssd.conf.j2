@@ -11,7 +11,7 @@ ldap_uri = ldaps://{{ ldap_server_ip }}:{{ ldap_port }}
 ldap_search_base = {{ ldap_local_suffix }}
 
 ldap_default_bind_dn = {{ ldap_local_bind_dn }}
-ldap_default_authtok = {{ ldap_local_bind_password }}
+ldap_default_authtok = {{ ldap_local_bind_password_raw }}
 
 ldap_tls_cacert = {{ ldap_tls_cacert_path }}
 ldap_id_use_start_tls = false
@@ -26,4 +26,5 @@ fallback_homedir = /home/%u
 default_shell = /bin/bash
 enumerate = true
 
+# for more info on this schema: https://github.com/jtyr/rfc2307bis
 ldap_schema = rfc2307bis
