@@ -1,5 +1,10 @@
 dn: olcDatabase={2}mdb,cn=config
 changetype: modify
+add: olcAccess
+olcAccess: {0}to * by dn.exact={{ ldap_local_bind_dn }} read by * none
+
+dn: olcDatabase={2}mdb,cn=config
+changetype: modify
 replace: olcSuffix
 olcSuffix: {{ ldap_local_suffix }}
 

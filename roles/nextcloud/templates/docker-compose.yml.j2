@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  db:
+    image: mariadb:11
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: supersecretroot
+      MYSQL_PASSWORD: ncpass
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: ncuser
+    volumes:
+      - db_data:/var/lib/mysql
+
+  nextcloud:
+    image: nextcloud:stable
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      MYSQL_PASSWORD: ncpass
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: ncuser
+      MYSQL_HOST: db
+    volumes:
+      - /opt/nextcloud/data:/var/www/html
+    ports:
+      - 8080:80
+
+  collabora:
+    image: collabora/code
+    restart: unless-stopped
+    environment:
+      - domain=cloud\\.example\\.com
+      - server_name=collabora.example.com
+      - dictionaries=en_US
+      - username=admin
+      - password=adminpass
+      - extra_params=--o:ssl.enable=false
+    ports:
+      - 9980:9980
+
+volumes:
+  db_data:

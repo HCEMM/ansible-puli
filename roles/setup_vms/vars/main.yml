@@ -17,10 +17,10 @@ setup_vms_vm_list:
     disk_size: 20G
     ip: '10.0.150.202'
     mac: '52:54:00:aa:bb:09'
-  slurmdbd2:
-    memory: 4096
-    vcpus: 4
-    disk_size: 20G
+  ldap1:
+    memory: 2048
+    vcpus: 1
+    disk_size: 10G
     ip: '10.0.150.203'
     mac: '52:54:00:aa:bb:10'
   login1:
@@ -59,7 +59,7 @@ setup_vms_vm_list:
     disk_size: 200G     # Galaxy has a lot of logs and environments and stuff... let's see how this fills up
     ip: '10.0.150.209'
     mac: '52:54:00:aa:bb:08'
-  # fcbi-reservation1:
+  # emma1:              # Still need to finish Ubuntu automatic VM setup
   #   memory: 2048
   #   vcpus: 1
   #   disk_size: 10G
@@ -71,3 +71,9 @@ setup_vms_vm_list:
     disk_size: 10G
     ip: '10.0.150.211'
     mac: '52:54:00:aa:bb:12'
+  # nextcloud1:
+  #   memory: 8196
+  #   vcpus: 4
+  #   disk_size: 30G
+  #   ip: '10.0.150.212'
+  #   mac: '52:54:00:aa:bb:13'

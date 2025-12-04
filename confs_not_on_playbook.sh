@@ -55,9 +55,7 @@ python3 slurm_partition_viewer.py
 
 # CheckMK - everything about it
 
-# General VMs - setting up the repos not present/enabled in alma minimal
-dnf install -y epel-release
-dnf config-manager --set-enabled crb
+
 
 # Open firewall for ssh, http, https, AMQP
 - name: Open firewall for ssh, http, https, AMQP
@@ -91,13 +89,35 @@ sudo apt-get install crowdsec crowdsec-firewall-bouncer
 
 # Galaxy server
 # /srv/galaxy 10.0.150.211(rw,sync,no_subtree_check,no_root_squash) in /etc/exports
-groupadd galaxy
-adduser galaxy -g galaxy -s /bin/bash
+groupadd -g 3004 galaxy
+adduser -g galaxy -s /bin/bash -u 1000 galaxy
 su galaxy
 cd
 git clone https://github.com/galaxyproject/galaxy
 cd galaxy
 run.sh
+
+# Setup postgresql
+# Install the repository RPM:
+sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# Disable the built-in PostgreSQL module:
+sudo dnf -qy module disable postgresql
+
+# Install PostgreSQL:
+sudo dnf install -y postgresql18-server
+
+# Optionally initialize the database and enable automatic start:
+sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
+sudo systemctl enable postgresql-18
+sudo systemctl start postgresql-18
+
+# Setup tus
+dnf install golang -y
+git clone https://github.com/tus/tusd.git
+cd tusd
+go build -o tusd cmd/tusd/main.go
+# The binary is saved in ./tusd
 
 # Slurm DRMAA is deprecated
 #wget https://github.com/natefoo/slurm-drmaa/releases/download/1.1.5/slurm-drmaa-1.1.5-22.05.el9.x86_64.rpm

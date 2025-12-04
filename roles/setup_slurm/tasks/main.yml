@@ -31,27 +31,6 @@
   when:
     ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
 
-### Create Users and Groups where Warewulf is stil not managing
-- name: Ensure user groups exist (login nodes)
-  ansible.builtin.group:
-    name: "{{ item.name }}"
-    gid: "{{ item.gid }}"
-    state: present
-  loop: "{{ user_groupnames }}"
-  when: inventory_hostname in groups['login_nodes']
-
-- name: Ensure users exist (login nodes)
-  ansible.builtin.user:
-    name: "{{ item.username }}"
-    uid: "{{ item.uid }}"
-    groups: "{{ item.groups | join(',') }}"
-    append: true
-    shell: /bin/bash
-    create_home: true
-    state: present
-  loop: "{{ user_usernames }}"
-  when: inventory_hostname in groups['login_nodes']
-
 - name: Ensure munge user and group exist
   ansible.builtin.user:
     name: munge

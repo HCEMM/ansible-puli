@@ -5,7 +5,7 @@ all:
         sms:
           hosts:
             scc-cpu01-10G:
-              ansible_host: 10.0.50.101
+              ansible_host: 10.0.150.101
           vars:
             ansible_user: hcemm
             ansible_connection: local
