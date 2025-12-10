@@ -12,6 +12,8 @@
 - name: Setup LDAP server
   hosts:
     - ldap_server
+    - galaxy_server
+    - login_nodes
   any_errors_fatal: true
   become: true
   gather_facts: true
@@ -81,15 +83,15 @@
 #   roles:
 #     - configure_shares
 
-- name: Setup Login nodes
-  hosts:
-    # - sms     # because of the root scripts
-    - login_nodes
-  become: true
-  gather_facts: true
-  roles:
-    - fail2ban
-    - customize_puli
+# - name: Setup Login nodes
+#   hosts:
+#     # - sms     # because of the root scripts
+#     - login_nodes
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - fail2ban
+#     - customize_puli
 
 # - name: Install ThinLinc Server
 #   hosts: thinlinc_servers
