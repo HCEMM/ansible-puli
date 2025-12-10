@@ -17,7 +17,7 @@
     boot: true              # automatically mounted on boot
     state: mounted          # ensures the mount is present and configured in fstab
     fstype: nfs
-  loop: 
+  loop:
     - home
     - opt
   when:

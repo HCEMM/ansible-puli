@@ -25,7 +25,7 @@
   notify:
     - Restart fail2ban
   when:
-    - hostname in groups['sms']
+    - inventory_hostname in groups['sms']
 
 - name: Ensure fail2ban is configured to ignore specific IPs.
   ansible.builtin.lineinfile:
@@ -45,7 +45,7 @@
   notify:
     - Restart fail2ban
   when:
-    - hostname in groups['nginx_gateway']
+    - inventory_hostname in groups['nginx_gateway']
 
 - name: Copy custom fail2ban filter definitions
   ansible.builtin.copy:
@@ -63,7 +63,7 @@
   notify:
     - Restart fail2ban
   when:
-    - hostname in groups['nginx_gateway']
+    - inventory_hostname in groups['nginx_gateway']
 
 - name: Enable nginx jails in jail.local
   ansible.builtin.blockinfile:
@@ -83,5 +83,4 @@
   notify:
     - Restart fail2ban
   when:
-    - hostname in groups['nginx_gateway']
-
+    - inventory_hostname in groups['nginx_gateway']

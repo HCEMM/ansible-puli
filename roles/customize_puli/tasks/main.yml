@@ -27,28 +27,6 @@
     group: root
     mode: "0700"
 
-- name: Create groups
-  ansible.builtin.group:
-    name: "{{ item.name }}"
-    gid: "{{ item.gid }}"
-  loop: "{{ user_groupnames }}"
-  when:
-    - inventory_hostname in groups['login_nodes']
-
-- name: Create users
-  ansible.builtin.user:
-    name: "{{ item.username }}"
-    uid: "{{ item.uid }}"
-    group: "{{ item.groups[0] }}"
-    groups: "{{ item.groups[1:] if item.groups | length > 1 else [] | default('') }}"
-    shell: /bin/bash
-    create_home: true
-    append: true        # add user to missing groups without removing groups already assigned
-  loop: "{{ user_usernames }}"
-  when:
-    - inventory_hostname in groups['login_nodes']
-
-# add this cronjob - 0 * * * * /usr/local/bin/enforce-2fa.sh
 - name: Add cron job to check 2FA users hourly
   ansible.builtin.cron:
     name: "Check 2FA users"

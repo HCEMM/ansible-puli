@@ -16,6 +16,10 @@ Query the LDAP for user info
 ```
 ldapsearch -H ldap://127.0.0.1 -D "cn=admin,dc=cluster,dc=local" -w [ze_passvort] -b "cn=schema,dc=cluster,dc=local"
 ```
+Debug sssd
+```
+less /var/log/sssd/sssd.log
+```
 
 ### Generate certificates for LDAP
 ```

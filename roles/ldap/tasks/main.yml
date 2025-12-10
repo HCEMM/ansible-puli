@@ -1,266 +1,384 @@
 ---
-# Initial LDAP database construction and configuration
-- name: Install dependencies
-  ansible.builtin.dnf:
-    name:
-      - python-ldap
-      - policycoreutils-python-utils      # for semanage
-    state: present
+- name: Initial LDAP database construction and configuration
+  when:
+    - inventory_hostname in groups['ldap_server']
+  block:
+  # Initial LDAP database construction and configuration
+    - name: Install dependencies
+      ansible.builtin.dnf:
+        name:
+          - python-ldap                       # for community.general.ldap_entry - actually am not sure, but copilot and gpt like it
+          - policycoreutils-python-utils      # for semanage
+          - sssd-ldap                         # for that /usr/lib64/sssd/libsss_ldap.so
+          - openldap-servers                  # creates the ldap user. Also gives slapd, I guess
+          - openldap-clients                  # for ldapsearch and ldapmodify
+        state: present
 
-- name: Ensure slapd config directory exists
-  ansible.builtin.file:
-    path: /etc/openldap/slapd.d
-    state: directory
-    owner: ldap
-    group: ldap
-    mode: '0755'
+    - name: Ensure slapd config directory exists
+      ansible.builtin.file:
+        path: /etc/openldap/slapd.d
+        state: directory
+        owner: ldap
+        group: ldap
+        mode: '0755'
 
-- name: Generate LDAP root password hash
-  ansible.builtin.command: "slappasswd -s {{ ldap_local_admin_password }}"
-  register: ldap_root_hash
-  changed_when: false
+    - name: Generate LDAP root password hash
+      ansible.builtin.command: "slappasswd -s {{ ldap_local_admin_password }}"
+      register: ldap_root_hash
+      changed_when: false
 
-- name: Deploy db.ldif
-  ansible.builtin.template:
-    src: db.ldif.j2
-    dest: /tmp/db.ldif
-    mode: '0644'
-  notify: Ensure slapd running
+    - name: Deploy db.ldif
+      ansible.builtin.template:
+        src: db.ldif.j2
+        dest: /tmp/db.ldif
+        mode: '0644'
+      notify: Restart slapd
 
-- name: Flush handlers to start slapd
-  ansible.builtin.meta: flush_handlers
+    - name: Flush handlers to start slapd
+      ansible.builtin.meta: flush_handlers
 
-- name: Check whether DB config already applied
-  ansible.builtin.shell: |
-    ldapsearch -Y EXTERNAL -H ldapi:/// -b "olcDatabase={2}mdb,cn=config" "(olcDbIndex=uid eq)" &&
-    ldapsearch -x -D "{{ ldap_local_admin_dn }}" -w "{{ ldap_local_admin_password }}" -b "{{ ldap_local_admin_dn }}" "(objectClass=*)"
-  register: db_index_check
-  failed_when: false
-  changed_when: false
+    - name: Check whether DB config already applied
+      ansible.builtin.shell: |
+        ldapsearch -Y EXTERNAL -H ldapi:/// -b "olcDatabase={2}mdb,cn=config" "(olcDbIndex=uid eq)" &&
+        ldapsearch -x -D "{{ ldap_local_admin_dn }}" -w "{{ ldap_local_admin_password }}" -b "{{ ldap_local_admin_dn }}" "(objectClass=*)"
+      register: db_index_check
+      failed_when: false
+      changed_when: false
 
-- name: Apply LDAP DB configuration
-  ansible.builtin.command: ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/db.ldif
-  changed_when: true
-  when: db_index_check.rc != 0
+    - name: Apply LDAP DB configuration
+      ansible.builtin.command: ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/db.ldif
+      changed_when: true
+      when: db_index_check.rc != 0
 
-- name: Ensure base DN exists
-  community.general.ldap_entry:
-    dn: "{{ ldap_local_suffix }}"
-    objectClass:
-      - top
-      - dcObject
-      - organization
-    attributes:
-      o: "{{ ldap_org_name }}"
-      dc: "{{ ldap_local_suffix.split('=')[1].split(',')[0] }}"
-    server_uri: ldap://127.0.0.1
-    bind_dn: "cn=admin,{{ ldap_local_suffix }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
+    - name: Ensure base DN exists
+      community.general.ldap_entry:
+        dn: "{{ ldap_local_suffix }}"
+        objectClass:
+          - top
+          - dcObject
+          - organization
+        attributes:
+          o: "{{ ldap_org_name }}"
+          dc: "{{ ldap_local_suffix.split('=')[1].split(',')[0] }}"
+        server_uri: ldap://127.0.0.1
+        bind_dn: "cn=admin,{{ ldap_local_suffix }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
 
-- name: Create LDAP admin entry
-  community.general.ldap_entry:
-    dn: "{{ ldap_local_admin_dn }}"
-    objectClass:
-      - simpleSecurityObject
-      - organizationalRole
-    attributes:
-      description: LDAP Administrator
-      userPassword: "{{ ldap_local_admin_password | password_hash('sha512') }}"
-    server_uri: ldap://localhost
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
+    - name: Create LDAP admin entry
+      community.general.ldap_entry:
+        dn: "{{ ldap_local_admin_dn }}"
+        objectClass:
+          - simpleSecurityObject
+          - organizationalRole
+        attributes:
+          description: LDAP Administrator
+          userPassword: "{{ ldap_local_admin_password | password_hash('sha512') }}"
+        server_uri: ldap://localhost
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
 
-# ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
-# ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
-# ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
-- name: Load LDAP schemas
-  ansible.builtin.command:
-    ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/{{ item }}.ldif
-  loop:
-    - cosine
-    - inetorgperson
-    - nis
-  register: schema_load
-  failed_when: false
-  changed_when: "'Duplicate attributeType' not in schema_load.stderr"
+    - name: Create LDAP bind user
+      community.general.ldap_entry:
+        dn: "{{ ldap_local_bind_dn }}"
+        objectClass:
+          - organizationalRole
+          - simpleSecurityObject
+        attributes:
+          cn: sssd_bind
+          description: LDAP Bind User
+          userPassword: "{{ ldap_local_bind_password }}"    # encrypted cause organizationalRole does not allow raw
+        server_uri: ldap://localhost
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
 
-# Create base LDAP structure
-- name: Create base LDAP OUs
-  community.general.ldap_entry:
-    dn: "{{ item.dn }}"
-    objectClass: "{{ item.objectClass }}"
-    attributes: "{{ item.attributes }}"
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  loop:
-    - dn: "ou=People,{{ ldap_local_suffix }}"
-      objectClass: [organizationalUnit]
-      attributes: { ou: People }
-    - dn: "ou=Groups,{{ ldap_local_suffix }}"
-      objectClass: [organizationalUnit]
-      attributes: { ou: Groups }
-    - dn: "cn=cluster_users,ou=Groups,{{ ldap_local_suffix }}"
-      objectClass: [top, posixGroup]
-      attributes:
-        {
-          cn: cluster_users,
-          gidNumber: "{{ ldap_cluster_users_gid_number }}"
-        }
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+    - name: Load LDAP schemas
+      ansible.builtin.command:
+        ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/{{ item }}.ldif
+      loop:
+        - cosine
+        - inetorgperson
+        - nis
+      register: schema_load
+      failed_when: false
+      changed_when: "'Duplicate attributeType' not in schema_load.stderr"
 
-# Sync AD -> local LDAP
-- name: Install sync script
-  ansible.builtin.template:
-    src: sync_ad_to_ldap.sh.j2
-    dest: /usr/local/bin/sync_ad_to_ldap.sh
-    mode: '0755'
+    # Create base LDAP structure
+    - name: Create base LDAP OUs
+      community.general.ldap_entry:
+        dn: "{{ item.dn }}"
+        objectClass: "{{ item.objectClass }}"
+        attributes: "{{ item.attributes }}"
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      loop:
+        - dn: "ou=People,{{ ldap_local_suffix }}"
+          objectClass: [organizationalUnit]
+          attributes: { ou: People }
+        - dn: "ou=Groups,{{ ldap_local_suffix }}"
+          objectClass: [organizationalUnit]
+          attributes: { ou: Groups }
+        - dn: "cn=cluster_users,ou=Groups,{{ ldap_local_suffix }}"
+          objectClass: [top, posixGroup]
+          attributes:
+            {
+              cn: cluster_users,
+              gidNumber: "{{ ldap_cluster_users_gid_number }}"
+            }
 
-- name: Add cron job
-  ansible.builtin.cron:
-    name: "Sync AD users to local LDAP"
-    minute: "0"
-    hour: "1"
-    job: "/usr/local/bin/sync_ad_to_ldap.sh"
+    # Sync AD -> local LDAP
+    - name: Install sync script
+      ansible.builtin.template:
+        src: sync_ad_to_ldap.sh.j2
+        dest: /usr/local/bin/sync_ad_to_ldap.sh
+        mode: '0755'
 
-- name: Deploy sssd.conf      # configure SSSD to use ONLY local LDAP
-  ansible.builtin.template:
-    src: sssd.conf.j2
-    dest: /etc/sssd/sssd.conf
-    mode: '0600'
-  notify: Restart sssd
+    - name: Add cron job
+      ansible.builtin.cron:
+        name: "Sync AD users to local LDAP"
+        minute: "0"
+        hour: "1"
+        job: "/usr/local/bin/sync_ad_to_ldap.sh"
 
-# add ports 389 and 636 to firewall
-- name: Open firewall ports for LDAP
-  ansible.posix.firewalld:
-    port: "{{ item }}/tcp"
-    permanent: true
-    state: enabled
-    immediate: true
-  loop:
-    - 389   # LDAP
-    - 636   # LDAPS
+    - name: Deploy sssd.conf      # configure SSSD to use ONLY local LDAP
+      ansible.builtin.template:
+        src: sssd.conf.j2
+        dest: /etc/sssd/sssd.conf
+        mode: '0600'
+      notify: Restart sssd
 
-# setsebool -P httpd_can_connect_ldap on
-- name: Enable Selinux httpd to connect to LDAP
-  ansible.posix.seboolean:
-    name: httpd_can_connect_ldap
-    state: true
-    persistent: true
+    # add ports 389 and 636 to firewall
+    - name: Open firewall ports for LDAP
+      ansible.posix.firewalld:
+        port: "{{ item }}/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - 389   # LDAP
+        - 636   # LDAPS
 
-- name: Create POSIX groups in LDAP
-  community.general.ldap_entry:
-    dn: "cn={{ item.name }},ou=Groups,{{ ldap_local_suffix }}"
-    objectClass:
-      - top
-      - posixGroup
-    attributes:
-      cn: "{{ item.name }}"
-      gidNumber: "{{ item.gid }}"
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  loop: "{{ ldap_user_groups }}"
+    # setsebool -P httpd_can_connect_ldap on
+    - name: Enable Selinux httpd to connect to LDAP
+      ansible.posix.seboolean:
+        name: httpd_can_connect_ldap
+        state: true
+        persistent: true
 
-# Add users from AD to local LDAP
-- name: Create AD users in local LDAP
-  community.general.ldap_entry:
-    dn: "uid={{ item.username }},ou=People,{{ ldap_local_suffix }}"
-    objectClass:
-      - inetOrgPerson
-      - posixAccount
-      - shadowAccount
-    attributes:
-      uid: "{{ item.username }}"
-      cn: "{{ item.username }}"
-      mail: "{{ item.email }}"
-      uidNumber: "{{ item.uid }}"
-      gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
-      homeDirectory: "/home/{{ item.username }}"
-      loginShell: "/bin/bash"
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  loop: "{{ ldap_ad_users }}"
+    - name: Create POSIX groups in LDAP
+      community.general.ldap_entry:
+        dn: "cn={{ item.name }},ou=Groups,{{ ldap_local_suffix }}"
+        objectClass:
+          - top
+          - posixGroup
+        attributes:
+          cn: "{{ item.name }}"
+          gidNumber: "{{ item.gid }}"
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      loop: "{{ ldap_user_groups }}"
 
-- name: Add AD users to supplementary LDAP groups
-  community.general.ldap_attrs:
-    dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
-    attributes:
-      memberUid: "{{ item.0.username }}"
-    state: present
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  with_subelements:
-    - "{{ ldap_ad_users }}"
-    - groups
-  vars:
-    user_primary_group: "{{ (ldap_ad_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
-  when: item.1 != user_primary_group
+    # Add users from AD to local LDAP
+    - name: Create AD users in local LDAP
+      community.general.ldap_entry:
+        dn: "uid={{ item.username }},ou=People,{{ ldap_local_suffix }}"
+        objectClass:
+          - inetOrgPerson
+          - posixAccount
+          - shadowAccount
+        attributes:
+          uid: "{{ item.username }}"
+          cn: "{{ item.username }}"
+          sn: "{{ item.username.split(' ')[-1] }}"
+          mail: "{{ item.email }}"
+          uidNumber: "{{ item.uid }}"
+          gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
+          homeDirectory: "/home/{{ item.username }}"
+          loginShell: "/bin/bash"
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      loop: "{{ ldap_ad_users }}"
 
-# Create manually-defined local users
-- name: Add local manual users
-  community.general.ldap_entry:
-    dn: "uid={{ item.uid }},ou=People,{{ ldap_local_suffix }}"
-    objectClass:
-      - inetOrgPerson
-      - posixAccount
-      - shadowAccount
-    attributes:
-      uid: "{{ item.username }}"
-      cn: "{{ item.cn }}"
-      sn: "{{ item.cn.split(' ')[-1] }}"
-      uidNumber: "{{ item.uid }}"
-      gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
-      homeDirectory: "/home/{{ item.username }}"
-      loginShell: "/bin/bash"
-      userPassword: "{CRYPT}{{ item.password }}"
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  loop: "{{ ldap_local_users }}"
+    - name: Add AD users to supplementary LDAP groups
+      community.general.ldap_attrs:
+        dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
+        attributes:
+          memberUid: "{{ item.0.username }}"
+        state: present
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      with_subelements:
+        - "{{ ldap_ad_users }}"
+        - groups
+      vars:
+        user_primary_group: "{{ (ldap_ad_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
+      when: item.1 != user_primary_group
 
-- name: Add local LDAP users to supplementary groups
-  community.general.ldap_attrs:
-    dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
-    attributes:
-      memberUid: "{{ item.0.username }}"
-    state: present
-    bind_dn: "{{ ldap_local_admin_dn }}"
-    bind_pw: "{{ ldap_local_admin_password }}"
-  with_subelements:
-    - "{{ ldap_local_users }}"
-    - groups
-  vars:
-    user_primary_group: "{{ (ldap_local_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
-  when: item.1 != user_primary_group
+    # Create manually-defined local users
+    - name: Add local manual users
+      community.general.ldap_entry:
+        dn: "uid={{ item.uid }},ou=People,{{ ldap_local_suffix }}"
+        objectClass:
+          - inetOrgPerson
+          - posixAccount
+          - shadowAccount
+        attributes:
+          uid: "{{ item.username }}"
+          cn: "{{ item.cn }}"
+          sn: "{{ item.cn.split(' ')[-1] }}"
+          uidNumber: "{{ item.uid }}"
+          gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
+          homeDirectory: "/home/{{ item.username }}"
+          loginShell: "/bin/bash"
+          userPassword: "{CRYPT}{{ item.password }}"
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      loop: "{{ ldap_local_users }}"
 
-- name: Copy LDAP certificates and keys
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "/etc/openldap/certs/{{ item }}"
-    owner: ldap
-    group: ldap
-    mode: "0644"
-    decrypt: true
-  loop:
-    - ca.crt      # self-signed CA certificate
-    - ca.key
-    - ldap.csr    # server Certificate Signing Request
-    - ldap.key    # server private key
+    - name: Add local LDAP users to supplementary groups
+      community.general.ldap_attrs:
+        dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
+        attributes:
+          memberUid: "{{ item.0.username }}"
+        state: present
+        bind_dn: "{{ ldap_local_admin_dn }}"
+        bind_pw: "{{ ldap_local_admin_password }}"
+      with_subelements:
+        - "{{ ldap_local_users }}"
+        - groups
+      vars:
+        user_primary_group: "{{ (ldap_local_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
+      when: item.1 != user_primary_group
 
-- name: Set TLS cert paths in cn=config
-  community.general.ldap_attrs:
-    dn: "cn=config"
-    state: exact
-    attributes:
-      olcTLSCACertificateFile: "/etc/openldap/certs/ca.crt"
-      olcTLSCertificateFile: "/etc/openldap/certs/ldap.crt"
-      olcTLSCertificateKeyFile: "/etc/openldap/certs/ldap.key"
-    server_uri: "ldapi:///"
+    - name: Copy LDAP certificates and keys
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/openldap/certs/{{ item }}"
+        owner: ldap
+        group: ldap
+        mode: "0644"
+        decrypt: true
+      loop:
+        - ca.crt      # self-signed CA certificate
+        - ldap.crt    # server certificate
+        - ldap.csr    # server Certificate Signing Request
+        - ldap.key    # server private key
 
-- name: Ensure SELinux file contexts for LDAP certs
-  ansible.builtin.command: >
-    semanage fcontext -a -t cert_t '/etc/openldap/certs(/.*)?'
-  register: semanage_result
-  changed_when: semanage_result.rc == 0
+    - name: Trust CA certificate
+      ansible.builtin.copy:
+        src: ca.crt
+        dest: /etc/pki/ca-trust/source/anchors/ca.crt
+        owner: ldap
+        group: ldap
+        mode: "0644"
 
-- name: Restore SELinux context on LDAP certs dir
-  ansible.builtin.command: restorecon -Rv /etc/openldap/certs
-  register: restorecon_result
-  changed_when: restorecon_result.rc == 0
+    - name: Update CA trust store
+      ansible.builtin.command: update-ca-trust extract
+      args:
+        creates: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+
+    - name: Set TLS cert paths in cn=config
+      community.general.ldap_attrs:
+        dn: "cn=config"
+        state: exact
+        attributes:
+          olcTLSCACertificateFile: "/etc/openldap/certs/ca.crt"
+          olcTLSCertificateFile: "/etc/openldap/certs/ldap.crt"
+          olcTLSCertificateKeyFile: "/etc/openldap/certs/ldap.key"
+        server_uri: "ldapi:///"
+
+    - name: Ensure SELinux file contexts for LDAP certs
+      ansible.builtin.command: >
+        semanage fcontext -a -t cert_t '/etc/openldap/certs(/.*)?'
+      register: semanage_result
+      changed_when: semanage_result.rc == 0
+
+    - name: Restore SELinux context on LDAP certs dir
+      ansible.builtin.command: restorecon -Rv /etc/openldap/certs
+      register: restorecon_result
+      changed_when: restorecon_result.rc == 0
+
+- name: Configure LDAP for other hosts
+  when:
+    - inventory_hostname in groups['galaxy_server'] or inventory_hostname in groups['login_nodes']
+  block:
+    - name: Install dependencies
+      ansible.builtin.dnf:
+        name:
+          - openldap-servers
+          - sssd-ldap
+        state: present
+
+    - name: Copy CA certificate
+      ansible.builtin.copy:
+        src: ca.crt
+        dest: "{{ item }}/ca.crt"
+        owner: ldap
+        group: ldap
+        mode: "0644"
+      loop:
+        - /etc/openldap/certs
+        - /etc/pki/ca-trust/source/anchors
+
+    - name: Update CA trust store
+      ansible.builtin.command: update-ca-trust extract
+      args:
+        creates: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
+
+    - name: Configure LDAP client
+      ansible.builtin.lineinfile:
+        path: /etc/openldap/ldap.conf
+        line: "TLS_CACERT {{ ldap_tls_cacert_path }}"
+
+    - name: Deploy sssd.conf
+      ansible.builtin.template:
+        src: sssd.conf.j2
+        dest: /etc/sssd/sssd.conf
+        mode: '0600'
+      notify: Restart sssd
+
+    - name: Ensure 'sss' is present in passwd, shadow and group lines in /etc/nsswitch.conf
+      ansible.builtin.replace:
+        path: /etc/nsswitch.conf
+        regexp: '^(passwd|shadow|group):(?!.*\bsss\b)(\s+)(.*)$'    # find confs that do not have 'sss' yet and add it
+        replace: '\1:\2sss \3'
+
+    - name: Ensure google_authenticator is after pam_sss in sshd
+      community.general.pamd:
+        name: sshd
+        type: auth
+        control: sufficient
+        module_path: pam_sss.so
+        new_type: auth
+        new_control: required
+        new_module_path: pam_google_authenticator.so
+        module_arguments: "secret=${HOME}/.google_authenticator nullok"
+        state: after
+
+    - name: Ensure google_authenticator is after pam_sss in sshd
+      community.general.pamd:
+        name: sshd
+        type: auth
+        control: sufficient
+        module_path: pam_sss.so
+        new_type: auth
+        new_control: required
+        new_module_path: pam_google_authenticator.so
+        module_arguments: "secret=\\${HOME}/.google_authenticator nullok"
+        state: after
+
+    - name: Ensure SSSD is used for account
+      community.general.pamd:
+        name: "{{ item }}"
+        type: account
+        control: required
+        module_path: pam_unix.so
+        new_type: account
+        new_control: sufficient
+        new_module_path: pam_sss.so
+        state: after
+      loop:
+        - system-auth
+        - password-auth
