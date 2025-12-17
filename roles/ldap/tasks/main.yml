@@ -12,6 +12,7 @@
           - sssd-ldap                         # for that /usr/lib64/sssd/libsss_ldap.so
           - openldap-servers                  # creates the ldap user. Also gives slapd, I guess
           - openldap-clients                  # for ldapsearch and ldapmodify
+          - sssd-tools                        # sssctl
         state: present
 
     - name: Ensure slapd config directory exists
@@ -36,6 +37,21 @@
 
     - name: Flush handlers to start slapd
       ansible.builtin.meta: flush_handlers
+
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
+    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+    - name: Load LDAP schemas
+      ansible.builtin.command:
+        ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/{{ item }}.ldif
+      loop:
+        - core
+        - cosine
+        - inetorgperson
+        - nis
+      register: schema_load
+      failed_when: false
+      changed_when: "'Duplicate attributeType' not in schema_load.stderr"
 
     - name: Check whether DB config already applied
       ansible.builtin.shell: |
@@ -90,20 +106,6 @@
         server_uri: ldap://localhost
         bind_dn: "{{ ldap_local_admin_dn }}"
         bind_pw: "{{ ldap_local_admin_password }}"
-
-    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
-    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
-    # ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
-    - name: Load LDAP schemas
-      ansible.builtin.command:
-        ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/{{ item }}.ldif
-      loop:
-        - cosine
-        - inetorgperson
-        - nis
-      register: schema_load
-      failed_when: false
-      changed_when: "'Duplicate attributeType' not in schema_load.stderr"
 
     # Create base LDAP structure
     - name: Create base LDAP OUs
@@ -180,46 +182,20 @@
         bind_pw: "{{ ldap_local_admin_password }}"
       loop: "{{ ldap_user_groups }}"
 
-    # Add users from AD to local LDAP
-    - name: Create AD users in local LDAP
+    - name: Remove all users
       community.general.ldap_entry:
         dn: "uid={{ item.username }},ou=People,{{ ldap_local_suffix }}"
-        objectClass:
-          - inetOrgPerson
-          - posixAccount
-          - shadowAccount
-        attributes:
-          uid: "{{ item.username }}"
-          cn: "{{ item.username }}"
-          sn: "{{ item.username.split(' ')[-1] }}"
-          mail: "{{ item.email }}"
-          uidNumber: "{{ item.uid }}"
-          gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
-          homeDirectory: "/home/{{ item.username }}"
-          loginShell: "/bin/bash"
+        state: absent
+        server_uri: ldap://localhost/
         bind_dn: "{{ ldap_local_admin_dn }}"
         bind_pw: "{{ ldap_local_admin_password }}"
-      loop: "{{ ldap_ad_users }}"
-
-    - name: Add AD users to supplementary LDAP groups
-      community.general.ldap_attrs:
-        dn: "cn={{ item.1 }},ou=Groups,{{ ldap_local_suffix }}"
-        attributes:
-          memberUid: "{{ item.0.username }}"
-        state: present
-        bind_dn: "{{ ldap_local_admin_dn }}"
-        bind_pw: "{{ ldap_local_admin_password }}"
-      with_subelements:
-        - "{{ ldap_ad_users }}"
-        - groups
-      vars:
-        user_primary_group: "{{ (ldap_ad_users | selectattr('username', 'equalto', item.0.username) | first).groups[0] }}"
-      when: item.1 != user_primary_group
+      loop: "{{ ldap_local_users }}"
+      when: true    # when cleaning up
 
     # Create manually-defined local users
     - name: Add local manual users
       community.general.ldap_entry:
-        dn: "uid={{ item.uid }},ou=People,{{ ldap_local_suffix }}"
+        dn: "uid={{ item.username }},ou=People,{{ ldap_local_suffix }}"
         objectClass:
           - inetOrgPerson
           - posixAccount
@@ -232,7 +208,7 @@
           gidNumber: "{{ (ldap_user_groups | selectattr('name', 'equalto', item.groups[0]) | first).gid }}"
           homeDirectory: "/home/{{ item.username }}"
           loginShell: "/bin/bash"
-          userPassword: "{CRYPT}{{ item.password }}"
+          userPassword: "{{ item.password }}"
         bind_dn: "{{ ldap_local_admin_dn }}"
         bind_pw: "{{ ldap_local_admin_password }}"
       loop: "{{ ldap_local_users }}"
@@ -279,6 +255,11 @@
       args:
         creates: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
 
+    - name: Configure LDAP client
+      ansible.builtin.lineinfile:
+        path: /etc/openldap/ldap.conf
+        line: "TLS_CACERT {{ ldap_tls_cacert_path }}"
+
     - name: Set TLS cert paths in cn=config
       community.general.ldap_attrs:
         dn: "cn=config"
@@ -308,6 +289,7 @@
       ansible.builtin.dnf:
         name:
           - openldap-servers
+          - python-ldap
           - sssd-ldap
         state: present
 
@@ -345,17 +327,19 @@
         regexp: '^(passwd|shadow|group):(?!.*\bsss\b)(\s+)(.*)$'    # find confs that do not have 'sss' yet and add it
         replace: '\1:\2sss \3'
 
-    - name: Ensure google_authenticator is after pam_sss in sshd
-      community.general.pamd:
-        name: sshd
-        type: auth
-        control: sufficient
-        module_path: pam_sss.so
-        new_type: auth
-        new_control: required
-        new_module_path: pam_google_authenticator.so
-        module_arguments: "secret=${HOME}/.google_authenticator nullok"
-        state: after
+    - name: Assert pam_sss is enabled in system-auth
+      ansible.builtin.command: grep "auth       sufficient pam_sss.so forward_pass" /etc/pam.d/system-auth
+      register: pam_sss_grep
+      changed_when: false
+
+    - name: Assert pam_sss is enabled in system-auth
+      ansible.builtin.debug:
+        var: pam_sss_grep
+
+    - name: Ensure authselect uses sssd     # this connects PAM to SSSD
+      ansible.builtin.command: authselect select sssd with-mkhomedir --force
+      changed_when: true
+      when: pam_sss_grep.stdout | length == 0
 
     - name: Ensure google_authenticator is after pam_sss in sshd
       community.general.pamd:
