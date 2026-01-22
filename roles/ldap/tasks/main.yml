@@ -23,24 +23,19 @@
         state: present
 
     # firewall-cmd --add-port= --permanent
-    - name: Open firewall ports for FreeIPA
+    - name: Open firewall services for FreeIPA
       ansible.posix.firewalld:
-        port: "{{ item }}"
+        service: "{{ item }}"
         permanent: true
         state: enabled
         immediate: true
       loop:
-        - 80/tcp    # HTTP
-        - 443/tcp   # HTTPS
-        - 389/tcp   # LDAP
-        - 636/tcp   # LDAPS
-        - 88/tcp    # Kerberos
-        - 464/tcp   # Kerberos Password Change
-        - 53/tcp    # bind
-        - 88/udp    # Kerberos
-        - 464/udp   # Kerberos Password Change
-        - 53/udp    # bind
-        - 123/udp   # ntp
+        - freeipa-ldap
+        - freeipa-ldaps
+        - dns
+        - http
+        - https
+        - ntp
 
     - name: Install FreeIPA server (NON-interactive)
       ansible.builtin.command: >
