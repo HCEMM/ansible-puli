@@ -5,32 +5,34 @@
     name: fail2ban
     state: present
 
-- name: Copy fail2ban custom configuration file into place.
+- name: Copy fail2ban base configuration file into place
   ansible.builtin.copy:
     src: /etc/fail2ban/jail.conf
     dest: /etc/fail2ban/jail.local
     owner: root
     group: root
     mode: "644"
+    force: false
   notify:
     - Restart fail2ban
 
-- name: Copy jail custom configuration file into place.
+- name: Copy SSHD jail configuration
   ansible.builtin.copy:
     src: sshd.local
     dest: /etc/fail2ban/jail.d/sshd.local
     owner: root
     group: root
     mode: "644"
+    force: false
   notify:
     - Restart fail2ban
   when:
     - inventory_hostname in groups['sms']
 
-- name: Ensure fail2ban is configured to ignore specific IPs.
+- name: Ensure fail2ban is configured to ignore specific IPs
   ansible.builtin.lineinfile:
     path: /etc/fail2ban/jail.local
-    regexp: '^ignoreip ='
+    regexp: '^#ignoreip ='
     line: "ignoreip = {{ fail2ban_ignoreips | join(' ') }}"
   notify:
     - Restart fail2ban
