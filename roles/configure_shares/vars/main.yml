@@ -1,8 +1,13 @@
-configure_shares_storage_ip: 10.0.50.187
+configure_shares_storage_ip: 10.0.150.147
 configure_shares_storage_groups:
-  - klamsa
-  - sjuhasz
+  - cfdna_clustering
   - csensen
-  - tpankotai
   - jsequeira
+  - klamsa
+  - kvince
   - lpongor
+  - mmanczinger
+  - mroland
+  - sjuhasz
+  - tpankotai
+  - zbiacsi

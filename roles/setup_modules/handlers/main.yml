@@ -1,0 +1,4 @@
+- name: Refresh Spack modules
+  ansible.builtin.shell: source /etc/profile.d/lmod.sh; ml spack; spack module lmod refresh -y
+  register: refresh_result
+  changed_when: "'You are about to regenerate lmod module files for' in refresh_result.stdout"

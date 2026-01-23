@@ -1,4 +1,9 @@
 ---
+- name: Install dependencies for NFS mounts
+  ansible.builtin.package:
+    name: nfs-utils
+    state: present
+
 - name: Mount NFS shares
   ansible.posix.mount:
     src: "{{ configure_shares_storage_ip }}:/mnt/MirrorHDD/scratch/{{ item }}"
@@ -11,14 +16,14 @@
 
 - name: Mount home and opt from sms
   ansible.posix.mount:
-    src: "{{ sms_ip }}/{{ item }}:{{ inventory_hostname }}/{{ item }}"
-    path: /{{ item }}
-    opts: rw,sync,soft
+    src: "{{ sms_ip }}:{{ item }}"
+    path: "{{ item }}"
+    opts: rw,sync,hard      # I chose hard here to avoid potential data loss on home directories
     boot: true              # automatically mounted on boot
     state: mounted          # ensures the mount is present and configured in fstab
     fstype: nfs
   loop:
-    - home
-    - opt
+    - /home
+    - /opt
   when:
     - inventory_hostname in groups['login_nodes']

@@ -129,14 +129,14 @@
   changed_when: false
 
 # dnf install -y epel-release
-# dnf config-manager --set-enabled crb
-- name: Install EPEL and enable CRB on all VMs
+- name: Install EPEL repository
   ansible.builtin.dnf:
     name: epel-release
     state: present
   delegate_to: "{{ item.key }}"
   loop: "{{ setup_vms_vm_list | dict2items }}"
 
+# dnf config-manager --set-enabled crb
 - name: Ensure the crb repository is enabled
   community.general.dnf_config_manager:
     name: crb

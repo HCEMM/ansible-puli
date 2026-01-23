@@ -1,47 +1,98 @@
 ---
-- block:
-  - name: Install Galaxy dependencies
-    ansible.builtin.dnf:
-      name: "{{ galaxy_system_packages }}"
-      state: present
+- name: Install dependencies for Galaxy
+  ansible.builtin.dnf:
+    name:
+      - git
+      - policycoreutils-python-utils      # for semanage
+      - nfs-utils
+      - golang              # to build tusd
+      - apptainer
+    state: present
 
-  - name: Install virtualenv
-    ansible.builtin.pip:
-      name: virtualenv
-      executable: pip3
+- name: Create galaxy group
+  ansible.builtin.group:
+    name: "{{ galaxy_group }}"
+    gid: "{{ galaxy_gid | default(1001) }}"
+    state: present
 
-  - name: Ensure virtualenv symlink exists
-    ansible.builtin.file:
-      src: /usr/local/bin/virtualenv
-      dest: /usr/local/sbin/virtualenv
-      state: link
+- name: Create galaxy user
+  ansible.builtin.user:
+    name: "{{ galaxy_user }}"
+    groups:
+      - "{{ galaxy_group }}"
+      - systemd-journal
+    state: present
+    uid: "{{ galaxy_uid | default(1001) }}"
+    create_home: true
 
-  - name: Install PostgreSQL repository
-    ansible.builtin.dnf:
-      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-      state: present
-      disable_gpg_check: true
+- name: Open ports on firewall for Galaxy
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 8080
+    - 1080
 
-  - name: Include upstream Galaxy role
-    ansible.builtin.include_role:
-      name: galaxyproject.postgresql
-  become: true
+# setsebool -P httpd_can_network_connect 1
+- name: Enable Selinux httpd traffic
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
 
-- block:
-  - name: Include upstream Galaxy role
-    ansible.builtin.include_role:
-      name: galaxyproject.postgresql_objects
-  become: true
-  become_user: postgres
+# /srv/galaxy 10.0.150.211(rw,sync,no_subtree_check,no_root_squash) in /etc/exports
+- name: Mount /mnt/galaxy
+  ansible.posix.mount:
+    path: /mnt/galaxy
+    src: "10.0.150.211:{{ galaxy_base_dir }}"
+    fstype: nfs
+    state: mounted
 
-- name: Debug Galaxy configuration
-  ansible.builtin.debug:
-    var: galaxy_config.gravity.gunicorn.bind
+# git clone https://github.com/tus/tusd.git
+- name: Clone tusd repository
+  ansible.builtin.git:
+    repo: 'https://github.com/tus/tusd.git'
+    dest: "{{ galaxy_tus_exec_dir }}"
+    version: 'v2.8.0'  # Pin to keep idempotency
 
-- name: Include upstream Galaxy role
-  ansible.builtin.include_role:
-    name: galaxyproject.galaxy
+# go build -o tusd cmd/tusd/main.go
+- name: Build tusd binary
+  ansible.builtin.command:
+    cmd: go build -o tusd cmd/tusd/main.go
+    chdir: "{{ galaxy_tus_exec_dir }}"
+  args:
+    creates: "{{ galaxy_tus_exec_dir }}/tusd"
 
-- name: Include tusd role
-  ansible.builtin.include_role:
-    name: galaxyproject.tusd
+- name: Clone Galaxy repository
+  ansible.builtin.git:
+    repo: 'https://github.com/galaxyproject/galaxy'
+    dest: "{{ galaxy_base_dir }}"
+    version: 'v25.0.4'  # Pin to keep idempotency
+    update: false
+  become: "{{ galaxy_user }}"
+
+# run.sh
+- name: Install Galaxy dependencies
+  ansible.builtin.command:
+    cmd: ./run.sh
+    chdir: "{{ galaxy_base_dir }}"
+  become: "{{ galaxy_user }}"
+  args:
+    creates: "{{ galaxy_base_dir }}/.venv"
+
+# # Setup postgresql
+# # Install the repository RPM:
+# sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# # Disable the built-in PostgreSQL module:
+# sudo dnf -qy module disable postgresql
+
+# # Install PostgreSQL:
+# sudo dnf install -y postgresql18-server
+
+# # Optionally initialize the database and enable automatic start:
+# sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
+# sudo systemctl enable postgresql-18
+# sudo systemctl start postgresql-18
