@@ -8,8 +8,9 @@ setup_modules_spack_packages:
   - py-macs3
   - bedtools2
   - py-pandas
-  - miniconda3
+  # - miniconda3     # Miniconda3 is now installed manually, not via Spack
   - apptainer
   - py-multiqc
   - seqkit
   - cdhit
+setup_modules_custom_location: /opt/pub/modulefiles/site
