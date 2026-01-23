@@ -1,3 +1,0 @@
-#!/bin/bash
-echo "Compilation is not allowed on the login node. Please use the compute nodes."
-exit 1

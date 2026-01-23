@@ -57,7 +57,7 @@
 
 # setsebool -P httpd_can_network_connect 1
 - name: Allow Nginx to make network connections (SELinux)
-  ansible.builtin.command:
-    cmd: setsebool -P httpd_can_network_connect 1
-  changed_when: false
-
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true

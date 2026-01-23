@@ -1,8 +1,8 @@
 ---
-- name: Copy system_root into /
+- name: Copy configuration files into /etc
   ansible.builtin.copy:
-    src: system_root/
-    dest: /
+    src: system_root/etc
+    dest: /etc
     owner: root
     group: root
     mode: "0644"

@@ -1,0 +1,5 @@
+---
+- name: Restart galaxyctl
+  ansible.builtin.systemd:
+    name: galaxyctl
+    state: restarted
