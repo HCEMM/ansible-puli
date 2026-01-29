@@ -1,40 +1,46 @@
-#!/bin/bash
-# Wrapper for google-authenticator with auto QR resizing
+#!/usr/bin/env bash
+set -euo pipefail
 
-USER=$(whoami)
-HOST=$(hostname -s)
+QR_SIZE="${1:-20}"
 
-# -t = time-based, -D = allow multiple uses, -f = force overwrite, -u = disable rate-limiting, -l = overwrite URL, -i = the issuer I think, -C = non-interactive mode
-OUTPUT=$(google-authenticator -t -D -f -u -w 3 -l "${USER}@${HOST}" -i "${HOST}" -C)
+need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1"; exit 1; }; }
+need ipa
+need klist
+need kinit
+need qrencode
 
-# Extract the otpauth URL
-URL=$(echo "$OUTPUT" | grep -o 'otpauth://.*')
+USER="$(id -un)"
+HOST="$(hostname -f 2>/dev/null || hostname)"
 
-if [[ -z "$URL" ]]; then
-  echo "❌ Could not find otpauth URL."
+# Ensure Kerberos ticket exists (for the user)
+if ! klist -s; then
+  echo "No Kerberos ticket found. Running: kinit ${USER}"
+  kinit "${USER}"
+fi
+
+# Create an OTP token in FreeIPA (TOTP)
+# --owner defaults to the authenticated principal, but we set it explicitly.
+# --desc helps users identify the token later.
+OUT="$(ipa otptoken-add --type=totp --owner="${USER}" --desc="TOTP for ${USER}@${HOST}" 2>&1 || true)"
+
+# If token already exists or user has permissions issues, show output and exit.
+if echo "$OUT" | grep -qiE 'ERROR|permission|Not authorized|Insufficient|Kerberos ticket'; then
+  echo "Failed to create token."
+  echo "$OUT"
   exit 1
 fi
 
-# Check terminal size (columns)
-COLUMNS=$(tput cols)
-# Pick QR scale based on terminal width
-if [ "$COLUMNS" -lt 60 ]; then
-  SCALE=1
-elif [ "$COLUMNS" -lt 100 ]; then
-  SCALE=2
-else
-  SCALE=3
+# Extract otpauth URI from output (FreeIPA prints it)
+URI="$(echo "$OUT" | awk '/URI:/ {print $2; exit}')"
+
+if [ -z "${URI:-}" ]; then
+  echo "Could not find OTP URI in ipa output."
+  echo "$OUT"
+  exit 1
 fi
 
-# Allow override with parameter - this is not working that good
-if [ -n "$1" ]; then
-  SCALE=$1
-fi
-
-echo "✅ Google Authenticator secret generated for ${USER}@${HOST}"
+echo "✅ OTP token created for ${USER}"
+echo "✅ URI: ${URI}"
 echo
 echo "Scan this QR code with your authenticator app:"
-echo "$URL" | qrencode -t ANSIUTF8 -s "$SCALE"
-echo
-echo "Or manually enter the secret:"
-echo "$URL"
+echo "${URI}" | qrencode -t ANSIUTF8 -s "${QR_SIZE}"

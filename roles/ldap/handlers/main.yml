@@ -1,12 +1,16 @@
 # sss_cache -E
-- name: Clear SSSD cache
+- name: Restart SSSD (and clear cache)
   ansible.builtin.command: sss_cache -E
   changed_when: true
-  notify: Restart sssd
+  failed_when: false
+  notify: Restart SSSD Service
 
 # systemctl restart sssd
-- name: Restart sssd
+- name: Restart SSSD Service
   ansible.builtin.service:
     name: sssd
     state: restarted
     enabled: true
+
+
+
