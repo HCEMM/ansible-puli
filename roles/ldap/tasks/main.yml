@@ -54,7 +54,91 @@
         creates: /etc/ipa/default.conf    # confirm if this file is actually created, and didn't exist before
       register: ipa_install
 
+    # ipa group-add groupname --gid="gidnumber"
+    - name: Create IPA groups (POSIX with fixed GID)
+      community.general.ipa_group:
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: admin
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+        name: "{{ item.name }}"
+        gidnumber: "{{ item.gid | string }}"
+        nonposix: false
+        state: present
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
 
+    - name: Create per-user primary POSIX groups
+      community.general.ipa_group:
+        name: "{{ item.username }}"
+        gidnumber: "{{ item.uid | string }}"
+        nonposix: false
+        state: present
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: admin
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+
+    # ipa user-add username --givenname=First --sn=Last --mail=email --uidnumber=uid --gidnumber=primary_gid --homedirectory=/home/username --loginshell=/bin/bash --password
+    - name: Ensure FreeIPA users exist (attributes + password set)
+      community.general.ipa_user:
+        name: "{{ item.username }}"
+        state: present
+
+        givenname: "{{ item.first }}"
+        sn: "{{ item.last }}"
+        mail:
+          - "{{ item.email }}"
+
+        uidnumber: "{{ item.uid | string }}" 
+        gidnumber: "{{ item.uid | string }}"   # primary group is a per-user group with the same GID as UID
+        homedirectory: "/home/{{ item.username }}"
+        loginshell: "/bin/bash"
+
+        password: "{{ item.password }}"
+        update_password: on_create
+
+        userauthtype:
+          - password
+          - otp
+
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: admin
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+
+    - name: Build group -> users mapping from ldap_users
+      ansible.builtin.set_fact:
+        ipa_group_members_map: >-
+          {{
+            ipa_group_members_map | default({}) |
+            combine({
+              item.1: ((ipa_group_members_map[item.1] | default([])) + [item.0.username]) | unique
+            })
+          }}
+      loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.0.username }} -> {{ item.1 }}"
+
+    # ipa group-add-member groupname --users=user1,user2
+    - name: Enforce group membership (add listed users)
+      community.general.ipa_group:
+        name: "{{ item.key }}"
+        state: present
+        users: "{{ item.value }}"
+        action: member                  # add users as members
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: admin
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+      loop: "{{ (ipa_group_members_map | default({})) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+  
 - name: Configure FreeIPA client on login/galaxy nodes
   when:
     - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server']
@@ -92,7 +176,6 @@
           - "--password={{ ldap_admin_password_raw }}"
           - --mkhomedir
           - --unattended
-          - --force-join
       args:
         creates: /etc/ipa/default.conf
       register: ipa_client_join
