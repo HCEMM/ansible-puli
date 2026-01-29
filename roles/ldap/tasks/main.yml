@@ -46,93 +46,66 @@
         --ds-password='{{ ldap_admin_password_raw }}'
         --admin-password='{{ ldap_admin_password_raw }}'
         --mkhomedir
+        --ntp-server={{ ntp_server }}
+        --setup-dns
+        --forwarder=8.8.8.8
         --unattended
       args:
         creates: /etc/ipa/default.conf    # confirm if this file is actually created, and didn't exist before
+      register: ipa_install
 
 
-- name: Configure LDAP for other hosts
+- name: Configure FreeIPA client on login/galaxy nodes
   when:
-    - false     # inventory_hostname in groups['galaxy_server'] or inventory_hostname in groups['login_nodes']
+    - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server'] 
   block:
-    - name: Install dependencies
+    - name: Install FreeIPA client packages
       ansible.builtin.dnf:
         name:
-          - openldap-servers
-          - python-ldap
-          - sssd-ldap
+          - freeipa-client
+          - sssd
+          - oddjob
+          - oddjob-mkhomedir
+          - authselect
         state: present
 
-    - name: Copy CA certificate
-      ansible.builtin.copy:
-        src: ca.crt
-        dest: "{{ item }}/ca.crt"
-        owner: ldap
-        group: ldap
-        mode: "0644"
-      loop:
-        - /etc/openldap/certs
-        - /etc/pki/ca-trust/source/anchors
-
-    - name: Update CA trust store
-      ansible.builtin.command: update-ca-trust extract
-      args:
-        creates: /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt
-
-    - name: Configure LDAP client
+    - name: Ensure oddjobd is enabled (required for mkhomedir)
+      ansible.builtin.service:
+        name: oddjobd
+        state: started
+        enabled: true
+    
+    - name: Ensure FreeIPA server is resolvable via /etc/hosts (fallback)
       ansible.builtin.lineinfile:
-        path: /etc/openldap/ldap.conf
-        line: "TLS_CACERT {{ ldap_tls_cacert_path }}"
-
-    - name: Deploy sssd.conf
-      ansible.builtin.template:
-        src: sssd.conf.j2
-        dest: /etc/sssd/sssd.conf
-        mode: '0600'
-      notify: Restart sssd
-
-    - name: Ensure 'sss' is present in passwd, shadow and group lines in /etc/nsswitch.conf
-      ansible.builtin.replace:
-        path: /etc/nsswitch.conf
-        regexp: '^(passwd|shadow|group):(?!.*\bsss\b)(\s+)(.*)$'    # find confs that do not have 'sss' yet and add it
-        replace: '\1:\2sss \3'
-
-    - name: Assert pam_sss is enabled in system-auth
-      ansible.builtin.command: grep "auth       sufficient pam_sss.so forward_pass" /etc/pam.d/system-auth
-      register: pam_sss_grep
-      changed_when: false
-
-    - name: Assert pam_sss is enabled in system-auth
-      ansible.builtin.debug:
-        var: pam_sss_grep
-
-    - name: Ensure authselect uses sssd     # this connects PAM to SSSD
+        path: /etc/hosts
+        line: "{{ ldap_vm_ip }} {{ ldap_server_fqdn }} {{ ldap_server_fqdn.split('.')[0] }}"
+        state: present
+  
+    - name: Join node to FreeIPA (NON-interactive)
+      ansible.builtin.command:
+        argv:
+          - ipa-client-install
+          - "--domain={{ ldap_domain }}"
+          - "--server={{ ldap_server_fqdn }}"
+          - "--realm={{ ldap_realm }}"
+          - "--principal=admin"
+          - "--password={{ ipa_admin_password_raw }}"
+          - --mkhomedir
+          - --unattended
+          - --force-join
+      args:
+        creates: /etc/ipa/default.conf
+      register: ipa_client_join
+      notify: Restart SSSD (and clear cache)
+    
+    - name: Ensure authselect uses sssd with mkhomedir
       ansible.builtin.command: authselect select sssd with-mkhomedir --force
       changed_when: true
-      when: pam_sss_grep.stdout | length == 0
-
-    - name: Ensure google_authenticator is after pam_sss in sshd
-      community.general.pamd:
-        name: sshd
-        type: auth
-        control: sufficient
-        module_path: pam_sss.so
-        new_type: auth
-        new_control: required
-        new_module_path: pam_google_authenticator.so
-        module_arguments: "secret=\\${HOME}/.google_authenticator nullok"
-        state: after
-
-    - name: Ensure SSSD is used for account
-      community.general.pamd:
-        name: "{{ item }}"
-        type: account
-        control: required
-        module_path: pam_unix.so
-        new_type: account
-        new_control: sufficient
-        new_module_path: pam_sss.so
-        state: after
-      loop:
-        - system-auth
-        - password-auth
+      notify: Restart SSSD (and clear cache)
+  
+    - name: Install google-authenticator PAM
+      ansible.builtin.dnf:
+        name:
+          - google-authenticator
+          - qrencode
+        state: present
