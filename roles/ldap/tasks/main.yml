@@ -57,7 +57,7 @@
 
 - name: Configure FreeIPA client on login/galaxy nodes
   when:
-    - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server'] 
+    - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server']
   block:
     - name: Install FreeIPA client packages
       ansible.builtin.dnf:
@@ -74,13 +74,13 @@
         name: oddjobd
         state: started
         enabled: true
-    
+
     - name: Ensure FreeIPA server is resolvable via /etc/hosts (fallback)
       ansible.builtin.lineinfile:
         path: /etc/hosts
         line: "{{ ldap_vm_ip }} {{ ldap_server_fqdn }} {{ ldap_server_fqdn.split('.')[0] }}"
         state: present
-  
+
     - name: Join node to FreeIPA (NON-interactive)
       ansible.builtin.command:
         argv:
@@ -89,7 +89,7 @@
           - "--server={{ ldap_server_fqdn }}"
           - "--realm={{ ldap_realm }}"
           - "--principal=admin"
-          - "--password={{ ipa_admin_password_raw }}"
+          - "--password={{ ldap_admin_password_raw }}"
           - --mkhomedir
           - --unattended
           - --force-join
@@ -97,12 +97,12 @@
         creates: /etc/ipa/default.conf
       register: ipa_client_join
       notify: Restart SSSD (and clear cache)
-    
+
     - name: Ensure authselect uses sssd with mkhomedir
       ansible.builtin.command: authselect select sssd with-mkhomedir --force
       changed_when: true
       notify: Restart SSSD (and clear cache)
-  
+
     - name: Install google-authenticator PAM
       ansible.builtin.dnf:
         name:
