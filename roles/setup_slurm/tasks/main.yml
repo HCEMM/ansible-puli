@@ -5,31 +5,34 @@
     name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
     state: present
     disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
-  when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
-
-# dnf -y install dnf-plugins-core
-- name: Install dnf plugins
-  ansible.builtin.dnf:
-    name: dnf-plugins-core
-    state: present
-  when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
 
 # dnf -y config-manager --set-enabled crb
 - name: Ensure the crb repository is enabled
   community.general.dnf_config_manager:
     name: crb
     state: enabled
+
+- name: Install Slurm dependencies
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - dnf-plugins-core    # dnf -y install dnf-plugins-core
+    - munge
+
+- name: Install Slurm client
+  ansible.builtin.dnf:
+    name: ohpc-slurm-client
+    state: present
   when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+    - inventory_hostname in groups['login_nodes']
 
 - name: Install Slurm server
   ansible.builtin.dnf:
     name: ohpc-slurm-server
     state: present
   when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+    - inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd']
 
 - name: Ensure munge user and group exist
   ansible.builtin.user:
@@ -97,7 +100,7 @@
 - name: Copy other Slurm templates
   ansible.builtin.template:
     src: "{{ item }}.j2"
-    dest: /etc/slurm/{{ item }}"
+    dest: "/etc/slurm/{{ item }}"
     mode: "{{ '0600' if item in ['acct_gather.conf'] else '0644' }}"
   loop:
     - cgroup.conf

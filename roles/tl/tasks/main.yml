@@ -1,0 +1,27 @@
+---
+- name: Install ThinLinc Server
+  ansible.builtin.include_role:
+    name: thinlinc-server
+  vars:
+    thinlinc_accept_eula: "{{ tl_accept_eula }}"
+    thinlinc_version: "{{ tl_version }}"
+    thinlinc_server_bundle: "{{ tl_server_bundle }}"
+    thinlinc_build: "{{ tl_build }}"
+    thinlinc_autoinstall_dependencies: "{{ tl_autoinstall_dependencies }}"
+    thinlinc_email: "{{ tl_email }}"
+    thinlinc_printers: "{{ tl_printers }}"
+    thinlinc_webaccess_port: "{{ tl_webaccess_port }}"
+    thinlinc_webaccess_login_page: "{{ tl_webaccess_login_page }}"
+    thinlinc_webadm_port: "{{ tl_webadm_port }}"
+    thinlinc_webadm_password: "{{ tl_webadm_password }}"
+    thinlinc_hostname_choice: "{{ tl_hostname_choice }}"
+    thinlinc_agent_hostname: "{{ tl_agent_hostname }}"
+
+- name: Configure ThinLinc Server for HA
+  ansible.builtin.replace:
+    path: /opt/thinlinc/etc/conf.d/cluster.hconf
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - { regexp: '^enabled=0', replace: 'enabled=1' }
+    - { regexp: '^nodes=.*$', replace: 'nodes=10.0.150.204,10.0.150.205' }   # IPs of login nodes

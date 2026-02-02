@@ -5,15 +5,11 @@
   ansible.builtin.service:
     name: firewalld
     enabled: false
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # timedatectl set-timezone Europe/Budapest
 - name: Set timezone
   community.general.timezone:
     name: Europe/Budapest
-  when:
-    ( inventory_hostname in groups['sms'] or inventory_hostname in groups['computes'] )
 
 # ip link set dev ${sms_eth_internal} up
 # ip address add ${sms_ip}/${internal_netmask} broadcast + dev ${sms_eth_internal}
@@ -22,8 +18,6 @@
     conn_name: "{{ sms_eth_internal }}"
     ip4: "{{ sms_ip }}/{{ '24' if internal_netmask == '255.255.255.0' else '32' }}"
     state: present
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # sysctl -w net.ipv4.ip_forward=1 - so computes have internet
 - name: Enable IP forwarding
@@ -32,16 +26,12 @@
     value: 1
     state: present
     reload: true
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # systemctl enable chronyd.service
 - name: Enable chronyd service
   ansible.builtin.service:
     name: chronyd
     enabled: true
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # echo "local stratum 10" >> /etc/chrony.conf
 # echo "server ${ntp_server}" >> /etc/chrony.conf
@@ -54,13 +44,25 @@
     - "local stratum 10"
     - "server {{ ntp_server }}"
     - "allow all"
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # systemctl restart chronyd
 - name: Restart chronyd
   ansible.builtin.service:
     name: chronyd
     state: restarted
-  when:
-    ( inventory_hostname in groups['sms'] )
+
+# dnf install haproxy
+- name: Install HAProxy
+  ansible.builtin.dnf:
+    name: haproxy
+    state: present
+  notify: Enable and start HAProxy
+
+- name: Copy HAProxy configuration file
+  ansible.builtin.copy:
+    src: haproxy.cfg
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "644"
+  notify: Enable and start HAProxy
