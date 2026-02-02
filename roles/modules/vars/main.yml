@@ -1,0 +1,29 @@
+modules_spack_version: "0.23.1"
+modules_spack_gcc: "14.2.0"
+modules_spack_packages:
+  - bwa
+  - sratoolkit
+  - picard
+  - samtools
+  - py-macs3
+  - bedtools2
+  - py-pandas>=1.3.0
+  # - miniconda3     # Miniconda3 is now installed manually, not via Spack
+  - apptainer
+  - py-multiqc
+  - seqkit
+  - cdhit
+  - py-numpy>=1.21.0
+  - py-scipy>=1.7.0
+  - py-matplotlib>=3.4.0
+  - py-seaborn>=0.11.0
+  - py-scikit-image>=0.18.0
+  - py-tifffile>=2021.7.0
+  - opencv>=4.5.0
+  - cellpose>=2.0.0
+  - py-torch>=1.9.0
+  - py-ipywidgets>=7.6.0
+  - py-jupyter>=1.0.0
+  - py-notebook>=6.4.0
+  - py-tqdm>=4.62.0
+modules_custom_location: /opt/pub/modulefiles/site

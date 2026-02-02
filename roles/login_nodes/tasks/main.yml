@@ -23,6 +23,14 @@
     group: root
     mode: "0700"
 
+- name: Copy lmod.sh
+  ansible.builtin.copy:
+    src: /etc/profile.d/lmod.sh
+    dest: /etc/profile.d/lmod.sh
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Add cron job to check 2FA users hourly
   ansible.builtin.cron:
     name: "Check 2FA users"
@@ -41,5 +49,17 @@
     name:
       - ohpc-slurm-client
       - chrony
-      - lmod-ohpc
+      # lua must be installed for lmod to work
+      - lua
+      - lua-posix
+      - lua-filesystem
+      - tcl
     state: present
+
+- name: Configure limits.conf
+  ansible.builtin.template:
+    src: limits.conf.j2
+    dest: /etc/security/limits.conf
+    owner: root
+    group: root
+    mode: "0644"
