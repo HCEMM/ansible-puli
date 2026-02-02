@@ -36,9 +36,15 @@ systemctl enable sssd oddjobd
 update-crypto-policies --set LEGACY
 
 
+# ThinLinc
+cd tl-4.20.0-server/
+./install-server
 # install Xfce
 dnf groupinstall "Xfce" "base-x"
 systemctl set-default graphical.target
+# - web access (:300 default)
+# - X11 forwarding
+# - those nice apps
 
 # Install Robert's project
 git clone https://github.com/RobertHenschel/slurm-desktop
@@ -46,11 +52,6 @@ pip install PyQt5
 dnf install xcb-util-wm xcb-util-keysyms
 python3 simple_slurm_viewer.py
 python3 slurm_partition_viewer.py
-
-# ThinLinc
-# - web access (:300 default)
-# - X11 forwarding
-# - those nice apps
 
 
 # CheckMK - everything about it

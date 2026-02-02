@@ -1,4 +1,4 @@
-hpc_toolchain_packages:
+setup_ohpc_packages:
   - ohpc-autotools
   - EasyBuild-ohpc
   - spack-ohpc
@@ -6,8 +6,8 @@ hpc_toolchain_packages:
   - openmpi5-pmix-gnu14-ohpc
   - mpich-ofi-gnu14-ohpc
   - lmod-defaults-gnu14-openmpi5-ohpc
-hpc_toolchain_performance_packages:
+setup_ohpc_performance_packages:
   - hwloc-ohpc
   - valgrind-ohpc
   - ohpc-gnu14-perf-tools
-hpc_toolchain_install_performance_packages: false
+setup_ohpc_install_performance_packages: false

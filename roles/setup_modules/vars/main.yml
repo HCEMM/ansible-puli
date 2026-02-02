@@ -13,4 +13,17 @@ setup_modules_spack_packages:
   - py-multiqc
   - seqkit
   - cdhit
+  - py-numpy
+  - py-scipy
+  - py-matplotlib
+  - py-seaborn
+  - py-scikit-image
+  - py-tifffile
+  - py-opencv-python
+  - cellpose
+  - py-torch
+  - py-ipywidgets
+  - py-jupyter
+  - py-notebook
+  - py-tqdm
 setup_modules_custom_location: /opt/pub/modulefiles/site

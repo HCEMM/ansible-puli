@@ -24,6 +24,20 @@
     fstype: nfs
   loop:
     - /home
-    - /opt
+  when:
+    - inventory_hostname in groups['login_nodes']
+
+- name: Mount home and opt from sms
+  ansible.posix.mount:
+    src: "{{ sms_ip }}:{{ item }}"
+    path: "{{ item }}"
+    opts: ro,sync,hard      # I chose hard here to avoid potential data loss on home directories
+    boot: true              # automatically mounted on boot
+    state: mounted          # ensures the mount is present and configured in fstab
+    fstype: nfs
+  loop:
+    - /opt/miniconda3
+    - /opt/nvidia
+    - /opt/ohpc
   when:
     - inventory_hostname in groups['login_nodes']

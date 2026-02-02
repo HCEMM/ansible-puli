@@ -14,7 +14,7 @@
     mode: "644"
     force: false
   notify:
-    - Restart fail2ban
+    - Restart fail2ban      # I don't think this is triggering, if not do it by hand. Not big deal, tho can be annoying
 
 - name: Copy SSHD jail configuration
   ansible.builtin.copy:
