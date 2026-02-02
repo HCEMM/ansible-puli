@@ -1,0 +1,7 @@
+# Managed by Ansible - don't edit manually!
+# /etc/security/limits.conf
+
+{% for limit, values in login_nodes_limits.items() %}
+* soft {{ limit }} {{ values.soft }}
+* hard {{ limit }} {{ values.hard }}
+{% endfor %}

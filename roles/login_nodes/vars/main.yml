@@ -1,0 +1,16 @@
+login_nodes_limits:
+  cpu:                # CPU time
+    soft: 7200        # 2 hours
+    hard: 14400       # 4 hours
+
+  nproc:              # Number of processes
+    soft: 512
+    hard: 1024
+
+  as:                 # Address space (virtual memory)
+    soft: 16777216    # 16 GB
+    hard: 33554432    # 32 GB
+
+  nofile:             # Number of open files
+    soft: 32768
+    hard: 65536

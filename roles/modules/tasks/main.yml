@@ -15,7 +15,7 @@
 
 - name: Set Spack module management   # I don't think there's a simpler way to do this, without hardcoded spack version
   ansible.builtin.replace:
-    path: /opt/ohpc/pub/apps/spack/{{ setup_modules_spack_version }}/etc/spack/defaults/modules.yaml
+    path: /opt/ohpc/pub/apps/spack/{{ modules_spack_version }}/etc/spack/defaults/modules.yaml
     regexp: 'enable:\s*\["tcl"\]'
     replace: 'enable: ["lmod"]'
   when: ansible_hostname in groups['sms']
@@ -28,21 +28,22 @@
     line: 'export MODULEPATH={{ item }}:$MODULEPATH'
     state: present
   loop:
-    - "{{ setup_modules_custom_location }}"        # custom modules (e.g., Miniconda3)
-    #- /opt/ohpc/pub/apps/spack/{{ setup_modules_spack_version }}/share/spack/lmod/gcc/{{ setup_modules_spack_gcc }}   # Spack modules - it shouldn't be needed any longer but let's see
+    - "{{ modules_custom_location }}"        # custom modules (e.g., Miniconda3)
+    #- /opt/ohpc/pub/apps/spack/{{ modules_spack_version }}/share/spack/lmod/gcc/{{ modules_spack_gcc }}   # Spack modules - it shouldn't be needed any longer but let's see
   when: ansible_hostname in groups['sms']
   notify: Refresh modules
 
 - name: Install Spack packages
   ansible.builtin.shell: >
     source /etc/profile.d/lmod.sh; ml spack;
-    spack find {{ item }} || spack install {{ item }} gcc@{{ setup_modules_spack_gcc }}   # `spack find` returns 0 if package is installed, 1 otherwise
-  loop: "{{ setup_modules_spack_packages }}"
+    spack find {{ item }} || spack install {{ item }} gcc@{{ modules_spack_gcc }}   # `spack find` returns 0 if package is installed, 1 otherwise
+  loop: "{{ modules_spack_packages }}"
   register: spack_result
   changed_when: "'Installing' in spack_result.stdout"
   when:
-    - setup_modules_spack_packages is defined
-    - setup_modules_spack_packages | length > 0
+    - modules_spack_packages is defined
+    - modules_spack_packages | length > 0
+    - ansible_hostname in groups['sms']
   notify: Refresh modules
 
 - name: Download Miniconda3
@@ -68,13 +69,13 @@
 
 - name: Set Miniconda version fact
   ansible.builtin.set_fact:
-    setup_modules_miniconda3_version: "{{ (conda_info.stdout | from_json).conda_version }}"
+    modules_miniconda3_version: "{{ (conda_info.stdout | from_json).conda_version }}"
   when: ansible_hostname in groups['sms']
 
 - name: Copy Miniconda3 modulefile
   ansible.builtin.copy:
     src: miniconda3.lua
-    dest: "{{ setup_modules_custom_location }}/miniconda3/{{ setup_modules_miniconda3_version }}.lua"
+    dest: "{{ modules_custom_location }}/miniconda3/{{ modules_miniconda3_version }}.lua"
     owner: root
     group: root
     mode: '0644'
@@ -84,9 +85,9 @@
 
 - name: Set default Miniconda3 module version
   ansible.builtin.copy:
-    dest: "{{ setup_modules_custom_location }}/miniconda3/.version"
+    dest: "{{ modules_custom_location }}/miniconda3/.version"
     content: |
-      set ModulesVersion "{{ setup_modules_miniconda3_version }}"
+      set ModulesVersion "{{ modules_miniconda3_version }}"
     owner: root
     group: root
     mode: '0644'
