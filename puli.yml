@@ -109,7 +109,6 @@
   roles:
     - modules
 
-
 # - name: Install ThinLinc Server
 #   hosts: thinlinc_servers
 #   roles:
