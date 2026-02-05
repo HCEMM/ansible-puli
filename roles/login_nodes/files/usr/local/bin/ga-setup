@@ -1,46 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-QR_SIZE="${1:-20}"
+QR_SIZE="${1:-10}"
+OUTFILE="${2:-$HOME/otp-${USER}.png}"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1"; exit 1; }; }
 need ipa
 need klist
 need kinit
 need qrencode
+need awk
+need id
+need hostname
 
 USER="$(id -un)"
 HOST="$(hostname -f 2>/dev/null || hostname)"
 
-# Ensure Kerberos ticket exists (for the user)
 if ! klist -s; then
   echo "No Kerberos ticket found. Running: kinit ${USER}"
   kinit "${USER}"
 fi
 
-# Create an OTP token in FreeIPA (TOTP)
-# --owner defaults to the authenticated principal, but we set it explicitly.
-# --desc helps users identify the token later.
-OUT="$(ipa otptoken-add --type=totp --owner="${USER}" --desc="TOTP for ${USER}@${HOST}" 2>&1 || true)"
+OUT="$(ipa otptoken-add --type=totp --desc="TOTP for ${USER}@${HOST}")"
 
-# If token already exists or user has permissions issues, show output and exit.
-if echo "$OUT" | grep -qiE 'ERROR|permission|Not authorized|Insufficient|Kerberos ticket'; then
-  echo "Failed to create token."
-  echo "$OUT"
-  exit 1
-fi
-
-# Extract otpauth URI from output (FreeIPA prints it)
 URI="$(echo "$OUT" | awk '/URI:/ {print $2; exit}')"
-
 if [ -z "${URI:-}" ]; then
   echo "Could not find OTP URI in ipa output."
   echo "$OUT"
   exit 1
 fi
 
-echo "✅ OTP token created for ${USER}"
-echo "✅ URI: ${URI}"
+echo "OTP token created for ${USER}"
+echo "URI: ${URI}"
 echo
-echo "Scan this QR code with your authenticator app:"
-echo "${URI}" | qrencode -t ANSIUTF8 -s "${QR_SIZE}"
+
+echo "Writing QR PNG to: ${OUTFILE}"
+echo "${URI}" | qrencode -o "${OUTFILE}" -s "${QR_SIZE}" -m 1
+echo
+echo "Terminal QR (note: size scaling may not apply in ANSIUTF8):"
+echo "${URI}" | qrencode -t ANSIUTF8 -m 1
