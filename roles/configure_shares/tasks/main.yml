@@ -4,6 +4,13 @@
     name: nfs-utils
     state: present
 
+- name: Create scratch mount points
+  ansible.builtin.file:
+    path: /scratch/{{ item }}
+    state: directory
+    mode: '0755'
+  loop: "{{ configure_shares_storage_groups }}"
+
 - name: Mount NFS shares
   ansible.posix.mount:
     src: "{{ configure_shares_storage_ip }}:/mnt/MirrorHDD/scratch/{{ item }}"

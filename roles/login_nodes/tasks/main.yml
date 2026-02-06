@@ -1,7 +1,7 @@
 ---
 - name: Copy configuration files into /etc      # Never mount this. There are host specific files here (e.g. /etc/hostname), SELinux breaks, etc.
   ansible.builtin.copy:
-    src: system_root/etc
+    src: system_root/etc/
     dest: /etc
     owner: root
     group: root
@@ -9,7 +9,7 @@
 
 - name: Copy user executables into /usr/local/bin
   ansible.builtin.copy:
-    src: usr/local/bin
+    src: usr/local/bin/
     dest: /usr/local
     owner: root
     group: root
@@ -17,13 +17,13 @@
 
 - name: Copy root executables into /root/bin
   ansible.builtin.copy:
-    src: root/bin
+    src: root/bin/
     dest: /root
     owner: root
     group: root
     mode: "0700"
 
-- name: Copy lmod.sh
+- name: Copy lmod.sh            # TODO: This should be with lineinfile or copy
   ansible.builtin.copy:
     src: /etc/profile.d/lmod.sh
     dest: /etc/profile.d/lmod.sh
