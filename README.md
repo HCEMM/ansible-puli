@@ -18,3 +18,13 @@ Run in production environment:
 ```
 ansible-playbook -i inventory/hosts site.yml -e "env=production"
 ```
+
+## Some nice tips
+
+### Print facts
+
+```yaml
+- name: Print facts
+  ansible.builtin.debug:
+    var: ansible_facts
+```
