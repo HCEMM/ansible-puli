@@ -1,224 +1,224 @@
 ---
-# - name: Initial LDAP database construction and configuration
-#   when:
-#     - inventory_hostname in groups['ldap_server']
-#   block:
-#     # hostnamectl set-hostname freeipa.hcemm.eu
-#     - name: Set hostname
-#       ansible.builtin.hostname:
-#         name: "{{ ldap_server_fqdn }}"
+- name: Initial LDAP database construction and configuration
+  when:
+    - inventory_hostname in groups['ldap_server']
+  block:
+    # hostnamectl set-hostname freeipa.hcemm.eu
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "{{ ldap_server_fqdn }}"
 
-#     # setup minimal /etc/hosts
-#     - name: Update /etc/hosts
-#       ansible.builtin.lineinfile:
-#         path: /etc/hosts
-#         regexp: "^{{ ldap_vm_ip | regex_escape() }}\\s+"
-#         line: "{{ ldap_vm_ip }} {{ ldap_server_fqdn }} {{ ldap_server_fqdn.split('.')[0] }}"
-#         state: present
+    # setup minimal /etc/hosts
+    - name: Update /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ ldap_vm_ip | regex_escape() }}\\s+"
+        line: "{{ ldap_vm_ip }} {{ ldap_server_fqdn }} {{ ldap_server_fqdn.split('.')[0] }}"
+        state: present
 
-#     - name: Install dependencies
-#       ansible.builtin.dnf:
-#         name:
-#           - ipa-server
-#           - ipa-server-dns
-#           - bind-utils
-#         state: present
+    - name: Install dependencies
+      ansible.builtin.dnf:
+        name:
+          - ipa-server
+          - ipa-server-dns
+          - bind-utils
+        state: present
 
-#     # firewall-cmd --add-port= --permanent
-#     - name: Open firewall services for FreeIPA
-#       ansible.posix.firewalld:
-#         service: "{{ item }}"
-#         permanent: true
-#         state: enabled
-#         immediate: true
-#       loop:
-#         - freeipa-ldap
-#         - freeipa-ldaps
-#         - dns
-#         - http
-#         - https
-#         - ntp
+    # firewall-cmd --add-port= --permanent
+    - name: Open firewall services for FreeIPA
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - freeipa-ldap
+        - freeipa-ldaps
+        - dns
+        - http
+        - https
+        - ntp
 
-#     - name: Install FreeIPA server (NON-interactive)
-#       ansible.builtin.command: >
-#         ipa-server-install
-#         --hostname={{ ldap_server_fqdn }}
-#         --domain={{ ldap_domain }}
-#         --realm={{ ldap_realm }}
-#         --ds-password='{{ ldap_admin_password_raw }}'
-#         --admin-password='{{ ldap_admin_password_raw }}'
-#         --mkhomedir
-#         --ntp-server={{ ntp_server }}
-#         --setup-dns
-#         --forwarder=8.8.8.8
-#         --unattended
-#       args:
-#         creates: /etc/ipa/ca.crt    # confirm if this file is actually created, and didn't exist before
-#       register: ipa_install
+    - name: Install FreeIPA server (NON-interactive)
+      ansible.builtin.command: >
+        ipa-server-install
+        --hostname={{ ldap_server_fqdn }}
+        --domain={{ ldap_domain }}
+        --realm={{ ldap_realm }}
+        --ds-password='{{ ldap_admin_password_raw }}'
+        --admin-password='{{ ldap_admin_password_raw }}'
+        --mkhomedir
+        --ntp-server={{ ntp_server }}
+        --setup-dns
+        --forwarder=8.8.8.8
+        --unattended
+      args:
+        creates: /etc/ipa/ca.crt    # confirm if this file is actually created, and didn't exist before
+      register: ipa_install
 
-#     - name: Basic sanity ipa CLI available
-#       ansible.builtin.command: ipa --version
-#       changed_when: false
+    - name: Basic sanity ipa CLI available
+      ansible.builtin.command: ipa --version
+      changed_when: false
 
-#     - name: Ensure IPA services are active
-#       ansible.builtin.command: systemctl is-active "{{ item }}"
-#       loop:
-#         - ipa
-#         - named
-#       register: svc_check
-#       changed_when: false
-#       failed_when: svc_check.rc != 0
+    - name: Ensure IPA services are active
+      ansible.builtin.command: systemctl is-active "{{ item }}"
+      loop:
+        - ipa
+        - named
+      register: svc_check
+      changed_when: false
+      failed_when: svc_check.rc != 0
 
-#     - name: kinit admin to verify installation
-#       ansible.builtin.shell: |
-#         set -euo pipefail
-#         printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
-#         klist -s
-#       args:
-#         executable: /bin/bash
-#       changed_when: false
+    - name: kinit admin to verify installation
+      ansible.builtin.shell: |
+        set -euo pipefail
+        printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
+        klist -s
+      args:
+        executable: /bin/bash
+      changed_when: false
 
-#     - name: Enable SID generation and add SIDs
-#       become: true
-#       ansible.builtin.shell: |
-#         set -euo pipefail
-#         export KRB5CCNAME=/tmp/krb5cc_ansible_ipa
-#         printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
-#         ipa config-mod --enable-sid --add-sids
-#         kdestroy
-#       args:
-#         executable: /bin/bash
-#       register: ipa_enable_sid
-#       changed_when: "'no modifications to be performed' not in (ipa_enable_sid.stderr | default(''))"
-#       failed_when: >
-#         ipa_enable_sid.rc != 0 and
-#         ('no modifications to be performed' not in (ipa_enable_sid.stderr | default('')))   
+    - name: Enable SID generation and add SIDs
+      become: true
+      ansible.builtin.shell: |
+        set -euo pipefail
+        export KRB5CCNAME=/tmp/krb5cc_ansible_ipa
+        printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
+        ipa config-mod --enable-sid --add-sids
+        kdestroy
+      args:
+        executable: /bin/bash
+      register: ipa_enable_sid
+      changed_when: "'no modifications to be performed' not in (ipa_enable_sid.stderr | default(''))"
+      failed_when: >
+        ipa_enable_sid.rc != 0 and
+        ('no modifications to be performed' not in (ipa_enable_sid.stderr | default('')))   
 
-#     - name: Ensure IPA ID ranges exist (CLI, idempotent)
-#       ansible.builtin.shell: |
-#         set -euo pipefail
-#         printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
-#         if ipa idrange-show "{{ item.name }}" >/dev/null 2>&1; then
-#           echo "idrange {{ item.name }} exists"
-#         else
-#           ipa idrange-add "{{ item.name }}" \
-#             --base-id={{ item.base_id | int }} \
-#             --range-size={{ item.range_size | int }} \
-#             --rid-base={{ item.rid_base | int }} \
-#             --secondary-rid-base={{ item.secondary_rid_base | int }}
-#         fi
-#       args:
-#         executable: /bin/bash
-#       loop: "{{ ipa_idranges }}"
-#       loop_control:
-#         label: "{{ item.name }}"
-#       changed_when: false
+    - name: Ensure IPA ID ranges exist (CLI, idempotent)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
+        if ipa idrange-show "{{ item.name }}" >/dev/null 2>&1; then
+          echo "idrange {{ item.name }} exists"
+        else
+          ipa idrange-add "{{ item.name }}" \
+            --base-id={{ item.base_id | int }} \
+            --range-size={{ item.range_size | int }} \
+            --rid-base={{ item.rid_base | int }} \
+            --secondary-rid-base={{ item.secondary_rid_base | int }}
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ ipa_idranges }}"
+      loop_control:
+        label: "{{ item.name }}"
+      changed_when: false
 
 
 
-#     # ipa group-add groupname --gid="gidnumber"
-#     - name: Create IPA groups (POSIX with fixed GID)
-#       community.general.ipa_group:
-#         ipa_host: "{{ ldap_server_fqdn }}"
-#         ipa_user: "{{ ldap_admin_user | default('admin') }}"
-#         ipa_pass: "{{ ldap_admin_password_raw }}"
-#         cn: "{{ item.name }}"
-#         gidnumber: "{{ item.gid | int }}"
-#         nonposix: false
-#         state: present
-#       loop: "{{ ldap_groups }}"
-#       loop_control:
-#         label: "{{ item.name }}"
+    # ipa group-add groupname --gid="gidnumber"
+    - name: Create IPA groups (POSIX with fixed GID)
+      community.general.ipa_group:
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: "{{ ldap_admin_user | default('admin') }}"
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+        cn: "{{ item.name }}"
+        gidnumber: "{{ item.gid | int }}"
+        nonposix: false
+        state: present
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
 
-#     - name: Build group name -> gid map
-#       ansible.builtin.set_fact:
-#         ipa_group_gid_map: "{{ ipa_group_gid_map | default({}) | combine({ item.name: (item.gid | int) }) }}"
-#       loop: "{{ ldap_groups }}"
-#       loop_control:
-#         label: "{{ item.name }}"
+    - name: Build group name -> gid map
+      ansible.builtin.set_fact:
+        ipa_group_gid_map: "{{ ipa_group_gid_map | default({}) | combine({ item.name: (item.gid | int) }) }}"
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
 
-#     # ipa user-add username --first= --last= --email= --uid= --
-#     - name: Check users existence (ipa user-show)
-#       ansible.builtin.command: ipa user-show "{{ item.username }}"
-#       register: ipa_user_show
-#       changed_when: false
-#       failed_when: false
-#       loop: "{{ ldap_users }}"
-#       loop_control:
-#         label: "{{ item.username }}"
+    # ipa user-add username --first= --last= --email= --uid= --
+    - name: Check users existence (ipa user-show)
+      ansible.builtin.command: ipa user-show "{{ item.username }}"
+      register: ipa_user_show
+      changed_when: false
+      failed_when: false
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
     
-#     # ipa user-add username --first= --last= --email= --uid= --gidnumber= --homedir= --shell= 
-#     - name: Create IPA users (fixed UID, let IPA manage private group)
-#       when:
-#         - item.rc != 0
-#         - (item.item.groups | default([])) | length > 0
-#       vars:
-#         primary_group_name: "{{ item.item.groups[0] }}"
-#       ansible.builtin.command:
-#         argv:
-#           - ipa
-#           - user-add
-#           - "{{ item.item.username }}"
-#           - "--first={{ item.item.first }}"
-#           - "--last={{ item.item.last }}"
-#           - "--email={{ item.item.email }}"
-#           - "--uid={{ item.item.uid | int }}"
-#           - "--gidnumber={{ ipa_group_gid_map[primary_group_name] | int }}"
-#           - "--homedir=/home/{{ item.item.username }}"
-#           - "--shell=/bin/bash"
-#           - "--noprivate"
-#       register: ipa_user_add
-#       changed_when: "'Added user' in (ipa_user_add.stdout | default(''))"
-#       failed_when: ipa_user_add.rc != 0 and ('already exists' not in (ipa_user_add.stderr | default('')))
-#       loop: "{{ ipa_user_show.results }}"
-#       loop_control:
-#         label: "{{ item.item.username }}"
+    # ipa user-add username --first= --last= --email= --uid= --gidnumber= --homedir= --shell= 
+    - name: Create IPA users (fixed UID, let IPA manage private group)
+      when:
+        - item.rc != 0
+        - (item.item.groups | default([])) | length > 0
+      vars:
+        primary_group_name: "{{ item.item.groups[0] }}"
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-add
+          - "{{ item.item.username }}"
+          - "--first={{ item.item.first }}"
+          - "--last={{ item.item.last }}"
+          - "--email={{ item.item.email }}"
+          - "--uid={{ item.item.uid | int }}"
+          - "--gidnumber={{ ipa_group_gid_map[primary_group_name] | int }}"
+          - "--homedir=/home/{{ item.item.username }}"
+          - "--shell=/bin/bash"
+          - "--noprivate"
+      register: ipa_user_add
+      changed_when: "'Added user' in (ipa_user_add.stdout | default(''))"
+      failed_when: ipa_user_add.rc != 0 and ('already exists' not in (ipa_user_add.stderr | default('')))
+      loop: "{{ ipa_user_show.results }}"
+      loop_control:
+        label: "{{ item.item.username }}"
     
-#     - name: Set initial password only on create
-#       ansible.builtin.shell: |
-#         set -euo pipefail
-#         PASS="{{ item.item.password }}"
-#         printf "%s\n%s\n" "$PASS" "$PASS" | ipa passwd "{{ item.item.username }}"
-#       args:
-#         executable: /bin/bash
-#       changed_when: true
-#       loop: "{{ ipa_user_show.results }}"
-#       loop_control:
-#         label: "{{ item.item.username }}"
-#       when:
-#         - item.rc != 0
-#         - item.item.password is defined
-#         - item.item.password | length > 0
+    - name: Set initial password only on create
+      ansible.builtin.shell: |
+        set -euo pipefail
+        PASS="{{ item.item.password }}"
+        printf "%s\n%s\n" "$PASS" "$PASS" | ipa passwd "{{ item.item.username }}"
+      args:
+        executable: /bin/bash
+      changed_when: true
+      loop: "{{ ipa_user_show.results }}"
+      loop_control:
+        label: "{{ item.item.username }}"
+      when:
+        - item.rc != 0
+        - item.item.password is defined
+        - item.item.password | length > 0
 
-#     - name: Enforce user authentication type = password
-#       ansible.builtin.command:
-#         argv:
-#           - ipa
-#           - user-mod
-#           - "{{ item.username }}"
-#           - "--user-auth-type=password"
-#       register: ipa_user_auth
-#       changed_when: >
-#         ipa_user_auth.rc == 0 and
-#         ('no modifications to be performed' not in (ipa_user_auth.stderr | default('')))
-#       failed_when: false
-#       loop: "{{ ldap_users }}"
-#       loop_control:
-#         label: "{{ item.username }}"
+    - name: Enforce user authentication type = password
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-mod
+          - "{{ item.username }}"
+          - "--user-auth-type=password"
+      register: ipa_user_auth
+      changed_when: >
+        ipa_user_auth.rc == 0 and
+        ('no modifications to be performed' not in (ipa_user_auth.stderr | default('')))
+      failed_when: false
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
         
-#     # ipa group-add-member groupname --users=user1,user2
-#     - name: Enforce group membership (add listed users)
-#       community.general.ipa_group:
-#         ipa_host: "{{ ldap_server_fqdn }}"
-#         ipa_user: "{{ ldap_admin_user | default('admin') }}"
-#         ipa_pass: "{{ ldap_admin_password_raw }}"
-#         cn: "{{ item.1 }}"
-#         user: "{{ item.0.username }}"
-#         append: true
-#         state: present
-#       loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
-#       loop_control:
-#         label: "{{ item.0.username }} -> {{ item.1 }}"
+    # ipa group-add-member groupname --users=user1,user2
+    - name: Enforce group membership (add listed users)
+      community.general.ipa_group:
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: "{{ ldap_admin_user | default('admin') }}"
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+        cn: "{{ item.1 }}"
+        user: "{{ item.0.username }}"
+        append: true
+        state: present
+      loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.0.username }} -> {{ item.1 }}"
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU 
 - name: Configure FreeIPA client on login/galaxy nodes
