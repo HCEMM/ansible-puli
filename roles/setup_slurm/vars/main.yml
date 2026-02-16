@@ -2,6 +2,6 @@ setup_slurm_accounting_storage_user: slurm
 setup_slurm_storage_pass: password
 setup_slurm_cluster_name: sccluster
 setup_slurm_slurm_user: slurm
-setup_slurm_slurmctld: "{{ sms_name }}"      # slurmctld1
+setup_slurm_slurmctld: slurmctld1
 setup_slurm_slurmctld_backup: slurmctld2
-setup_slurm_slurmdbd: "{{ sms_name }}"       # slurmdbd1
+setup_slurm_slurmdbd: slurmdbd1

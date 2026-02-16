@@ -21,7 +21,7 @@
     fstype: nfs
   loop: "{{ configure_shares_storage_groups }}"
 
-- name: Mount home and opt from sms
+- name: Mount home from sms (read and write)
   ansible.posix.mount:
     src: "{{ sms_ip }}:{{ item }}"
     path: "{{ item }}"
@@ -34,7 +34,7 @@
   when:
     - inventory_hostname in groups['login_nodes']
 
-- name: Mount home and opt from sms
+- name: Mount opt from sms (read only)
   ansible.posix.mount:
     src: "{{ sms_ip }}:{{ item }}"
     path: "{{ item }}"
@@ -46,5 +46,6 @@
     - /opt/miniconda3
     - /opt/nvidia
     - /opt/ohpc
+    - /opt/pub
   when:
     - inventory_hostname in groups['login_nodes']

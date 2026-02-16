@@ -21,18 +21,6 @@
   when: ansible_hostname in groups['sms']
   notify: Refresh modules
 
-# module use /opt/ohpc/pub/modulefiles/site
-- name: Ensure modules directories to MODULEPATH
-  ansible.builtin.lineinfile:
-    path: /etc/profile.d/lmod.sh
-    line: 'export MODULEPATH={{ item }}:$MODULEPATH'
-    state: present
-  loop:
-    - "{{ modules_custom_location }}"        # custom modules (e.g., Miniconda3)
-    #- /opt/ohpc/pub/apps/spack/{{ modules_spack_version }}/share/spack/lmod/gcc/{{ modules_spack_gcc }}   # Spack modules - it shouldn't be needed any longer but let's see
-  when: ansible_hostname in groups['sms']
-  notify: Refresh modules
-
 - name: Install Spack packages
   ansible.builtin.shell: >
     source /etc/profile.d/lmod.sh; ml spack;

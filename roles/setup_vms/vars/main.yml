@@ -24,13 +24,13 @@ setup_vms_vm_list:
     ip: '10.0.150.203'
     mac: '52:54:00:aa:bb:10'
   login1:
-    memory: 8192
+    memory: 32768
     vcpus: 4
     disk_size: 30G
     ip: '10.0.150.204'
     mac: '52:54:00:aa:bb:03'
   login2:
-    memory: 8192
+    memory: 32768
     vcpus: 4
     disk_size: 30G
     ip: '10.0.150.205'
@@ -49,7 +49,7 @@ setup_vms_vm_list:
     mac: '52:54:00:aa:bb:06'
   checkmk1:
     memory: 8192
-    vcpus: 1
+    vcpus: 2
     disk_size: 15G
     ip: '10.0.150.208'
     mac: '52:54:00:aa:bb:07'
@@ -67,13 +67,13 @@ setup_vms_vm_list:
   #   mac: '52:54:00:aa:bb:11'
   nginx1:
     memory: 2048
-    vcpus: 1
+    vcpus: 2
     disk_size: 10G
     ip: '10.0.150.211'
     mac: '52:54:00:aa:bb:12'
-  # nextcloud1:
-  #   memory: 8196
-  #   vcpus: 4
-  #   disk_size: 30G
-  #   ip: '10.0.150.212'
-  #   mac: '52:54:00:aa:bb:13'
+  guacamole1:
+    memory: 4096
+    vcpus: 2
+    disk_size: 30G
+    ip: '10.0.150.212'
+    mac: '52:54:00:aa:bb:13'

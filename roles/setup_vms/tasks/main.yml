@@ -143,3 +143,11 @@
     state: enabled
   delegate_to: "{{ item.key }}"
   loop: "{{ setup_vms_vm_list | dict2items }}"
+
+- name: Add 10.0.150.101 as ntp server
+  ansible.builtin.lineinfile:
+    path: /etc/chrony.conf
+    line: "server 10.0.150.101 iburst"
+    state: present
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_vm_list | dict2items }}"

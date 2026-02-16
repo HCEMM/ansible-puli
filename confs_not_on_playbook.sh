@@ -155,3 +155,43 @@ python3 -m venv .env
 pip install -r requirements.txt
 python manage.py runserver 0.0.0.0:8000
 
+
+
+# Warewulf overlay
+wwctl image exec --build=false almalinux-9-ldap /bin/bash -c 'dnf install -y ipa-client sssd oddjob oddjob-mkhomedir authselect certmonger krb5-workstation bind-utils polkit'
+systemctl enable oddjobd
+systemctl enable certmonger
+
+
+CONF=/etc/warewulf/nodes.conf
+
+users=(
+cfdna_clustering
+csensen
+jsequeira
+klamsa
+lpongor
+mroland
+sjuhasz
+tpankotai
+zbiacsi
+mmanczinger
+kvince
+)
+
+for u in "${users[@]}"; do
+  yq -i '
+    .nodeprofiles.default.resources.fstab += [{
+      "file": "/scratch/'"$u"'",
+      "spec": "10.0.150.147:/mnt/MirrorHDD/scratch/'"$u"'",
+      "vfstype": "nfs",
+      "mntops": "defaults,_netdev,nofail"
+    }]
+  ' $CONF
+done
+
+
+mkdir $CHROOT/var/log/slurm
+mkdir $CHROOT/var/spool/slurm
+
+

@@ -18,3 +18,17 @@
     name: slurmdbd
     state: started
     enabled: true
+
+- name: Enable and start slurmd service
+  ansible.builtin.systemd:
+    name: slurmd
+    enabled: true
+    state: started
+
+- name: Enable and start slurmd service on all compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    pdsh -w {{ compute_nodes | map(attribute='c_name') | join(',') }} "systemctl enable --now slurmd"
+  when:
+    - inventory_hostname in groups['sms']
+

@@ -82,10 +82,21 @@ all:
           hosts:
             nginx1:
 
+        guacamole_server:
+          hosts:
+            guacamole1:
+
     thinlinc_servers:
       children:
         sms:      # thinlinc_masters:      Eventually should change to thinlinc_masters
         thinlinc_agents:
+    
+    ldap:         # mostly to get the group_vars/ldap.yml
+      children:
+        ldap_server:
+        guacamole_server:
+        login_nodes:
+        sms:
 
   hosts:
     scc-cpu01-10G:
@@ -164,6 +175,6 @@ all:
       ansible_host: 10.0.150.211
       fqdn: nginx.hcemm.eu
 
-    dns1:
-      ansible_host: 10.0.150.214
-      fqdn: dns.hcemm.eu
+    guacamole1:
+      ansible_host: 10.0.150.212
+      fqdn: guacamole.hcemm.eu

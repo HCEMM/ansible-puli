@@ -1,0 +1,113 @@
+---
+# dnf -y install dnf-plugins-core
+- name: Install dnf-plugins-core
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+  when: inventory_hostname in groups['guacamole_server']
+
+# dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+- name: Install Docker CE repo file
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/rhel/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+    mode: '0644'
+  when: inventory_hostname in groups['guacamole_server']
+
+- name: Install Docker
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - libxcrypt-compat    # required by docker-compose
+    state: present
+  notify: Start and enable Docker service
+  when: inventory_hostname in groups['guacamole_server']
+
+
+# curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+- name: Install docker-compose
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}"
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+  when: inventory_hostname in groups['guacamole_server']
+
+- name: Create Guacamole configuration directories
+  ansible.builtin.file:
+    path: /opt/guacamole/{{ item }}
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - extensions
+    - init
+  when: inventory_hostname in groups['guacamole_server']
+
+- name: Deploy Guacamole docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/guacamole/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['guacamole_server']
+  notify: Start Guacamole container
+
+- name: Allow 8080 from nginx gateway
+  ansible.posix.firewalld:
+    rich_rule: rule family="ipv4" source address="10.0.150.211" port protocol="tcp" port="8080" accept
+    permanent: true
+    state: enabled
+    immediate: true
+  when: inventory_hostname in groups['guacamole_server']
+
+- name: Deploy HAProxy RDP config
+  ansible.builtin.template:
+    src: haproxy_rdp.cfg.j2
+    dest: /etc/haproxy/haproxy_rdp.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['sms']
+  notify: Restart HAProxy
+
+- name: Include HAProxy RDP config
+  ansible.builtin.lineinfile:
+    path: /etc/haproxy/haproxy.cfg
+    line: "include /etc/haproxy/haproxy_rdp.cfg"
+    state: present
+  when: inventory_hostname in groups['sms']
+  notify: Restart HAProxy
+
+- name: Install XRDP on login nodes
+  ansible.builtin.dnf:
+    name:
+      - xrdp
+      - xorgxrdp
+      - "@Xfce"     # dnf groupinstall "Xfce"
+    state: present
+  when: inventory_hostname in groups['login_nodes']
+
+# echo "exec startxfce4" > ~/.Xclients
+- name: Configure Xfce as default session for XRDP
+  ansible.builtin.copy:
+    dest: /etc/skel/.Xclients
+    content: "exec startxfce4\n"
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups['sms']           # can't be done on login_nodes cause this is mounted home dir from SMS
+
+- name: Ensure current users have .Xclients for Xfce
+  ansible.builtin.copy:
+    dest: "/home/{{ item.username }}/.Xclients"
+    content: "exec startxfce4\n"
+    owner: "{{ item.username }}"
+    group: "{{ item.groups[0] }}"
+    mode: "0755"
+    force: false
+  loop: "{{ ldap_users }}"
+  when: inventory_hostname in groups['sms']

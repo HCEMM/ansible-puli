@@ -22,9 +22,9 @@
     path: "/srv/warewulf/overlays/nodeconfig/rootfs/etc/{{ item.dest }}"
   loop:
     # wwctl overlay import --parents nodeconfig /etc/subuid
-    - { src: /etc/subuid, dest: subuid }
+    # - { src: /etc/subuid, dest: subuid }
     # wwctl overlay import --parents nodeconfig /etc/subgid
-    - { src: /etc/subgid, dest: subgid }
+    # - { src: /etc/subgid, dest: subgid }
     # echo 'server {{.Tags.ntpserver}} iburst' | \
     # wwctl overlay import --parents nodeconfig <(cat) /etc/chrony.conf.ww
     - { src: /etc/chrony.conf.ww, dest: chrony.conf.ww }
