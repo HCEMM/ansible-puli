@@ -12,7 +12,7 @@
     name: crb
     state: enabled
 
-- name: Install Slurm dependencies
+- name: Install general Slurm dependencies
   ansible.builtin.dnf:
     name: "{{ item }}"
     state: present
@@ -63,13 +63,7 @@
     owner: munge
     group: munge
     mode: '0400'
-
-# systemctl enable --now munge
-- name: Enable and start munge service
-  ansible.builtin.systemd:
-    name: munge
-    enabled: true
-    state: started
+  notify: Enable and start munge service
 
 - name: Create slurm folders
   ansible.builtin.file:
@@ -106,6 +100,7 @@
     - cgroup.conf
     - acct_gather.conf
     - topology.conf
+  notify: Enable and start slurmd service
   when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
 
 - name: Deploy epilog.sh
@@ -113,6 +108,7 @@
     src: epilog.sh
     dest: /etc/slurm/epilog.sh
     mode: '0755'
+  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
 
 # systemctl enable --now slurmctld
 - name: Enable and start slurmctld service
@@ -122,24 +118,33 @@
     state: started
   when:
     - ( inventory_hostname in groups['slurmctld'] )
-    - env == 'production'
 
-- name: Enable and start slurmd service
-  ansible.builtin.systemd:
-    name: slurmd
-    enabled: true
-    state: started
-  when:
-    - ( inventory_hostname in groups['computes'] )
-    - env == 'production'
-
-# pdsh -w $(IFS=','; echo "${c_name[*]}") "/usr/sbin/nhc-genconf -H '*' -c -" | dshbak -c
 - name: Generate NHC configuration on compute nodes
   ansible.builtin.shell: |
     set -o pipefail
-    /usr/sbin/nhc-genconf -H '*' -c - | dshbak -c
+    pdsh -w {{ compute_nodes | map(attribute='c_name') | join(',') }} "/usr/sbin/nhc-genconf -H '*' -c - | dshbak -c"
   args:
-    creates: /etc/nhc/nhc.conf
+    creates: "/etc/nhc/nhc.conf"
   when:
-    - ( inventory_hostname in groups['computes'] )
-    - env == 'production'
+    - inventory_hostname in groups['sms']
+
+- name: Copy Slurm configuration files to compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    # Copy common Slurm configs to all compute nodes
+    pdcp -w {{ compute_nodes | map(attribute='c_name') | join(',') }} \
+      /etc/slurm/slurm.conf \
+      /etc/slurm/epilog.sh \
+      /etc/slurm/cgroup.conf \
+      /etc/slurm/acct_gather.conf \
+      /etc/slurm/
+
+    # Copy gres.conf only to GPU nodes
+    pdcp -w {{ compute_nodes | selectattr('c_name', 'search', 'gpu') | map(attribute='c_name') | join(',') }} \
+    /etc/slurm/gres.conf \
+    /etc/slurm/
+
+  when:
+    - inventory_hostname in groups['sms']
+  notify: Enable and start slurmd service on all compute nodes

@@ -8,5 +8,4 @@
 #    enable: ["lmod"]
 
 export LMOD_QUIET=1
-module use /opt/spack/share/spack/lmod/linux-rocky9-x86_64/Core/
-unset LMOD_QUIET
+export SPACK_ROOT=/opt/ohpc/pub/apps/spack/{{ spack_version }}

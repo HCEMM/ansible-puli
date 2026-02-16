@@ -109,7 +109,7 @@
         fi
       args:
         executable: /bin/bash
-      loop: "{{ ipa_idranges }}"
+      loop: "{{ ldap_idranges }}"
       loop_control:
         label: "{{ item.name }}"
       changed_when: false

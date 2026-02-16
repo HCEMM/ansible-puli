@@ -70,3 +70,10 @@
     owner: root
     group: root
     mode: "0644"
+
+# tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+- name: Configure logrotate for slurm
+  ansible.builtin.shell: |
+    set -o pipefail
+    tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+  changed_when: false

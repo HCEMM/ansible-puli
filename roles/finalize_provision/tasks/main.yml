@@ -88,4 +88,3 @@
   when:
     - nodes_to_reset | length > 0
     - ( inventory_hostname in groups['sms'] )
-    - env == 'production'
