@@ -6,19 +6,51 @@ services:
     container_name: guacd
     restart: always
 
+  mariadb:
+    image: mariadb
+    container_name: guacamole_mariadb
+    restart: always
+    environment:
+      MARIADB_DATABASE: "{{ guacamole_db_name }}"
+      MARIADB_USER: "{{ guacamole_db_user }}"
+      MARIADB_PASSWORD: "{{ guacamole_db_user_password }}"
+      MARIADB_ROOT_PASSWORD: "{{ guacamole_db_root_password }}"
+    volumes:
+      - "initdb:/docker-entrypoint-initdb.d:ro"
+
   guacamole:
-    image: guacamole/guacamole
+    image: guacamole/guacamole:{{ guacamole_version }}
     container_name: guacamole
     restart: always
     environment:
       GUACD_HOSTNAME: "{{ guacamole_guacd_hostname }}"
+
+      # LDAP stuff
       LDAP_HOSTNAME: "{{ ldap_server_fqdn }}"
       LDAP_PORT: "{{ ldap_port }}"
       LDAP_USER_BASE_DN: "{{ ldap_user_base_dn }}"
       LDAP_USERNAME_ATTRIBUTE: "{{ ldap_username_attribute }}"
       LDAP_SEARCH_BIND_DN: "{{ ldap_search_bind_dn }}"
       LDAP_SEARCH_BIND_PASSWORD: "{{ ldap_admin_password_raw }}"
+      
+      # MariaDB
+      MYSQL_ENABLED: "true"
+      MYSQL_HOSTNAME: mariadb
+      MYSQL_DATABASE: "{{ guacamole_db_name }}"
+      MYSQL_USER: "{{ guacamole_db_user }}"
+      MYSQL_PASSWORD: "{{ guacamole_db_user_password }}"
+      MYSQL_AUTO_CREATE_ACCOUNTS: "true"
+
+      # TOTP stuff
+      #TOTP_ENABLED: "true"
+
     ports:
       - "8080:8080"
     depends_on:
       - guacd
+      - mariadb
+    volumes:
+      - "initdb:/opt/guacamole/extensions/guacamole-auth-jdbc/mysql/schema:ro"
+
+volumes:
+  initdb:

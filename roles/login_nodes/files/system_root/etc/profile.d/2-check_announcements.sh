@@ -8,7 +8,7 @@ ONE_WEEK_AGO=$(date -d "$CURRENT_DATE -7 days" +"%s")
 
 # Colors
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
+RED='\033[1;31m'
 NC='\033[0m' # No Color
 
 # Get the last announcement number the user has seen, if it exists

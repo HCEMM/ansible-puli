@@ -1,1 +1,6 @@
 guacamole_guacd_hostname: guacd
+guacamole_db_root_password: "guacamole_root_password"
+guacamole_db_name: "guacamole_db"
+guacamole_db_user: "guacamole_user"
+guacamole_db_user_password: "guacamole_user_password"
+guacamole_version: "1.6.0"

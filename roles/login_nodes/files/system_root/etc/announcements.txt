@@ -10,3 +10,15 @@
 #10.[A] [2025-05-19] `midnight-commander` is now available in the system! For more information, see: https://www.redhat.com/en/blog/midnight-commander-file-manager
 #11.[W] [2025-07-03] The server will undergo maintenance in the weekend after this one (12 and 13 July). Some disruptions might occur to PULI functionalities.
 #12.[W] [2025-07-16] The cluster will undergo maintenance in the next weekend (19 and 20 July). Try to schedule your jobs to finish before, since the cluster will be reset. Home folders content will be backed up, but space in HOME will be greatly reduced. Please, if possible, move the contents from HOME to SCRATCH. Thank you for your understanding.
+#13.[A] [2025-08-12] Welcome back to the PULI supercomputer! :D
+#14.[W] [2025-08-12] Because of high usage of the CPU partition, we advise users to experiment using the "highmem" and "gpu" partitions, even if the increase resources are not required. This situation will be temporary.
+#15.[W] [2025-09-12] PULI will undergo maintenance next Monday, as the effort of virtualizing its functionalities is at its final stage. Jobs might be interrupted, I hope not.
+#16.[A] [2025-10-02] Rsync currently happening between the storage nodes, data transfer to /scratch might be slower
+#17.[A] [2025-10-28] Today the cluster will undergo maintenance to install much faster connections into the storage servers. Please try to finish your submitted jobs until today at 4PM. Storage might become unavailable between 7-8PM.
+#18.[A] [2026-01-11] Here's to a great 2026!
+#19.[A] [2026-01-11] Currently debugging the miniconda3 module, it may become unavailable for a couple of hours.
+#20.[A] [2026-01-11] Fixed it. Enjoy a fully functional conda :)
+#21.[W] [2026-01-28] PULI will undergo maintenance on the 7th and 8th of February. It might become unavailable for a couple of hours. Please plan accordingly.
+#22.[W] [2026-02-06] Last reminder that PULI will undergo maintenance this weekend. Make sure to wrap up your jobs accordingly. 
+23.[W] [2026-02-17] Reminder that in the next two days (18th and 19th) there will be power outages on HCEMM HQ. Half of the server will continue operations uninterrupted, but network access may be cut momentarily. Plan accordingly. 
+24.[W] [2026-02-17] Also reminder that the following two days will see another (hopefully final) round of revamping the architecture of the cluster, along with some bug fixes. Take a rest from PULI accordingly.
