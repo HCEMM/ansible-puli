@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: "0644"
+    force: true                                 # we want to overwrite files in /etc with our versions, even if they already exist
 
 - name: Copy user executables into /usr/local/bin
   ansible.builtin.copy:
@@ -14,6 +15,7 @@
     owner: root
     group: root
     mode: "0755"
+    force: true
 
 - name: Copy root executables into /root/bin
   ansible.builtin.copy:
@@ -22,14 +24,16 @@
     owner: root
     group: root
     mode: "0700"
+    force: true
 
-- name: Copy lmod.sh            # TODO: This should be with lineinfile or copy
+- name: Copy lmod.sh
   ansible.builtin.copy:
     src: /etc/profile.d/lmod.sh
     dest: /etc/profile.d/lmod.sh
     owner: root
     group: root
     mode: "0755"
+    force: true
 
 - name: Add cron job to check 2FA users hourly
   ansible.builtin.cron:
