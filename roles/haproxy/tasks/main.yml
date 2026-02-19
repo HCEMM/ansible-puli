@@ -1,13 +1,12 @@
----
-- name: Configure SSH proxy on SMS using HAProxy
-  when:
-    - inventory_hostname in groups['sms']
+- name: Configure SSH proxy 
+  when: 
+    - inventory_hostname not in groups['sms']
   block:
-
-    - name: Install HAProxy
+    - name: Install required packages
       ansible.builtin.dnf:
         name:
           - haproxy
+          - policycoreutils-python-utils   # semanage
         state: present
 
     - name: Ensure /etc/ssh/sshd_config.d exists
@@ -17,30 +16,6 @@
         owner: root
         group: root
         mode: "0755"
-
-    # Move sshd away from port 22 so HAProxy can bind :22
-    - name: Configure sshd on SMS to use admin port (free port 22 for HAProxy)
-      when:
-        - sms_move_sshd_off_22 | default(true) | bool
-      block:
-        - name: Deploy sshd drop-in for SMS (admin port)
-          ansible.builtin.template:
-            src: sms-sshd.conf.j2
-            dest: /etc/ssh/sshd_config.d/sms-sshd.conf
-            owner: root
-            group: root
-            mode: "0644"
-          notify: Restart sshd
-
-        - name: Validate sshd config
-          ansible.builtin.command: sshd -t
-          changed_when: false
-
-        - name: Ensure sshd is started/enabled
-          ansible.builtin.systemd:
-            name: sshd
-            state: started
-            enabled: true
 
     - name: Deploy HAProxy config (SSH proxy)
       ansible.builtin.template:
@@ -55,13 +30,73 @@
       ansible.builtin.command: haproxy -c -f /etc/haproxy/haproxy.cfg
       changed_when: false
 
+    # Move sshd off 22 so HAProxy can bind :22
+    - name: Configure sshd on thinlinc2 to use admin port (free port 22 for HAProxy)
+      when: sms_move_sshd_off_22 | default(true) | bool
+      block:
+        - name: Deploy sshd drop-in (admin port)
+          ansible.builtin.template:
+            src: sms-sshd.conf.j2
+            dest: /etc/ssh/sshd_config.d/sms-sshd.conf
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Restart sshd
+
+        - name: Validate sshd config
+          ansible.builtin.command: sshd -t
+          changed_when: false
+
+        - name: Check if SELinux already allows sshd admin port (ssh_port_t)
+          ansible.builtin.shell: |
+            set -e
+            p="{{ sms_sshd_admin_port | default(2222) }}"
+            semanage port -l | awk '$1=="ssh_port_t"{print $4}' | tr ',' '\n' | grep -qx "$p"
+          args:
+            executable: /bin/bash
+          register: seport_exists
+          changed_when: false
+          failed_when: false
+          when: (sms_sshd_admin_port | default(2222)) | int != 22
+
+        - name: Add sshd admin port to SELinux (ssh_port_t) if missing
+          ansible.builtin.shell: |
+            set -e
+            p="{{ sms_sshd_admin_port | default(2222) }}"
+            semanage port -a -t ssh_port_t -p tcp "$p" 2>/dev/null || semanage port -m -t ssh_port_t -p tcp "$p"
+          args:
+            executable: /bin/bash
+          when:
+            - (sms_sshd_admin_port | default(2222)) | int != 22
+            - seport_exists.rc is defined
+            - seport_exists.rc != 0
+          changed_when: true
+          failed_when: false
+
+        - name: Apply sshd restart immediately (so 22 becomes free)
+          ansible.builtin.meta: flush_handlers
+
+        - name: Check sshd is listening on admin port
+          ansible.builtin.command: "ss -tlnp | grep -E ':{{ sms_sshd_admin_port | default(2222) }}\\b' | grep -i sshd"
+          changed_when: false
+
+        - name: Fail if sshd is still listening on port 22
+          ansible.builtin.shell: |
+            ss -tlnp | grep -E ':22\b' | grep -qi sshd
+          args:
+            executable: /bin/bash
+          register: sshd_on_22
+          changed_when: false
+          failed_when: sshd_on_22.rc == 0
+
+    #firewalld rules
     - name: Detect firewalld state
       ansible.builtin.command: firewall-cmd --state
       register: fw_state
       changed_when: false
       failed_when: false
 
-    - name: Open firewall service ssh (port 22) for users on SMS
+    - name: Open firewall service ssh for users
       when: fw_state.stdout == "running"
       ansible.posix.firewalld:
         service: ssh
@@ -69,8 +104,7 @@
         state: enabled
         immediate: true
 
-    # Optional open the admin ssh port on SMS if we moved sshd off 22
-    - name: Open firewall admin ssh port on SMS
+    - name: Open firewall admin ssh port
       when:
         - fw_state.stdout == "running"
         - sms_move_sshd_off_22 | default(true) | bool
@@ -80,28 +114,28 @@
         state: enabled
         immediate: true
 
-    # Optional SELinux helper (safe to run even if permissive/disabled)
-    - name: Enable SELinux boolean for HAProxy outbound connections
-      ansible.builtin.command: setsebool -P haproxy_connect_any 1
-      register: sebool_set
-      changed_when: sebool_set.rc == 0
+    - name: Allow HAProxy outbound connections (SELinux)
+      ansible.posix.seboolean:
+        name: haproxy_connect_any
+        state: true
+        persistent: true
       failed_when: false
 
-    - name: Ensure HAProxy is started/enabled
+    - name: Ensure HAProxy is enabled
       ansible.builtin.systemd:
         name: haproxy
-        state: started
         enabled: true
 
-    - name: Flush handlers (apply restarts now)
+    - name: Apply HAProxy restart immediately
       ansible.builtin.meta: flush_handlers
 
+    - name: Confirm HAProxy is listening on 22
+      ansible.builtin.command: "ss -tlnp | grep -E ':22\\b' | grep -i haproxy"
+      changed_when: false
 
-- name: Configure sshd policy on Login Nodes (bind to primary IP)
-  when:
-    - inventory_hostname in groups['login_nodes']
+- name: Configure sshd policy on Login Nodes
+  when: inventory_hostname in groups['login_nodes']
   block:
-
     - name: Ensure /etc/ssh/sshd_config.d exists
       ansible.builtin.file:
         path: /etc/ssh/sshd_config.d
@@ -110,7 +144,7 @@
         group: root
         mode: "0755"
 
-    - name: Deploy sshd drop-in for login nodes
+    - name: Deploy sshd drop-in
       when: login_nodes_bind_sshd_to_primary_ip | default(true) | bool
       ansible.builtin.template:
         src: loginnode-sshd.conf.j2
@@ -125,11 +159,8 @@
       ansible.builtin.command: sshd -t
       changed_when: false
 
-    - name: Ensure sshd is started/enabled
-      ansible.builtin.systemd:
-        name: sshd
-        state: started
-        enabled: true
-
-    - name: Flush handlers (apply restarts now)
+    - name: Apply sshd restart immediately on login nodes
+      when: login_nodes_bind_sshd_to_primary_ip | default(true) | bool
       ansible.builtin.meta: flush_handlers
+
+
