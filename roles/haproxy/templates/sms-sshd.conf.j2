@@ -1,6 +1,6 @@
 # Managed by Ansible (haproxy role)
 AddressFamily inet
-Port {{ cpu1_sshd_admin_port }}
+Port {{ sms_sshd_admin_port | default(2222) }}
 ListenAddress {{ ansible_default_ipv4.address }}
 
 {% if cpu1_sshd_allow_users is defined and cpu1_sshd_allow_users|length > 0 %}

@@ -8,6 +8,7 @@ haproxy_backend_port: 22
 
 # --- SMS sshd policy ---
 # When true, move sshd on sms away from 22 to admin port.
+ansible_port: 22
 sms_move_sshd_off_22: true
 sms_sshd_admin_port: 2222
 
@@ -16,6 +17,8 @@ sms_sshd_admin_port: 2222
 sms_sshd_allow_users:
   - root
   - hcemm
+  - jsequeira
+  - mkavoosi
 
 # --- Login nodes sshd bind ---
 login_nodes_bind_sshd_to_primary_ip: true

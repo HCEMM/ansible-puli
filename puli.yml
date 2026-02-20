@@ -9,17 +9,17 @@
 #     # - create_bridge
 #     - setup_vms
 
-- name: Setup NFS shares
-  hosts:
-    # - sms
-    - login1
-    # - login_nodes
-    # - galaxy_server
-    # - emma_server
-  become: true
-  gather_facts: true
-  roles:
-    - configure_shares
+# - name: Setup NFS shares
+#   hosts:
+#     # - sms
+#     - login1
+#     # - login_nodes
+#     # - galaxy_server
+#     # - emma_server
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - configure_shares
 
 # - name: Setup LDAP server
 #   hosts:
@@ -91,23 +91,23 @@
 #   roles:
 #     - setup_slurm
 
-- name: Setup Login nodes
-  hosts:
-    - login_nodes
-  become: true
-  gather_facts: true
-  roles:
-    - login_nodes
-    - fail2ban
+# - name: Setup Login nodes
+#   hosts:
+#     - login_nodes
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - login_nodes
+#     - fail2ban
 
-- name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
-  hosts:
-    - sms
-    - login_nodes
-  become: true
-  gather_facts: true
-  roles:
-    - modules
+# - name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
+#   hosts:
+#     - sms
+#     - login_nodes
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - modules
 
 # - name: Install ThinLinc Server
 #   hosts: thinlinc_servers
@@ -122,4 +122,13 @@
   gather_facts: true
   roles:
     - haproxy
+
+# - name: Setup Checkmk 
+#   hosts:
+#     - monitoring
+#     - hosts
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - checkmk
 
