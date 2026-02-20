@@ -1,0 +1,54 @@
+# Checkmk
+checkmk_server_fqdn: "checkmk1.cluster.hcemm.eu"
+checkmk_server_ip: "10.0.150.208"
+
+# Version / Package
+checkmk_version: "2.4.0p10"
+checkmk_rpm_filename: "check-mk-raw-2.4.0p10-el8-38.x86_64.rpm"
+checkmk_rpm_url: "https://download.checkmk.com/checkmk/{{ checkmk_version }}/{{ checkmk_rpm_filename }}"
+checkmk_rpm_dest: "/tmp/{{ checkmk_rpm_filename }}"
+
+# OMD site
+checkmk_site: "monitoring"
+checkmk_admin_user: "cmkadmin"
+checkmk_admin_password_raw: "hcemm2018HQ"
+
+# Firewall
+checkmk_firewall_zone: "public"
+checkmk_firewall_services:
+  - http
+  - https
+checkmk_firewall_ports:
+  - "8000/tcp"
+  - "6556/tcp"
+
+# Agent packages (RHEL/Alma)
+checkmk_agent_rpm_filename: "check-mk-agent-{{ checkmk_version }}-1.noarch.rpm"
+checkmk_agent_rpm_url: "http://{{ checkmk_server_ip }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_rpm_filename }}"
+checkmk_agent_rpm_dest: "/tmp/{{ checkmk_agent_rpm_filename }}"
+
+# Agent packages (Ubuntu)
+checkmk_agent_deb_filename: "check-mk-agent_{{ checkmk_version }}-1_all.deb"
+checkmk_agent_deb_url: "http://{{ checkmk_server_ip }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_deb_filename }}"
+checkmk_agent_deb_dest: "/tmp/{{ checkmk_agent_deb_filename }}"
+
+# Agent registration
+checkmk_register: true
+checkmk_register_server: "{{ checkmk_server_ip }}"
+checkmk_register_site: "{{ checkmk_site }}"
+checkmk_register_user: "{{ checkmk_admin_user }}"
+checkmk_register_password_raw: "{{ checkmk_admin_password_raw }}"
+checkmk_register_trust_cert: true
+
+checkmk_agent_hostname_override:
+  emma: "emma1"
+
+# Backup configuration
+checkmk_backup_enabled: true
+checkmk_backup_dir: "/mnt/hcemm-admin/checkmk"
+checkmk_backup_mount_src: "10.0.150.147:/mnt/MirrorHDD/hcemm-admin/checkmk"
+checkmk_backup_fstype: "nfs"
+checkmk_backup_mount_opts: "rw,_netdev,hard,timeo=600,retrans=2"
+checkmk_backup_owner: "{{ checkmk_site }}"
+checkmk_backup_group: "{{ checkmk_site }}"
+checkmk_backup_mode: "0770"

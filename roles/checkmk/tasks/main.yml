@@ -1,0 +1,246 @@
+---
+- name: Install and configure Checkmk server
+  when:
+    - inventory_hostname in groups['monitoring']
+  block:
+    - name: Ensure required packages are installed
+      ansible.builtin.dnf:
+        name:
+          - wget
+          - firewalld
+          - httpd
+          - policycoreutils-python-utils
+          - nfs-utils   #backup mount
+        state: present
+
+    - name: Ensure firewalld is enabled and running
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Allow httpd to make network connections
+      ansible.posix.seboolean:
+        name: httpd_can_network_connect
+        state: true
+        persistent: true
+
+    - name: Enable firewall services (http/https)
+      ansible.posix.firewalld:
+        zone: "{{ checkmk_firewall_zone }}"
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: false
+      loop: "{{ checkmk_firewall_services }}"
+      notify: Reload firewalld
+
+    - name: Enable firewall ports (8000, 6556)
+      ansible.posix.firewalld:
+        zone: "{{ checkmk_firewall_zone }}"
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: false
+      loop: "{{ checkmk_firewall_ports }}"
+      notify: Reload firewalld
+
+    - name: Ensure httpd is enabled and running
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: Download Checkmk RPM
+      ansible.builtin.get_url:
+        url: "{{ checkmk_rpm_url }}"
+        dest: "{{ checkmk_rpm_dest }}"
+        mode: "0644"
+
+    - name: Install Checkmk RPM
+      ansible.builtin.dnf:
+        name: "{{ checkmk_rpm_dest }}"
+        state: present
+        disable_gpg_check: true
+
+    # OMD site setup
+    - name: Check if OMD site already exists
+      ansible.builtin.stat:
+        path: "/omd/sites/{{ checkmk_site }}"
+      register: omd_site_dir
+
+    - name: Create OMD site (only if it does not exist)
+      ansible.builtin.command: >
+        omd create --admin-password {{ checkmk_admin_password_raw | quote }} {{ checkmk_site }}
+      when: not omd_site_dir.stat.exists
+      changed_when: true
+      no_log: true
+
+    # Backup configuration
+    - name: Configure Checkmk backup storage
+      when: checkmk_backup_enabled | bool
+      block:
+        - name: Ensure backup mountpoint exists
+          ansible.builtin.file:
+            path: "{{ checkmk_backup_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Mount TrueNAS backup share
+          ansible.posix.mount:
+            path: "{{ checkmk_backup_dir }}"
+            src: "{{ checkmk_backup_mount_src }}"
+            fstype: "{{ checkmk_backup_fstype }}"
+            opts: "{{ checkmk_backup_mount_opts }}"
+            state: mounted
+
+        - name: Ensure ownership for Checkmk site user
+          ansible.builtin.file:
+            path: "{{ checkmk_backup_dir }}"
+            owner: "{{ checkmk_backup_owner }}"
+            group: "{{ checkmk_backup_group }}"
+            mode: "{{ checkmk_backup_mode }}"
+            state: directory
+
+        - name: Ensure SELinux tools installed
+          ansible.builtin.dnf:
+            name: policycoreutils-python-utils
+            state: present
+
+        - name: Ensure SELinux fcontext for backup directory
+          community.general.sefcontext:
+            target: "{{ checkmk_backup_dir }}(/.*)?"
+            setype: httpd_sys_rw_content_t
+            state: present
+
+        - name: Apply SELinux context
+          ansible.builtin.command: restorecon -Rv "{{ checkmk_backup_dir }}"
+          changed_when: true
+
+        - name: Test write access as site user
+          ansible.builtin.command: >
+            omd su {{ checkmk_site }} -c
+            "touch {{ checkmk_backup_dir }}/.ansible_test &&
+             rm -f {{ checkmk_backup_dir }}/.ansible_test"
+          changed_when: false
+
+    - name: Ensure OMD site is started
+      ansible.builtin.command: "omd start {{ checkmk_site }}"
+      register: omd_start
+      changed_when: >
+        ('Starting' in (omd_start.stdout | default(''))) or
+        ('Initializing' in (omd_start.stdout | default(''))) or
+        (omd_start.rc == 0 and (omd_start.stdout | default('')) | length > 0)
+      failed_when: omd_start.rc != 0
+
+    - name: Print Checkmk URL and login hint
+      ansible.builtin.debug:
+        msg:
+          - "Checkmk URL: http://{{ checkmk_server_ip }}/{{ checkmk_site }}"
+          - "User: {{ checkmk_admin_user }}"
+          - "Password: stored in vars/vault (not printed)"
+
+# Note: Agent registration
+- name: Install and register Checkmk agent
+  when:
+    - inventory_hostname in groups['hosts']
+    - inventory_hostname not in groups['thinlinc1']
+    - inventory_hostname not in groups['thinlinc2']
+  block:
+    - name: Set effective hostname for Checkmk registration
+      ansible.builtin.set_fact:
+        checkmk_effective_hostname: >-
+          {{
+            (checkmk_agent_hostname_override[inventory_hostname]
+              if (checkmk_agent_hostname_override is defined and inventory_hostname in checkmk_agent_hostname_override)
+              else (ansible_fqdn | default(inventory_hostname)))
+          }}
+      changed_when: false
+
+    - name: Open agent port 6556/tcp with firewalld (if available)
+      ansible.posix.firewalld:
+        zone: public
+        port: "6556/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+      when: ansible_facts.os_family == "RedHat"
+
+    # UFW (Ubuntu default)
+    - name: Allow 6556/tcp in UFW (Ubuntu/Debian, if ufw exists)
+      ansible.builtin.command: "ufw allow 6556/tcp"
+      when: ansible_facts.os_family == "Debian"
+      register: ufw_allow
+      changed_when: "'Rule added' in (ufw_allow.stdout | default('')) or 'Rules updated' in (ufw_allow.stdout | default(''))"
+      failed_when: false
+
+    # RHEL/Alma path (RPM)
+    - name: Install Checkmk agent on RHEL/Alma (RPM)
+      when: ansible_facts.os_family == "RedHat"
+      block:
+        - name: Download Checkmk agent RPM from Checkmk server
+          ansible.builtin.get_url:
+            url: "{{ checkmk_agent_rpm_url }}"
+            dest: "{{ checkmk_agent_rpm_dest }}"
+            mode: "0644"
+
+        - name: Install/Upgrade Checkmk agent RPM
+          ansible.builtin.dnf:
+            name: "{{ checkmk_agent_rpm_dest }}"
+            state: present
+            disable_gpg_check: true
+
+        - name: Enable and start Checkmk agent socket
+          ansible.builtin.service:
+            name: check-mk-agent.socket
+            state: started
+            enabled: true
+
+    # Debian/Ubuntu path (DEB)
+    - name: Install Checkmk agent on Debian/Ubuntu (DEB)
+      when: ansible_facts.os_family == "Debian"
+      block:
+        - name: Download Checkmk agent DEB from Checkmk server
+          ansible.builtin.get_url:
+            url: "{{ checkmk_agent_deb_url }}"
+            dest: "{{ checkmk_agent_deb_dest }}"
+            mode: "0644"
+
+        - name: Install/Upgrade Checkmk agent DEB
+          ansible.builtin.apt:
+            deb: "{{ checkmk_agent_deb_dest }}"
+            state: present
+          become: true
+
+        - name: Enable and start Checkmk agent socket
+          ansible.builtin.service:
+            name: check-mk-agent.socket
+            state: started
+            enabled: true
+
+    # Registration
+    - name: Check agent registration status
+      ansible.builtin.command: cmk-agent-ctl status
+      register: cmk_agent_status
+      changed_when: false
+      failed_when: false
+
+    - name: Register agent to Checkmk server (if not registered)
+      ansible.builtin.command: >
+        cmk-agent-ctl register
+        --hostname {{ checkmk_effective_hostname }}
+        --server {{ checkmk_register_server }}
+        --site {{ checkmk_register_site }}
+        --user {{ checkmk_register_user }}
+        --password {{ checkmk_register_password_raw | quote }}
+        {% if checkmk_register_trust_cert | bool %} --trust-cert {% endif %}
+      when:
+        - checkmk_register | bool
+        - cmk_agent_status.rc != 0 or ('Registered' not in (cmk_agent_status.stdout | default('')))
+      changed_when: true
+      no_log: true
+
+
+
+
+
