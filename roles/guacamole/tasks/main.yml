@@ -74,7 +74,7 @@
     immediate: true
   when: inventory_hostname in groups['guacamole_server']
 
-- name: Deploy HAProxy Guacamole config
+- name: Deploy HAProxy Guacamole config   # don't need include
   ansible.builtin.template:
     src: guacamole.cfg.j2
     dest: /etc/haproxy/conf.d/guacamole.cfg
