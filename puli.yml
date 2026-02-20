@@ -132,3 +132,12 @@
 #   roles:
 #     - checkmk
 
+- name: Setup Guacamole
+  hosts:
+    # - guacamole_server
+    # - login_nodes
+    - sms             # for HAProxy config
+  become: true
+  gather_facts: true
+  roles:
+    - guacamole
