@@ -84,14 +84,6 @@
   when: inventory_hostname in groups['sms']
   notify: Restart HAProxy
 
-- name: Include HAProxy RDP config
-  ansible.builtin.lineinfile:
-    path: /etc/haproxy/haproxy.cfg
-    line: "include /etc/haproxy/conf.d/*.cfg"
-    state: present
-  when: inventory_hostname in groups['sms']
-  notify: Restart HAProxy
-
 - name: Install XRDP on login nodes
   ansible.builtin.dnf:
     name:
