@@ -1,6 +1,6 @@
 - name: Configure SSH proxy 
   when: 
-    - inventory_hostname not in groups['sms']
+    - inventory_hostname in groups['sms']
   block:
     - name: Install required packages
       ansible.builtin.dnf:
@@ -77,7 +77,10 @@
           ansible.builtin.meta: flush_handlers
 
         - name: Check sshd is listening on admin port
-          ansible.builtin.command: "ss -tlnp | grep -E ':{{ sms_sshd_admin_port | default(2222) }}\\b' | grep -i sshd"
+          ansible.builtin.shell: |
+            ss -tlnp | grep -E ':{{ sms_sshd_admin_port | default(2222) }}\b' | grep -i sshd
+          args:
+            executable: /bin/bash
           changed_when: false
 
         - name: Fail if sshd is still listening on port 22
@@ -130,7 +133,10 @@
       ansible.builtin.meta: flush_handlers
 
     - name: Confirm HAProxy is listening on 22
-      ansible.builtin.command: "ss -tlnp | grep -E ':22\\b' | grep -i haproxy"
+      ansible.builtin.shell: |
+        ss -tlnp | grep -E ':{{ haproxy_ssh_listen_port | default(22) }}\b' | grep -qi haproxy
+      args:
+        executable: /bin/bash
       changed_when: false
 
 - name: Configure sshd policy on Login Nodes
