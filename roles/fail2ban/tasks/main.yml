@@ -26,8 +26,6 @@
     force: false
   notify:
     - Restart fail2ban
-  when:
-    - inventory_hostname in groups['sms']
 
 - name: Ensure fail2ban is configured to ignore specific IPs
   ansible.builtin.lineinfile:
