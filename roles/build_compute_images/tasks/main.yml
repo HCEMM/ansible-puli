@@ -73,9 +73,9 @@
     - krb5-workstation
   when:
     - inventory_hostname in groups['sms']
-  notify:
-    - Enable munge and slurmd inside Warewulf image
-    - Build overlays if image was changed
+  # notify:  -> not valid in include_tasks
+  #   - Enable munge and slurmd inside Warewulf image
+  #   - Build overlays if image was changed
 
 - name: Check if /var/spool/slurm exists inside Warewulf image
   ansible.builtin.command: >

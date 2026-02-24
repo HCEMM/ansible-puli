@@ -26,4 +26,5 @@ modules_spack_packages:
   - py-jupyter>=1.0.0
   - py-notebook>=6.4.0
   - py-tqdm>=4.62.0
+  - openjdk
 modules_custom_location: /opt/pub/modulefiles/site

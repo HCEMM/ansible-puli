@@ -67,6 +67,13 @@
       - tcl
     state: present
 
+# tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+- name: Configure logrotate for slurm
+  ansible.builtin.shell: |
+    set -o pipefail
+    tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+  changed_when: false
+
 - name: Configure limits.conf
   ansible.builtin.template:
     src: limits.conf.j2
@@ -75,9 +82,22 @@
     group: root
     mode: "0644"
 
-# tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
-- name: Configure logrotate for slurm
-  ansible.builtin.shell: |
-    set -o pipefail
-    tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
-  changed_when: false
+# mkdir -p /etc/systemd/system/user.slice.d
+- name: Create systemd directory for user slice overrides
+  ansible.builtin.file:
+    path: /etc/systemd/system/user.slice.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# /etc/systemd/system/user.slice.d/50-login-limits.conf
+- name: Configure systemd user slice memory limit
+  ansible.builtin.template:
+    src: 50-login-limits.conf.j2
+    dest: /etc/systemd/system/user.slice.d/50-login-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon

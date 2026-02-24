@@ -20,5 +20,5 @@
 #20.[A] [2026-01-11] Fixed it. Enjoy a fully functional conda :)
 #21.[W] [2026-01-28] PULI will undergo maintenance on the 7th and 8th of February. It might become unavailable for a couple of hours. Please plan accordingly.
 #22.[W] [2026-02-06] Last reminder that PULI will undergo maintenance this weekend. Make sure to wrap up your jobs accordingly. 
-23.[W] [2026-02-17] Reminder that in the next two days (18th and 19th) there will be power outages on HCEMM HQ. Half of the server will continue operations uninterrupted, but network access may be cut momentarily. Plan accordingly. 
-24.[W] [2026-02-17] Also reminder that the following two days will see another (hopefully final) round of revamping the architecture of the cluster, along with some bug fixes. Take a rest from PULI accordingly.
+#23.[W] [2026-02-17] Reminder that in the next two days (18th and 19th) there will be power outages on HCEMM HQ. Half of the server will continue operations uninterrupted, but network access may be cut momentarily. Plan accordingly. 
+#24.[W] [2026-02-17] Also reminder that the following two days will see another (hopefully final) round of revamping the architecture of the cluster, along with some bug fixes. Take a rest from PULI accordingly.

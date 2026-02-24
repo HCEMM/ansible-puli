@@ -1,7 +1,5 @@
 # Managed by Ansible - don't edit manually!
 # /etc/security/limits.conf
 
-{% for limit, values in login_nodes_limits.items() %}
-* soft {{ limit }} {{ values.soft }}
-* hard {{ limit }} {{ values.hard }}
-{% endfor %}
+* soft cpu {{ login_nodes_limits.cpu_time_soft }}
+* hard cpu {{ login_nodes_limits.cpu_time_hard }}

@@ -128,6 +128,19 @@
   when:
     - inventory_hostname in groups['sms']
 
+- name: Open firewall ports on login nodes
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 6817/tcp   # slurmctld
+    - 6818/tcp   # slurmdbd
+    - 6819/tcp   # slurmd
+    - 32768-60999/tcp  # slurmctld/slurmd communication
+  when: inventory_hostname in groups['login_nodes']
+
 - name: Copy Slurm configuration files to compute nodes
   ansible.builtin.shell: |
     set -o pipefail
