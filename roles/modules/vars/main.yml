@@ -27,4 +27,24 @@ modules_spack_packages:
   - py-notebook>=6.4.0
   - py-tqdm>=4.62.0
   - openjdk
+  - fastqc
+  - trimmomatic
+  - fastp
+  - multiqc
+  - hisat2
+  - star
+  - samtools
+  - subread      # featureCounts
+  - bedtools
+  - seqkit
+  - salmon
+  - sra-tools
+  - r-base
+  - r-tidyverse
+  - r-pheatmap
+  - r-ggplot2
+  - bioconductor-deseq2
+  - r-limma
+  - r-tximport
+  - r-org.hs.eg.db
 modules_custom_location: /opt/pub/modulefiles/site
