@@ -114,14 +114,14 @@
 #   roles:
 #     - role: tl
 
-- name: Setup SSH proxy on SMS and sshd policy on login nodes
-  hosts:
-    - sms
-    - login_nodes
-  become: true
-  gather_facts: true
-  roles:
-    - haproxy
+# - name: Setup SSH proxy on SMS and sshd policy on login nodes
+#   hosts:
+#     - sms
+#     - login_nodes
+#   become: true
+#   gather_facts: true
+#   roles:
+#     - haproxy
 
 # - name: Setup Checkmk 
 #   hosts:
@@ -135,7 +135,7 @@
 - name: Setup Guacamole
   hosts:
     # - guacamole_server
-    # - login_nodes
+    - login_nodes
     - sms             # for HAProxy config
   become: true
   gather_facts: true

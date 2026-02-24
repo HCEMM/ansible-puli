@@ -160,13 +160,29 @@
         mode: "0644"
       notify: Restart sshd
 
+    - name: Deploy shared SSH host private key
+      ansible.builtin.copy:
+        src: ssh_host_ed25519_key
+        dest: /etc/ssh/ssh_host_ed25519_key
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart sshd
+
+    - name: Deploy shared SSH host public key
+      ansible.builtin.copy:
+        src: ssh_host_ed25519_key.pub
+        dest: /etc/ssh/ssh_host_ed25519_key.pub
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart sshd
+
     - name: Validate sshd config
-      when: login_nodes_bind_sshd_to_primary_ip | default(true) | bool
       ansible.builtin.command: sshd -t
       changed_when: false
 
     - name: Apply sshd restart immediately on login nodes
-      when: login_nodes_bind_sshd_to_primary_ip | default(true) | bool
       ansible.builtin.meta: flush_handlers
 
 
