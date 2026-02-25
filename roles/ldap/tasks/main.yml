@@ -190,13 +190,13 @@
         - item.item.password is defined
         - item.item.password | length > 0
 
-    - name: Enforce user authentication type = password
+    - name: Enforce user authentication type
       ansible.builtin.command:
         argv:
           - ipa
           - user-mod
           - "{{ item.username }}"
-          - "--user-auth-type=password"
+          - "--user-auth-type={{ ldap_user_auth_type }}"
       register: ipa_user_auth
       changed_when: >
         ipa_user_auth.rc == 0 and

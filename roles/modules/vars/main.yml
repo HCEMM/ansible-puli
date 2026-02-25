@@ -43,8 +43,8 @@ modules_spack_packages:
   - r-tidyverse
   - r-pheatmap
   - r-ggplot2
-  - bioconductor-deseq2
+  - r-deseq2
   - r-limma
   - r-tximport
-  - r-org.hs.eg.db
+  - r-org-hs-eg-db
 modules_custom_location: /opt/pub/modulefiles/site
