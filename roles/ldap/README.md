@@ -31,3 +31,17 @@ openssl genrsa -out ldap.key 4096                                   # create lda
 openssl req -new -key ldap.key -out ldap.csr -config ldap_san.cnf       # create ldap.csr
 openssl x509 -req -in ldap.csr -CA ca.crt -CAkey ca.key -CAcreateserial   -out ldap.crt -days 3650 -sha256 -extfile ldap_san.cnf -extensions req_ext      # create ldap.crt
 ```
+
+### Remove the OTP token 
+```
+ipa otptoken-find --owner=username
+find the Unique ID, then
+ipa otptoken-del Unique ID
+```
+
+### Remove the Password Expiration 
+```
+kinit admin
+Put the password of Admin user, then
+ipa user-mod username --password-expiration=
+```
