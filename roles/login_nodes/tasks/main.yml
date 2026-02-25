@@ -35,11 +35,11 @@
     mode: "0755"
     force: true
 
-- name: Add cron job to check 2FA users hourly
-  ansible.builtin.cron:
-    name: "Check 2FA users"
-    minute: "0"
-    job: "/root/bin/enforce-2fa.sh"
+# - name: Add cron job to check 2FA users hourly
+#   ansible.builtin.cron:
+#     name: "Check 2FA users"
+#     minute: "0"
+#     job: "/root/bin/enforce-2fa.sh"
 
 # dnf install -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
 - name: Install OpenHPC repo
