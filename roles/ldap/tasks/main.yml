@@ -192,11 +192,11 @@
 
     - name: Enforce user authentication type
       ansible.builtin.command:
-        argv:
-          - ipa
-          - user-mod
-          - "{{ item.username }}"
-          - "--user-auth-type={{ ldap_user_auth_type }}"
+        argv: >-
+          {{
+            ['ipa', 'user-mod', item.username]
+            + ldap_user_auth_type | map('regex_replace', '^(.*)$', '--user-auth-type=\1') | list
+          }}
       register: ipa_user_auth
       changed_when: >
         ipa_user_auth.rc == 0 and
