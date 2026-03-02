@@ -12,4 +12,6 @@ ldap_idranges:
     rid_base: 1000000
     secondary_rid_base: 2000000
     type: "local"
-ldap_user_auth_type: otp      # "otp" already assumes password+otp, no need to specify password separately
+ldap_user_auth_type: # "otp" already assumes password+otp, no need to specify password separately
+  - password
+  - otp  
