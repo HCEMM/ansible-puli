@@ -173,6 +173,9 @@
       loop: "{{ ipa_user_show.results }}"
       loop_control:
         label: "{{ item.item.username }}"
+      notify:
+        - Create home directories for LDAP user
+        - Add LDAP user to sacct
     
     - name: Set initial password only on create
       ansible.builtin.shell: |

@@ -9,3 +9,23 @@
   args:
     executable: /bin/bash
   changed_when: true
+
+# mkdir home dirs in ldap role when users are created for freeipa
+- name: Create home directories for LDAP user
+  ansible.builtin.file:
+    path: "/home/{{ item.username }}"
+    state: directory
+    owner: "{{ item.username }}"
+    group: "{{ item.groups | first }}"
+    mode: '0700'
+  loop: "{{ ldap_users }}"
+  when: item.username is defined
+
+# also add new users to sacct
+#sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
+#sacctmgr add user USERNAME account=group_name cluster=sccluster
+- name: Add LDAP user to sacct
+  ansible.builtin.shell: |
+    sacctmgr add user {{ item.username }} account={{ item.groups | first }} cluster=sccluster
+  loop: "{{ ldap_users }}"
+  when: item.username is defined

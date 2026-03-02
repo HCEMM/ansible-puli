@@ -6,6 +6,12 @@ sha256sum /etc/munge/munge.key          # get checksums of keys, if they match t
 munge -n | ssh slurmctld1 unmunge       # test keys between VMs - if you don't want to be counting characters
 ```
 
+## List users
+
+```
+sacctmgr list user format=User,DefaultAccount,Account
+```
+
 ## Configurations of Slurm
 
 Remote controller authority: `/etc/sysconfig/slurmd`
