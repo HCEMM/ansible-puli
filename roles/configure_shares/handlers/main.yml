@@ -1,0 +1,6 @@
+# systemctl enable --now cachefilesd
+- name: Enable and start cachefilesd
+  ansible.builtin.service:
+    name: cachefilesd
+    state: started
+    enabled: true

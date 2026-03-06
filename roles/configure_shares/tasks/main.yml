@@ -1,8 +1,17 @@
 ---
+# hard prevents data corruption, soft prevents applications hanging forever - https://kb.netapp.com/on-prem/ontap/da/NAS/NAS-KBs/What_are_the_differences_between_hard_mount_and_soft_mount
+# noatime prevents updating file access timestamps, which improves performance a bit - https://tldp.org/LDP/solrhe/Securing-Optimizing-Linux-RH-Edition-v1.3/chap6sec73.html
+# nconnect=8 allows up to 8 parallel connections to the NFS server, improving performance for high I/O workloads - https://docs.netapp.com/us-en/ontap/nfs-admin/nconnect-concept.html
+# actimeo sets the time to cache metadata (in s), can help GUI responsiveness - https://www.howtouselinux.com/post/what-does-actime-0-mean-during-nfs-mount-in-linux
+# fsc creates local disk cache, helps when many processes read the same files
+# we are using NFS4.2 (`mount | grep nfs`)
 - name: Install dependencies for NFS mounts
-  ansible.builtin.package:
-    name: nfs-utils
+  ansible.builtin.dnf:
+    name:
+      - nfs-utils
+      - cachefilesd
     state: present
+  notify: Enable and start cachefilesd
 
 - name: Create scratch mount points
   ansible.builtin.file:
@@ -11,13 +20,13 @@
     mode: '0755'
   loop: "{{ configure_shares_storage_groups }}"
 
-- name: Mount NFS shares
+- name: Mount scratch shares
   ansible.posix.mount:
     src: "{{ configure_shares_storage_ip }}:/mnt/MirrorHDD/scratch/{{ item }}"
     path: /scratch/{{ item }}
-    opts: rw,sync,soft      # For hard vs soft - https://kb.netapp.com/on-prem/ontap/da/NAS/NAS-KBs/What_are_the_differences_between_hard_mount_and_soft_mount
-    boot: true              # automatically mounted on boot
-    state: mounted          # ensures the mount is present and configured in fstab
+    opts: rw,hard,noatime,nconnect=8
+    boot: true                # updates /etc/fstab to mount the share at boot
+    state: mounted            # mounts the share immediately
     fstype: nfs
   loop: "{{ configure_shares_storage_groups }}"
 
@@ -25,9 +34,9 @@
   ansible.posix.mount:
     src: "{{ sms_ip }}:{{ item }}"
     path: "{{ item }}"
-    opts: rw,sync,hard      # I chose hard here to avoid potential data loss on home directories
-    boot: true              # automatically mounted on boot
-    state: mounted          # ensures the mount is present and configured in fstab
+    opts: rw,hard,noatime,nconnect=8,actimeo=60
+    boot: true
+    state: mounted
     fstype: nfs
   loop:
     - /home
@@ -38,9 +47,9 @@
   ansible.posix.mount:
     src: "{{ sms_ip }}:{{ item }}"
     path: "{{ item }}"
-    opts: ro,sync,hard      # I chose hard here to avoid potential data loss on home directories
-    boot: true              # automatically mounted on boot
-    state: mounted          # ensures the mount is present and configured in fstab
+    opts: ro,hard,noatime,fsc,nconnect=8
+    boot: true
+    state: mounted
     fstype: nfs
   loop:
     - /opt/miniconda3
@@ -49,3 +58,23 @@
     - /opt/pub
   when:
     - inventory_hostname in groups['login_nodes']
+
+# connect /var/sppol/slurm on slurmctld1 to /var/spool/slurm on slurmctld2
+- name: Setup shared spool directory between slurmctld nodes
+  ansible.builtin.file:
+    src: /var/spool/slurm
+    dest: /var/spool/slurm
+    state: link
+  when:
+    - inventory_hostname in groups['slurmctld']
+
+- name: Mount spool
+  ansible.posix.mount:
+    src: "slurmctld1:/var/spool/slurm"
+    path: /var/spool/slurm
+    opts: rw,hard,noatime
+    boot: true
+    state: mounted
+    fstype: nfs
+  when:
+    - inventory_hostname == 'slurmctld2'
