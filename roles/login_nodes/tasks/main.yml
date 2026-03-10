@@ -58,6 +58,7 @@
 - name: Install required packages
   ansible.builtin.dnf:
     name:
+      # slurm dependencies
       - ohpc-slurm-client
       - chrony
       # lua must be installed for lmod to work
@@ -65,6 +66,10 @@
       - lua-posix
       - lua-filesystem
       - tcl
+      # other essentials that I don't want to have as modules
+      - git
+      - htop
+      - nano
     state: present
 
 # tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
