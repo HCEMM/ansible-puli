@@ -14,3 +14,8 @@
   ansible.builtin.systemd:
     name: haproxy
     state: restarted
+
+- name: Restart SSH service
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted

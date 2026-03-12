@@ -1,3 +1,4 @@
+# https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/galaxy.yml.sample
 gravity:
   app_server: gunicorn
   celery: 
@@ -31,6 +32,7 @@ gravity:
   virtualenv: {{ galaxy_base_dir }}/.venv
 
 galaxy:
+  auth_config_file: auth_conf.xml
   builds_file_path: shared/ucsc/builds.txt.sample 
   data_dir: /mnt/galaxy
   data_manager_config_file: data_manager_conf.xml.sample 
