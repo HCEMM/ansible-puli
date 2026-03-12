@@ -47,4 +47,5 @@ modules_spack_packages:
   - r-limma
   - r-tximport
   - r-org-hs-eg-db
+  - r-edger
 modules_custom_location: /opt/pub/modulefiles/site
