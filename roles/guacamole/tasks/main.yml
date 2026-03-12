@@ -93,6 +93,38 @@
     state: present
   when: inventory_hostname in groups['login_nodes']
 
+# copy guacamole_key private key to guacamole
+- name: Copy Guacamole private key to guacamole VM
+  ansible.builtin.copy:
+    src: guacamole_key
+    dest: /opt/guacamole/guacamole_key
+    owner: root
+    group: root
+    mode: "0600"
+    decrypt: true
+  when: inventory_hostname in groups['guacamole_server']
+
+# copy guacamole_key public key to login nodes
+- name: Copy Guacamole public key to login nodes
+  ansible.builtin.copy:
+    src: guacamole_key.pub
+    dest: /etc/ssh/guacamole_key.pub
+    owner: root
+    group: root
+    mode: "0644"
+    decrypt: true
+  when: inventory_hostname in groups['login_nodes']
+
+# AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/guacamole_key.pub
+- name: Configure SSH to allow Guacamole public key authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^AuthorizedKeysFile'
+    line: 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/guacamole_key.pub'
+    state: present
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart SSH service
+
 # echo "exec startxfce4" > ~/.Xclients
 - name: Configure Xfce as default session for XRDP
   ansible.builtin.copy:

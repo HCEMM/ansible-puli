@@ -1,140 +1,132 @@
 ---
-# - name: Setup the foundations
-#   hosts:
-#     - sms
-#   any_errors_fatal: true
-#   become: true
-#   gather_facts: true
-#   roles:
-#     # - create_bridge
-#     - setup_vms
+- name: Setup the foundations
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - create_bridge
+    - setup_vms
 
-# - name: Setup NFS shares
-#   hosts:
-#     # - sms
-#     - login1
-#     # - login_nodes
-#     # - galaxy_server
-#     # - emma_server
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - configure_shares
+- name: Setup NFS shares
+  hosts:
+    - sms
+    - login1
+    - login_nodes
+    - galaxy_server
+    - emma_server
+  become: true
+  gather_facts: true
+  roles:
+    - configure_shares
 
-# - name: Setup LDAP server
-#   hosts:
-#     - ldap_server
-#     - galaxy_server
-#     - login_nodes
-#   any_errors_fatal: true
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - ldap
+- name: Setup LDAP server
+  hosts:
+    - ldap_server
+    - galaxy_server
+    - login_nodes
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - ldap
 
-# - name: Build main server
-#   hosts:
-#     - sms
-#   any_errors_fatal: true
-#   become: true
-#   gather_facts: true
+- name: Build main server
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
 
-#   roles:
-#     - pre_ohpc
-#     - chronyd
-#     - setup_ohpc
-#     - setup_warewulf
-#     - build_compute_images
-#     - customize_nodes
-#     - build_overlay
-#     - finalize_provision
+  roles:
+    - pre_ohpc
+    - setup_ohpc
+    - setup_warewulf
+    - build_compute_images
+    - customize_nodes
+    - build_overlay
+    - finalize_provision
 
-# - name: Configure DNS clients and hostnames
-#   hosts:
-#     #- sms
-#     - login_nodes
-#     - thinlinc_masters
-#     - galaxy_server
-#     - emma_server
-#     - ldap_server
-#     - nginx_gateway
-#     - monitoring
-#     - slurmctld
-#     - slurmdbd
-#   become: true
-#   roles:
-#     - dns
+- name: Setup Nginx gateway
+  hosts: nginx_gateway
+  become: true
+  gather_facts: true
+  roles:
+    - role: nginx
+      tags: nginx
 
-# - name: Setup Nginx gateway
-#   hosts: nginx_gateway
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - role: nginx
-#       tags: nginx
+- name: Setup EMMA webservice
+  hosts: emma_server
+  become: true
+  become_user: hcemm
+  gather_facts: true
+  roles:
+    - role: emma
 
-# - name: Setup EMMA webservice
-#   hosts: emma_server
-#   become: true
-#   become_user: hcemm
-#   gather_facts: true
-#   roles:
-#     - role: emma
+- name: Setup Slurm
+  hosts:
+    - slurmctld
+    - slurmdbd
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - setup_slurm
 
-# - name: Setup Slurm
-#   hosts:
-#     # - slurmctld
-#     # - slurmdbd
-#     - login_nodes
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - setup_slurm
+- name: Setup Login nodes
+  hosts:
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - name: login_nodes
+      tags: maintenance
 
-# - name: Setup Login nodes
-#   hosts:
-#     - login_nodes
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - login_nodes
-#     - fail2ban
+- name: Setup Fail2Ban
+  hosts:
+    - login_nodes
+    - nginx_gateway
+  become: true
+  gather_facts: true
+  roles:
+    - fail2ban
 
-# - name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
-#   hosts:
-#     - sms
-#     - login_nodes
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - modules
+- name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - modules
 
-# - name: Install ThinLinc Server
-#   hosts: thinlinc_servers
-#   roles:
-#     - role: tl
+- name: Install ThinLinc Server
+  hosts: thinlinc_servers
+  roles:
+    - role: tl
 
-# - name: Setup SSH proxy on SMS and sshd policy on login nodes
-#   hosts:
-#     - sms
-#     - login_nodes
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - haproxy
+- name: Setup SSH proxy on SMS and sshd policy on login nodes
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - haproxy
 
-# - name: Setup Checkmk 
-#   hosts:
-#     - monitoring
-#     - hosts
-#   become: true
-#   gather_facts: true
-#   roles:
-#     - checkmk
+- name: Setup Checkmk 
+  hosts:
+    - monitoring
+    - hosts
+  become: true
+  gather_facts: true
+  roles:
+    - checkmk
 
 - name: Setup Guacamole
   hosts:
-    # - guacamole_server
+    - guacamole_server
     - login_nodes
     - sms             # for HAProxy config
   become: true

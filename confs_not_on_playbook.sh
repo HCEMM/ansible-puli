@@ -195,3 +195,19 @@ mkdir $CHROOT/var/log/slurm
 mkdir $CHROOT/var/spool/slurm
 
 
+# mkdir home dirs in ldap role
+# also add new users to sacct
+#sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
+#sacctmgr add user USERNAME account=group_name cluster=sccluster
+
+
+sudo tee /etc/xdg/mimeapps.list <<EOF
+[Default Applications]
+text/plain=mousepad.desktop
+text/x-log=mousepad.desktop
+text/x-shellscript=mousepad.desktop
+application/x-shellscript=mousepad.desktop
+EOF
+dnf -y install xdg-utils
+xdg-mime query default text/plain
+update-mime-database /usr/share/mime

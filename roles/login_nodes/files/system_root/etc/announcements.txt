@@ -22,3 +22,4 @@
 #22.[W] [2026-02-06] Last reminder that PULI will undergo maintenance this weekend. Make sure to wrap up your jobs accordingly. 
 #23.[W] [2026-02-17] Reminder that in the next two days (18th and 19th) there will be power outages on HCEMM HQ. Half of the server will continue operations uninterrupted, but network access may be cut momentarily. Plan accordingly. 
 #24.[W] [2026-02-17] Also reminder that the following two days will see another (hopefully final) round of revamping the architecture of the cluster, along with some bug fixes. Take a rest from PULI accordingly.
+25.[A] [2026-02-24] Please be aware that on login nodes, user processes are limited to 2–3 hours of runtime and a maximum of 2 GB of memory. Any process surpassing these will be terminated automatically. Any significant analysis should run on compute nodes, where sky's the limit.
