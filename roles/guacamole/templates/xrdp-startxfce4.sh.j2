@@ -1,0 +1,7 @@
+#!/bin/bash
+
+[ -r /etc/profile ] && . /etc/profile
+[ -r ~/.bash_profile ] && . ~/.bash_profile
+[ -r ~/.profile ] && . ~/.profile
+
+exec xfce4-session
