@@ -11,6 +11,8 @@ services:
     container_name: guacamole_mariadb
     restart: always
     environment:
+      BAN_MAX_INVALID_ATTEMPTS: "9999"
+      BAN_ADDRESS_DURATION: "0"
       MARIADB_DATABASE: "{{ guacamole_db_name }}"
       MARIADB_USER: "{{ guacamole_db_user }}"
       MARIADB_PASSWORD: "{{ guacamole_db_user_password }}"

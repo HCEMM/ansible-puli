@@ -93,6 +93,67 @@
     state: present
   when: inventory_hostname in groups['login_nodes']
 
+- name: Deploy XRDP main configuration on login nodes
+  ansible.builtin.template:
+    src: xrdp.ini.j2
+    dest: /etc/xrdp/xrdp.ini
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Deploy XRDP Xfce start script on login nodes
+  ansible.builtin.template:
+    src: xrdp-startxfce4.sh.j2
+    dest: /usr/local/bin/xrdp-startxfce4.sh
+    owner: root
+    group: root
+    mode: "0755"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Deploy XRDP sesman PAM configuration on login nodes
+  ansible.builtin.template:
+    src: xrdp-sesman.pam.j2
+    dest: /etc/pam.d/xrdp-sesman
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Remove generic RDP service exposure on login nodes
+  ansible.posix.firewalld:
+    service: rdp
+    permanent: true
+    state: disabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Remove generic XRDP port exposure on login nodes
+  ansible.posix.firewalld:
+    port: "{{ xrdp_port }}/tcp"
+    permanent: true
+    state: disabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Allow XRDP only from Guacamole server on login nodes
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4"
+      source address="{{ hostvars[groups['guacamole_server'][0]]['ansible_host'] }}"
+      port protocol="tcp" port="{{ xrdp_port }}"
+      accept
+    permanent: true
+    state: enabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
 # copy guacamole_key private key to guacamole
 - name: Copy Guacamole private key to guacamole VM
   ansible.builtin.copy:

@@ -4,3 +4,4 @@ guacamole_db_name: "guacamole_db"
 guacamole_db_user: "guacamole_user"
 guacamole_db_user_password: "guacamole_user_password"
 guacamole_version: "1.6.0"
+xrdp_port: 3389

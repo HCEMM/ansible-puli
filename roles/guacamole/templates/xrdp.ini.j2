@@ -1,0 +1,117 @@
+[Globals]
+clipboard=true
+
+; xrdp.ini file version number
+ini_version=1
+
+; fork a new process for each incoming connection
+fork=true
+
+; Listen port
+port={{ xrdp_port }}
+
+; Run daemon as unprivileged user/group
+runtime_user=xrdp
+runtime_group=xrdp
+
+; TCP options
+tcp_nodelay=true
+tcp_keepalive=true
+
+; Security settings
+security_layer=negotiate
+crypt_level=high
+
+; Certificate and key
+certificate=
+key_file=
+
+; Allowed SSL/TLS protocols
+ssl_protocols=TLSv1.2, TLSv1.3
+
+; Automatic session selection
+autorun=
+
+; Performance / desktop settings
+allow_channels=true
+allow_multimon=true
+bitmap_cache=true
+bitmap_compression=true
+bulk_compression=true
+max_bpp=32
+new_cursors=true
+use_fastpath=both
+
+; UI colors
+grey=e1e1e1
+dark_grey=b4b4b4
+blue=0078d7
+dark_blue=0078d7
+
+; Login screen appearance
+ls_top_window_bg_color=003057
+ls_width=350
+ls_height=360
+ls_bg_color=f0f0f0
+
+; Logo settings
+ls_logo_filename=
+ls_logo_transform=scale
+ls_logo_width=250
+ls_logo_height=110
+ls_logo_x_pos=55
+ls_logo_y_pos=35
+
+; Label positions
+ls_label_x_pos=30
+ls_label_width=68
+
+; Input positions
+ls_input_x_pos=110
+ls_input_width=210
+ls_input_y_pos=158
+
+; OK button
+ls_btn_ok_x_pos=142
+ls_btn_ok_y_pos=308
+ls_btn_ok_width=85
+ls_btn_ok_height=30
+
+; Cancel button
+ls_btn_cancel_x_pos=237
+ls_btn_cancel_y_pos=308
+ls_btn_cancel_width=85
+ls_btn_cancel_height=30
+
+[Logging]
+LogFile=xrdp.log
+LogLevel=INFO
+EnableSyslog=true
+
+[LoggingPerLogger]
+; Optional per-logger configuration can be added here
+
+[Channels]
+rdpdr=false
+xrdpvr=false
+rail=false
+rdpsnd=false
+drdynvc=false
+cliprdr=true
+
+[Xorg]
+name=Xorg
+lib=libxup.so
+username=ask
+password=ask
+port=-1
+code=20
+clipboard=true
+
+[Xvnc]
+name=Xvnc
+lib=libvnc.so
+username=ask
+password=ask
+port=-1
+code=1
