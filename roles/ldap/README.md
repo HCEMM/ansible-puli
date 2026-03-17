@@ -45,6 +45,13 @@ ldapsearch -x -H ldap://localhost \
   -b "dc=cluster,dc=hcemm,dc=eu" \
   "(objectClass=posixGroup)"
 
+### With credentials (instead of anonymous)
+ldapsearch -x \
+  -D "uid=admin,cn=users,cn=accounts,dc=cluster,dc=hcemm,dc=eu" \
+  -W \
+  -b "cn=users,cn=accounts,dc=cluster,dc=hcemm,dc=eu" \
+  "(uid=jsequeira)"
+
 ## Debug SSSD
 
 ### Check SSSD status

@@ -55,9 +55,19 @@
   changed_when: true
   notify: Reload Nginx
 
-# setsebool -P httpd_can_network_connect 1
 - name: Allow Nginx to make network connections (SELinux)
   ansible.posix.seboolean:
-    name: httpd_can_network_connect
+    name: "{{ item }}"
     state: true
     persistent: true
+  loop:
+    - httpd_can_network_connect     # setsebool -P httpd_can_network_connect 1
+    - httpd_use_nfs                 # setsebool -P httpd_use_nfs 1
+
+# Mount the static files for Galaxy to be served through the Nginx gateway
+- name: Mount NFS share for Galaxy
+  ansible.posix.mount:
+    path: /srv/galaxy
+    src: 10.0.150.209:/srv/galaxy
+    fstype: nfs
+    state: mounted
