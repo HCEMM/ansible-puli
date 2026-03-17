@@ -97,6 +97,7 @@ all:
         guacamole_server:
         login_nodes:
         sms:
+        galaxy_server:
 
   hosts:
     scc-cpu01-10G:
