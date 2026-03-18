@@ -9,11 +9,11 @@ gravity:
     memory_limit: 2 
     pool: threads 
     queues: celery,galaxy.internal,galaxy.external 
-  galaxy_config_file: {{ galaxy_base_dir }}/config/galaxy.yml
+  galaxy_config_file: {{ galaxy_config_dir }}/galaxy.yml
   galaxy_root: {{ galaxy_base_dir }}
-  galaxy_user: galaxy
+  galaxy_user: {{ galaxy_user }}
   gunicorn: 
-    bind: 0.0.0.0:8080 
+    bind: 0.0.0.0:{{ galaxy_port }} 
     extra_args: --forwarded-allow-ips="*" 
     preload: true 
     workers: 2 
@@ -38,7 +38,7 @@ galaxy:
   data_manager_config_file: data_manager_conf.xml.sample 
   database_connection: postgresql:///galaxy?host=/run/postgresql 
   datatypes_config_file: datatypes_conf.xml.sample 
-  galaxy_infrastructure_url: http://10.0.150.209:8080
+  galaxy_infrastructure_url: http://{{ galaxy_ip }}:{{ galaxy_port }}
   job_working_directory: jobs 
   oidc_config_file: oidc_config.xml.sample 
   data_manager_config_file: data_manager_conf.xml.sample

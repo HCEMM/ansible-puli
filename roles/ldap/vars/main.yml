@@ -14,4 +14,4 @@ ldap_idranges:
     type: "local"
 ldap_user_auth_type: # "otp" already assumes password+otp, no need to specify password separately
   - password
-  - otp  
+  - otp

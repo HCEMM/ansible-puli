@@ -69,7 +69,7 @@
       changed_when: false
       failed_when: svc_check.rc != 0
 
-    - name: kinit admin to verify installation
+    - name: Kinit admin to verify installation
       ansible.builtin.shell: |
         set -euo pipefail
         printf '%s' "{{ ldap_admin_password_raw }}" | kinit "{{ ldap_admin_user | default('admin') }}"
@@ -92,7 +92,7 @@
       changed_when: "'no modifications to be performed' not in (ipa_enable_sid.stderr | default(''))"
       failed_when: >
         ipa_enable_sid.rc != 0 and
-        ('no modifications to be performed' not in (ipa_enable_sid.stderr | default('')))   
+        ('no modifications to be performed' not in (ipa_enable_sid.stderr | default('')))
 
     - name: Ensure IPA ID ranges exist (CLI, idempotent)
       ansible.builtin.shell: |
@@ -114,8 +114,6 @@
         label: "{{ item.name }}"
       changed_when: false
 
-
-
     # ipa group-add groupname --gid="gidnumber"
     - name: Create IPA groups (POSIX with fixed GID)
       community.general.ipa_group:
@@ -132,7 +130,7 @@
 
     - name: Build group name -> gid map
       ansible.builtin.set_fact:
-        ipa_group_gid_map: "{{ ipa_group_gid_map | default({}) | combine({ item.name: (item.gid | int) }) }}"
+        ipa_group_gid_map: "{{ ipa_group_gid_map | default({}) | combine({item.name: (item.gid | int)}) }}"
       loop: "{{ ldap_groups }}"
       loop_control:
         label: "{{ item.name }}"
@@ -146,8 +144,8 @@
       loop: "{{ ldap_users }}"
       loop_control:
         label: "{{ item.username }}"
-    
-    # ipa user-add username --first= --last= --email= --uid= --gidnumber= --homedir= --shell= 
+
+    # ipa user-add username --first= --last= --email= --uid= --gidnumber= --homedir= --shell=
     - name: Create IPA users (fixed UID, let IPA manage private group)
       when:
         - item.rc != 0
@@ -176,7 +174,7 @@
       notify:
         - Create home directories for LDAP user
         - Add LDAP user to sacct
-    
+
     - name: Set initial password only on create
       ansible.builtin.shell: |
         set -euo pipefail
@@ -208,7 +206,7 @@
       loop: "{{ ldap_users }}"
       loop_control:
         label: "{{ item.username }}"
-        
+
     # ipa group-add-member groupname --users=user1,user2
     - name: Enforce group membership (add listed users)
       community.general.ipa_group:
@@ -223,7 +221,7 @@
       loop_control:
         label: "{{ item.0.username }} -> {{ item.1 }}"
 
-# dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU 
+# dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
   when:
     - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server']
@@ -276,7 +274,7 @@
         owner: root
         group: root
         mode: "0755"
-    
+
     - name: Ensure IPA client state dirs exist
       ansible.builtin.file:
         path: "{{ item }}"
@@ -288,7 +286,7 @@
         - /var/lib/ipa-client
         - /var/lib/ipa-client/sysrestore
         - /var/lib/ipa-client/pki
-      
+
     # idempotency: if already enrolled, don't re-run ipa-client-install
     - name: Check if already enrolled (IPA client)
       ansible.builtin.stat:
@@ -333,7 +331,7 @@
         - not ipa_enrolled.stat.exists
         - (ipa_client_mkhomedir | default(false))
       notify: Restart SSSD (and clear cache)
-    
+
     - name: Ensure authselect uses sssd (NO mkhomedir)
       ansible.builtin.command: authselect select sssd --force
       when: not (ipa_client_mkhomedir | default(false))

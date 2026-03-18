@@ -7,45 +7,47 @@ modules_spack_packages:
   - samtools
   - py-macs3
   - bedtools2
-  - py-pandas>=1.3.0
-  # - miniconda3     # Miniconda3 is now installed manually, not via Spack
+  # - miniconda3      # Miniconda3 is now installed manually, not via Spack
   - apptainer
   - py-multiqc
   - seqkit
   - cdhit
-  - py-numpy>=1.21.0
-  - py-scipy>=1.7.0
-  - py-matplotlib>=3.4.0
-  - py-seaborn>=0.11.0
-  - py-scikit-image>=0.18.0
-  - py-tifffile>=2021.7.0
-  - opencv>=4.5.0
-  - cellpose>=2.0.0
-  - py-torch>=1.9.0
-  - py-ipywidgets>=7.6.0
-  - py-jupyter>=1.0.0
-  - py-notebook>=6.4.0
-  - py-tqdm>=4.62.0
+  - py-pandas
+  - py-numpy
+  - py-scipy
+  - py-matplotlib
+  - py-seaborn
+  - py-scikit-image
+  - py-tifffile
+  - opencv
+  # - cellpose         # it don't work
+  - py-torch
+  - py-ipywidgets
+  - py-jupyter
+  - py-notebook
+  - py-tqdm
   - openjdk
   - fastqc
   - trimmomatic
   - fastp
-  - multiqc
   - hisat2
   - star
   - samtools
-  - subread      # featureCounts
-  - bedtools
+  - subread           # featureCounts
   - seqkit
   - salmon
-  - sra-tools
-  - r-base
+  # - sra-tools        # it don't work
+  - r-base64
   - r-tidyverse
   - r-pheatmap
   - r-ggplot2
-  - r-deseq2
+  # - r-deseq2         # it don't work
   - r-limma
   - r-tximport
   - r-org-hs-eg-db
   - r-edger
+  - htop
+  - tar
+  - tree
+  - nano
 modules_custom_location: /opt/pub/modulefiles/site
