@@ -9,7 +9,10 @@
 
 - name: Install Spack
   ansible.builtin.dnf:
-    name: spack-ohpc
+    name:
+      - spack-ohpc
+      - libstdc++
+      - libstdc++-devel
     state: present
   when: ansible_hostname in groups['sms']
 

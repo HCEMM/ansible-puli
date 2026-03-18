@@ -1,5 +1,6 @@
 ---
 - name: Setup the foundations
+  tags: foundations
   hosts:
     - sms
   any_errors_fatal: true
@@ -10,6 +11,7 @@
     - setup_vms
 
 - name: Setup NFS shares
+  tags: nfs
   hosts:
     - sms
     - login1
@@ -22,6 +24,7 @@
     - configure_shares
 
 - name: Setup LDAP server
+  tags: ldap
   hosts:
     - ldap_server
     - galaxy_server
@@ -33,6 +36,7 @@
     - ldap
 
 - name: Build main server
+  tags: main_server
   hosts:
     - sms
   any_errors_fatal: true
@@ -49,22 +53,24 @@
     - finalize_provision
 
 - name: Setup Nginx gateway
+  tags: nginx
   hosts: nginx_gateway
   become: true
   gather_facts: true
   roles:
-    - role: nginx
-      tags: nginx
+    - nginx
 
 - name: Setup EMMA webservice
+  tags: emma
   hosts: emma_server
   become: true
   become_user: hcemm
   gather_facts: true
   roles:
-    - role: emma
+    - emma
 
 - name: Setup Slurm
+  tags: slurm
   hosts:
     - slurmctld
     - slurmdbd
@@ -75,15 +81,20 @@
     - setup_slurm
 
 - name: Setup Login nodes
+  tags:
+    - login_nodes
+    - maintenance
   hosts:
     - login_nodes
   become: true
   gather_facts: true
   roles:
-    - name: login_nodes
-      tags: maintenance
+    - login_nodes
 
 - name: Setup Fail2Ban
+  tags: 
+    - fail2ban
+    - maintenance
   hosts:
     - login_nodes
     - nginx_gateway
@@ -93,6 +104,9 @@
     - fail2ban
 
 - name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
+  tags:
+    - modules
+    - maintenance
   hosts:
     - sms
     - login_nodes
@@ -101,12 +115,8 @@
   roles:
     - modules
 
-- name: Install ThinLinc Server
-  hosts: thinlinc_servers
-  roles:
-    - role: tl
-
 - name: Setup SSH proxy on SMS and sshd policy on login nodes
+  tags: haproxy 
   hosts:
     - sms
     - login_nodes
@@ -115,7 +125,8 @@
   roles:
     - haproxy
 
-- name: Setup Checkmk 
+- name: Setup Checkmk
+  tags: checkmk
   hosts:
     - monitoring
     - hosts
@@ -125,6 +136,7 @@
     - checkmk
 
 - name: Setup Guacamole
+  tags: guacamole
   hosts:
     - guacamole_server
     - login_nodes
@@ -133,3 +145,11 @@
   gather_facts: true
   roles:
     - guacamole
+
+- name: Setup Galaxy
+  tags: galaxy
+  hosts: galaxy_server
+  become: true
+  gather_facts: true
+  roles:
+    - galaxy

@@ -50,38 +50,6 @@
     fstype: nfs
     state: mounted
 
-# git clone https://github.com/tus/tusd.git
-- name: Clone tusd repository
-  ansible.builtin.git:
-    repo: 'https://github.com/tus/tusd.git'
-    dest: "{{ galaxy_tus_exec_dir }}"
-    version: 'v2.8.0'  # Pin to keep idempotency
-
-# go build -o tusd cmd/tusd/main.go
-- name: Build tusd binary
-  ansible.builtin.command:
-    cmd: go build -o tusd cmd/tusd/main.go
-    chdir: "{{ galaxy_tus_exec_dir }}"
-  args:
-    creates: "{{ galaxy_tus_exec_dir }}/tusd"
-
-- name: Clone Galaxy repository
-  ansible.builtin.git:
-    repo: 'https://github.com/galaxyproject/galaxy'
-    dest: "{{ galaxy_base_dir }}"
-    version: 'v25.0.4'  # Pin to keep idempotency
-    update: false
-  become: "{{ galaxy_user }}"
-
-# run.sh
-- name: Install Galaxy dependencies
-  ansible.builtin.command:
-    cmd: ./run.sh
-    chdir: "{{ galaxy_base_dir }}"
-  become: "{{ galaxy_user }}"
-  args:
-    creates: "{{ galaxy_base_dir }}/.venv"
-
 # # Setup postgresql
 # # Install the repository RPM:
 # sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
@@ -96,3 +64,65 @@
 # sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
 # sudo systemctl enable postgresql-18
 # sudo systemctl start postgresql-18
+
+- name: Galaxy setup (user-level)
+  become: true
+  become_user: "{{ galaxy_user }}"
+  environment:
+    HOME: "/home/{{ galaxy_user }}"
+  block:
+    # git clone https://github.com/tus/tusd.git
+    - name: Clone tusd repository
+      ansible.builtin.git:
+        repo: 'https://github.com/tus/tusd.git'
+        dest: "{{ galaxy_tus_exec_dir }}"
+        version: 'v2.8.0'  # Pin to keep idempotency
+
+    # go build -o tusd cmd/tusd/main.go
+    - name: Build tusd binary
+      ansible.builtin.command:
+        cmd: go build -o tusd cmd/tusd/main.go
+        chdir: "{{ galaxy_tus_exec_dir }}"
+      args:
+        creates: "{{ galaxy_tus_exec_dir }}/tusd"
+
+    # tusd -host localhost -port 1080 -upload-dir=/scratch/galaxy/database/tmp -hooks-http=galaxy.hcemm.eu/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie
+    - name: Start tusd service
+      ansible.builtin.command:
+        cmd: >
+          {{ galaxy_tus_exec_dir }}/tusd -host localhost -port 1080
+          -upload-dir=/scratch/galaxy/database/tmp
+          -hooks-http=galaxy.hcemm.eu/api/upload/hooks
+          -hooks-http-forward-headers=X-Api-Key,Cookie
+      args:
+        creates: "{{ galaxy_tus_exec_dir }}/tusd"
+
+    - name: Clone Galaxy repository
+      ansible.builtin.git:
+        repo: 'https://github.com/galaxyproject/galaxy'
+        dest: "{{ galaxy_base_dir }}"
+        version: 'v25.0.4'  # Pin to keep idempotency
+        update: false
+
+    - name: Copy configs
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ galaxy_config_dir }}/{{ item }}"
+        owner: "{{ galaxy_user }}"
+        group: "{{ galaxy_group }}"
+        mode: "0644"
+      loop:
+        - galaxy.yml
+        - auth_conf.xml
+        - container_resolvers.yml
+        - job_conf.yml
+        - tool_conf.xml
+        - tool_destinations.yml
+
+    # run.sh
+    - name: Install Galaxy
+      ansible.builtin.command:
+        cmd: ./run.sh
+        chdir: "{{ galaxy_base_dir }}"
+      args:
+        creates: "{{ galaxy_base_dir }}/.venv"
