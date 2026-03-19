@@ -1,23 +1,21 @@
-- name: Start and enable Docker service
+---
+- name: Reload systemd
   ansible.builtin.systemd:
-    name: docker
-    state: started
-    enabled: true
+    daemon_reload: true
 
-- name: Start Guacamole container
-  ansible.builtin.shell: |
-    cd /opt/guacamole
-    docker-compose up -d
-  changed_when: true
+- name: Restart guacd
+  ansible.builtin.systemd:
+    name: guacd
+    state: restarted
+
+- name: Restart Tomcat
+  ansible.builtin.systemd:
+    name: tomcat
+    state: restarted
 
 - name: Restart HAProxy
   ansible.builtin.systemd:
     name: haproxy
-    state: restarted
-
-- name: Restart SSH service
-  ansible.builtin.systemd:
-    name: sshd
     state: restarted
 
 - name: Restart XRDP services
@@ -27,4 +25,8 @@
   loop:
     - xrdp
     - xrdp-sesman
-  failed_when: false
+
+- name: Restart SSH service
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
