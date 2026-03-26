@@ -99,7 +99,7 @@
   loop:
     - dnf -y install cuda-repo-ohpc
     - dnf -y module install nvidia-driver:latest-dkms
-    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
+    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k ${KVER}    # \ in \${KVER} is a typo
     - dkms status
   changed_when:
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )

@@ -2,6 +2,12 @@
 
 Nginx logs are at `/var/log/nginx`.
 
+### "The website is down"
+
+If websites not showing, but you can ping/curl them through the domain name: `systemctl restart firewalld`
+
+If websites are getting slow, might also test it with restarting firewalld.
+
 ### Domain name resolution might have a short stroke
 
 It has happened that all services go away at the same time. This is caused by some overwhelming requests to nginx, but it eventually goes away.

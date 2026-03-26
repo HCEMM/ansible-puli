@@ -15,30 +15,49 @@
   loop:
     - { src: "{{ role_path }}/files/chrony.conf.ww", dest: /etc/chrony.conf.ww }
     - { src: "{{ role_path }}/files/slurmd.ww", dest: /etc/sysconfig/slurmd.ww }
-    - { src: "{{ role_path }}/files/override.conf", dest: /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    - { src: "{{ role_path }}/files/NetworkManager-wait-online.override.conf", dest: /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    - { src: "{{ role_path }}/files/slurmd-override.conf", dest: /etc/systemd/system/slurmd.service.d/override.conf }
 
+- name: Install node init script into SMS, just to provide it for the overlay
+  ansible.builtin.template:
+    src: node-init.sh.j2
+    dest: /usr/local/sbin/node-init.sh
+    mode: '0755'
+
+- name: Install systemd unit into SMS, just to provide it for the overlay
+  ansible.builtin.copy:
+    src: node-init.service
+    dest: /etc/systemd/system/node-init.service
+    mode: '0644'
+
+# this task just checks if the file is there, otherwise run the next task. Makes it idempotent, while still registering the presence of the file on the overlay
 - name: Check if overlay file exists
   ansible.builtin.stat:
-    path: "/srv/warewulf/overlays/nodeconfig/rootfs/etc/{{ item.dest }}"
+    path: "/srv/warewulf/overlays/nodeconfig/rootfs/{{ item.dest }}"
   loop:
     # wwctl overlay import --parents nodeconfig /etc/subuid
-    # - { src: /etc/subuid, dest: subuid }
+    # - { src: /etc/subuid, dest: etc/subuid }
     # wwctl overlay import --parents nodeconfig /etc/subgid
-    # - { src: /etc/subgid, dest: subgid }
+    # - { src: /etc/subgid, dest: etc/subgid }
     # echo 'server {{.Tags.ntpserver}} iburst' | \
     # wwctl overlay import --parents nodeconfig <(cat) /etc/chrony.conf.ww
-    - { src: /etc/chrony.conf.ww, dest: chrony.conf.ww }
+    - { src: /etc/chrony.conf.ww, dest: etc/chrony.conf.ww }
     # cat <<- EOF | wwctl overlay import --parents nodeconfig <(cat) \
     # /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf
     # [Service]
     # ExecStart=/usr/bin/nm-online -q
     # EOF
-    - { src: /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf, dest: systemd/system/NetworkManager-wait-online.service.d/override.conf }
+    - { src: /etc/systemd/system/NetworkManager-wait-online.service.d/override.conf, dest: etc/systemd/system/NetworkManager-wait-online.service.d/override.conf }
     # echo SLURMD_OPTIONS='--conf-server {{.Tags.slurmctld}}' | \
     # wwctl overlay import --parents nodeconfig <(cat) /etc/sysconfig/slurmd.ww
-    - { src: /etc/sysconfig/slurmd.ww, dest: sysconfig/slurmd.ww }
+    - { src: /etc/sysconfig/slurmd.ww, dest: etc/sysconfig/slurmd.ww }
     # wwctl overlay import --parents nodeconfig /etc/munge/munge.key
-    - { src: /etc/munge/munge.key, dest: munge/munge.key }
+    - { src: /etc/munge/munge.key, dest: etc/munge/munge.key }
+    # freeIPA
+    - { src: /etc/pki/ca-trust/source/anchors/freeipa-ca.crt, dest: etc/pki/ca-trust/source/anchors/freeipa-ca.crt }
+    # Configurations missing elsewhere - hostnamectl freeIPA, CheckMK
+    - { src: /usr/local/sbin/node-init.sh, dest: usr/local/sbin/node-init.sh }
+    - { src: /etc/systemd/system/node-init.service, dest: etc/systemd/system/node-init.service }
   loop_control:
     label: "{{ item.dest }}"
   register: overlay_file_stat
@@ -50,6 +69,21 @@
   when:
     - not item.stat.exists
 
+- name: Enable node-init service
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 systemctl is-enabled node-init.service
+  register: nodeinit_enabled
+  failed_when: false
+  changed_when: false
+
+- name: Enable node-init service if not enabled
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 systemctl enable node-init.service
+  when: nodeinit_enabled.rc != 0
+  changed_when: nodeinit_enabled.rc != 0
+  notify:
+    - Build overlays if image was changed
+
 # wwctl profile set --yes nodes --tagadd ntpserver=${sms_ip}
 # wwctl profile set --yes nodes --tagadd slurmctld=${sms_ip}
 - name: Check if master host is identified as local NTP server
@@ -58,10 +92,10 @@
     cmd: 'wwctl profile list nodes -a'
     patterns:
       - 'Tags[ntpserver]             {{ sms_ip }}'
-      - 'Tags[slurmctld]             {{ sms_ip }}'
+      - 'Tags[slurmctld]             {{ slurmctld_vm_ip }}'
 
 - name: Identify master host as local NTP server
-  ansible.builtin.command: wwctl profile set --yes nodes --tagadd ntpserver={{ sms_ip }} --tagadd slurmctld={{ sms_ip }}
+  ansible.builtin.command: wwctl profile set --yes nodes --tagadd ntpserver={{ sms_ip }} --tagadd slurmctld={{ slurmctld_vm_ip }}
   changed_when: >
     not output_match_found
   when:
