@@ -1,0 +1,51 @@
+#!/bin/bash
+# This script is intended to be run on first boot of a compute node,
+# to perform necessary initialization steps such as installing the Checkmk agent,
+# registering with the monitoring server, and joining the FreeIPA domain.
+# It should go into /usr/local/sbin/node-init.sh
+set -e
+
+FLAG=/var/lib/node-init.done
+
+if [ -f "$FLAG" ]; then
+    exit 0
+fi
+
+# Fix DNS
+nmcli conn mod default ipv4.dns {{ ldap_vm_ip }} || true
+systemctl restart NetworkManager
+
+# Install checkmk agent if missing
+if ! rpm -q check-mk-agent; then
+    dnf install -y {{ checkmk_agent_rpm_url }}
+fi
+
+HOSTNAME=$(hostname -s)
+SMALL_G=${HOSTNAME/G/g}
+BIG_G=$(echo "$HOSTNAME" | sed 's/\([0-9]\)g/\1G/')      # -10g to -10G for Checkmk compatibility
+hostnamectl set-hostname ${SMALL_G}.cluster.hcemm.eu     # -10g, the way slurm likes it
+
+# Register with Checkmk
+cmk-agent-ctl register \
+    --hostname ${BIG_G} \
+    --server {{ checkmk_vm_ip }} \
+    --site {{ checkmk_site }} \
+    --user {{ checkmk_username }} \
+    --password {{ checkmk_password }} \
+    --trust-cert || true
+
+# Join FreeIPA if not already joined
+if ! ipa-client-install --uninstall --unattended &>/dev/null; then
+    ipa-client-install \
+        --domain="{{ ldap_domain }}" \
+        --realm="{{ ldap_realm }}" \
+        --server="{{ ldap_vm_ip }}" \
+        --principal="{{ ldap_admin_user }}" \
+        --password="{{ ldap_admin_password_raw }}" \
+        --ntp-server="{{ ntp_server }}" \
+        --force-join \
+        --mkhomedir \
+        --unattended
+fi
+
+touch "$FLAG"
