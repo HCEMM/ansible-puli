@@ -1,5 +1,6 @@
 [Slice]
-MemoryHigh={{ login_nodes_limits.memory_high }}
-MemoryMax={{ login_nodes_limits.memory_max }}
-CPUQuota={{ login_nodes_limits.cpu_quota }}
-CPUWeight={{ login_nodes_limits.cpu_weight }}
+CPUQuota={{ login_nodes_global_limits.cpu_quota }}
+TasksMax={{ login_nodes_global_limits.tasks_max }}
+MemoryHigh={{ login_nodes_global_limits.memory_high }}
+MemoryMax={{ login_nodes_global_limits.memory_max }}
+MemorySwapMax={{ login_nodes_global_limits.memory_swap_max }}

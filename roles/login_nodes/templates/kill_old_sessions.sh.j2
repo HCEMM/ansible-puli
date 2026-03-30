@@ -1,0 +1,51 @@
+#!/bin/bash
+
+SSH_MAX={{ login_nodes_session_cleanup.ssh_max_age_seconds }}
+RDP_MAX={{ login_nodes_session_cleanup.rdp_max_age_seconds }}
+NOW=$(date +%s)
+
+log() {
+    echo "$(date '+%F %T') - $1"
+}
+
+loginctl list-sessions --no-legend | while read sid uid user seat tty state idle since; do
+    NAME=$(loginctl show-session "$sid" -p Name --value 2>/dev/null)
+    TS=$(loginctl show-session "$sid" -p Timestamp --value 2>/dev/null)
+    TYPE=$(loginctl show-session "$sid" -p Type --value 2>/dev/null)
+    SERVICE=$(loginctl show-session "$sid" -p Service --value 2>/dev/null)
+
+    [ -z "$TS" ] && continue
+
+    START_EPOCH=$(date -d "$TS" +%s 2>/dev/null)
+    [ -z "$START_EPOCH" ] && continue
+
+    AGE=$((NOW - START_EPOCH))
+
+    case "$NAME" in
+{% for user in login_nodes_session_cleanup.excluded_users %}
+        {{ user }}) continue ;;
+{% endfor %}
+    esac
+
+    if [[ "$state" != "active" ]]; then
+        continue
+    fi
+
+    MAX_AGE=0
+    SESSION_KIND=""
+
+    if [[ "$SERVICE" == "sshd" && "$TYPE" == "tty" ]]; then
+        MAX_AGE=$SSH_MAX
+        SESSION_KIND="SSH"
+    elif [[ "$SERVICE" == "xrdp-sesman" && "$TYPE" == "x11" ]]; then
+        MAX_AGE=$RDP_MAX
+        SESSION_KIND="RDP"
+    else
+        continue
+    fi
+
+    if [ "$AGE" -gt "$MAX_AGE" ]; then
+        log "Killing $SESSION_KIND session $sid (user=$NAME, service=$SERVICE, type=$TYPE, age=$AGE sec)"
+        loginctl terminate-session "$sid"
+    fi
+done
