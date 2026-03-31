@@ -2,7 +2,7 @@ frontend rdp_front
     bind 0.0.0.0:3389
     mode tcp
     option tcplog
-    acl from_guac src {{ hostvars['guacamole_server']['ansible_host'] }}
+    acl from_guac src {{ hostvars[groups['guacamole_server'][0]]['ansible_host'] }}
     tcp-request connection reject if !from_guac
     timeout client 168h
     default_backend rdp_nodes

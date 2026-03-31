@@ -88,7 +88,7 @@
     mode: "0644"
 
 # mkdir -p /etc/systemd/system/user.slice.d
-- name: Create systemd directory for user slice overrides
+- name: Create systemd directory for global user slice overrides
   ansible.builtin.file:
     path: /etc/systemd/system/user.slice.d
     state: directory
@@ -96,8 +96,17 @@
     group: root
     mode: "0755"
 
+# mkdir -p /etc/systemd/system/user-.slice.d
+- name: Create systemd directory for per-user slice overrides
+  ansible.builtin.file:
+    path: /etc/systemd/system/user-.slice.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 # /etc/systemd/system/user.slice.d/50-login-limits.conf
-- name: Configure systemd user slice memory limit
+- name: Configure global systemd user slice limits
   ansible.builtin.template:
     src: 50-login-limits.conf.j2
     dest: /etc/systemd/system/user.slice.d/50-login-limits.conf
@@ -106,3 +115,67 @@
     mode: "0644"
   notify:
     - Reload systemd daemon
+
+# /etc/systemd/system/user-.slice.d/50-per-user.conf
+- name: Configure per-user systemd slice limits
+  ansible.builtin.template:
+    src: 50-per-user.conf.j2
+    dest: /etc/systemd/system/user-.slice.d/50-per-user.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+# mkdir -p /etc/systemd/logind.conf.d
+- name: Create systemd-logind drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure logind for login nodes
+  ansible.builtin.template:
+    src: 50-login-nodes.conf.j2
+    dest: /etc/systemd/logind.conf.d/50-login-nodes.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Restart systemd-logind
+
+- name: Install old session cleanup script
+  ansible.builtin.template:
+    src: kill_old_sessions.sh.j2
+    dest: /usr/local/bin/kill_old_sessions.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install old session cleanup service
+  ansible.builtin.template:
+    src: kill-old-sessions.service.j2
+    dest: /etc/systemd/system/kill-old-sessions.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+- name: Install old session cleanup timer
+  ansible.builtin.template:
+    src: kill-old-sessions.timer.j2
+    dest: /etc/systemd/system/kill-old-sessions.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+- name: Ensure old session cleanup timer is enabled and running
+  ansible.builtin.systemd:
+    name: kill-old-sessions.timer
+    enabled: true
+    state: started
