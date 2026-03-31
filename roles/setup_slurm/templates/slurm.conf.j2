@@ -30,7 +30,7 @@ JobCompPort=3306
 JobCompType=jobcomp/filetxt
 JobCompUser=job_database_mgr
 #JobContainerType=job_container/tmpfs
-#JobSubmitPlugins=require_timelimit,defaults,logging
+JobSubmitPlugins=lua,defaults
 KillOnBadExit=1
 LaunchParameters=use_interactive_step
 #MaxNodeCount=16
@@ -86,7 +86,6 @@ NodeName=scc-gpu[01-02]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2
 #NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
 #NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
 PartitionName=cpu Nodes=scc-cpu[02-11]-10g MaxTime=30-00:00:00 CpuBind=core DefMemPerCPU=5333 Default=YES
-PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777
-PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333
-NodeName=login1 CPUs=4 RealMemory=6000 State=UNKNOWN
-NodeName=login2 CPUs=4 RealMemory=6000 State=UNKNOWN
+PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777 AllowAccounts=highmem
+PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=gpu
+NodeName=login[1-2] CPUs=4 RealMemory=6000 State=UNKNOWN
