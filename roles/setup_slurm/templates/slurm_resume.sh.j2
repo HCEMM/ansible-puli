@@ -1,0 +1,46 @@
+#!/bin/bash
+set -euo pipefail
+
+LOG=/tmp/resume_debug.log
+
+if [[ $# -lt 1 ]]; then
+    echo "Resume called with no arguments" >> "$LOG"
+    exit 0
+fi
+
+HOSTLIST="$1"
+
+echo "ARGS: $HOSTLIST" >> "$LOG"
+
+NODES=$(scontrol show hostnames "$HOSTLIST")        # Expand Slurm hostlist into individual hostnames
+
+echo "Expanded nodes:" >> "$LOG"
+echo "$NODES" >> "$LOG"
+
+for NODE in $NODES; do
+    SHORT=${NODE%%.*}
+
+    # Safe lookup of BMC address
+    BMC_ADDR=$(awk -v n="$SHORT" '$1==n {print $2}' \
+        /usr/local/etc/node2bmc.tsv || true)
+
+    echo "NODE=$NODE SHORT=$SHORT BMC=$BMC_ADDR" >> "$LOG"
+
+    if [[ -z "$BMC_ADDR" ]]; then
+        echo "No BMC entry for $NODE" >> "$LOG"
+        continue
+    fi
+
+    echo "Powering on $NODE via $BMC_ADDR" >> "$LOG"
+
+    /usr/bin/ipmitool -I lanplus \
+        -H "$BMC_ADDR" \
+        -U {{ bmc_username }} \
+        -P {{ bmc_password }} \
+        power on >> "$LOG" 2>&1 || true
+
+    echo "Power on command issued for $NODE" >> "$LOG"
+done
+
+echo "Resume script completed" >> "$LOG"
+exit 0

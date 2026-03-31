@@ -49,3 +49,5 @@ if ! ipa-client-install --uninstall --unattended &>/dev/null; then
 fi
 
 touch "$FLAG"
+
+chronyc makestep
