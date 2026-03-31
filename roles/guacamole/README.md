@@ -21,3 +21,26 @@ Terminal=false
 Categories=System;
 StartupNotify=false
 ```
+
+### SSH Key Setup for Guacamole Connections
+
+For creating the SSH connection in Guacamole, you need to provide the private key used for authentication.
+
+```
+Navigate to the following directory in the repository:
+
+guacamole/files/guacamole_key
+guacamole/files/guacamole_key.pub
+
+Copy the required private key file(s).
+
+Paste the contents of the private key into the "Private Key" and ""Public Key"" fields in the Guacamole SSH connection setting.
+```
+
+### Access to guacamole_db
+```
+mysql -u root -p guacamole_db
+exit;
+```
+
+

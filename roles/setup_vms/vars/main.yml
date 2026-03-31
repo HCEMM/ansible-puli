@@ -35,10 +35,10 @@ setup_vms_vm_list:
     disk_size: 30G
     ip: '10.0.150.205'
     mac: '52:54:00:aa:bb:04'
-  tlmaster1:      # deprecated for now
-    memory: 4096
-    vcpus: 2
-    disk_size: 20G
+  login3:      # deprecated for now
+    memory: 16384
+    vcpus: 4
+    disk_size: 30G
     ip: '10.0.150.206'
     mac: '52:54:00:aa:bb:05'
   tlmaster2:      # deprecated for now

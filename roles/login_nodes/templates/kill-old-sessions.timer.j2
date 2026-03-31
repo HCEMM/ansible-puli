@@ -1,0 +1,10 @@
+[Unit]
+Description=Run session cleanup periodically
+
+[Timer]
+OnBootSec={{ login_nodes_session_cleanup.timer_on_boot }}
+OnUnitActiveSec={{ login_nodes_session_cleanup.timer_interval }}
+Unit=kill-old-sessions.service
+
+[Install]
+WantedBy=timers.target
