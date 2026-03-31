@@ -70,6 +70,8 @@
       - git
       - htop
       - nano
+      - mousepad
+      - xdg-utils
     state: present
 
 # tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
