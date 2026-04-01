@@ -3,6 +3,7 @@ global
     log /dev/log local1 notice
     daemon
     maxconn 2000
+    setcap cap_net_raw
 
 defaults
     mode tcp
@@ -15,10 +16,14 @@ defaults
 
 frontend fe_ssh
     bind 0.0.0.0:{{ haproxy_ssh_listen_port | default(22) }}
+    mode tcp
+    option tcplog
     default_backend be_ssh
 
 backend be_ssh
+    mode tcp
     balance {{ haproxy_balance | default('source') }}
+    source 0.0.0.0 usesrc clientip
     option tcp-check
     tcp-check connect port {{ haproxy_backend_port | default(22) }}
 

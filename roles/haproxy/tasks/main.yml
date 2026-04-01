@@ -8,6 +8,16 @@
           - haproxy
           - policycoreutils-python-utils   # semanage
         state: present
+    
+    - name: Enable sysctl settings for HAProxy transparent proxy
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+      loop:
+        - { name: "net.ipv4.ip_forward", value: "1" }
+        - { name: "net.ipv4.ip_nonlocal_bind", value: "1" }
 
     - name: Ensure /etc/ssh/sshd_config.d exists
       ansible.builtin.file:
@@ -29,6 +39,42 @@
     - name: Validate HAProxy config
       ansible.builtin.command: haproxy -c -f /etc/haproxy/haproxy.cfg
       changed_when: false
+
+    - name: Install transparent proxy routing service
+      ansible.builtin.template:
+        src: haproxy-transparent-routing.service.j2
+        dest: /etc/systemd/system/haproxy-transparent-routing.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    - name: Install transparent proxy iptables service
+      ansible.builtin.template:
+        src: haproxy-transparent-iptables.service.j2
+        dest: /etc/systemd/system/haproxy-transparent-iptables.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    
+    - name: Flush handlers before enabling transparent proxy services
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable transparent proxy routing service
+      ansible.builtin.systemd:
+        name: haproxy-transparent-routing.service
+        enabled: true
+        state: started
+
+    - name: Enable transparent proxy iptables service
+      ansible.builtin.systemd:
+        name: haproxy-transparent-iptables.service
+        enabled: true
+        state: started
 
     # Move sshd off 22 so HAProxy can bind :22
     - name: Configure sshd on thinlinc2 to use admin port (free port 22 for HAProxy)
@@ -177,6 +223,25 @@
         group: root
         mode: "0644"
       notify: Restart sshd
+
+    - name: Deploy login-node transparent return routing service
+      ansible.builtin.template:
+        src: login-node-transparent-routing.service.j2
+        dest: /etc/systemd/system/login-node-transparent-routing.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    - name: Flush handlers before enabling login-node transparent routing
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable login-node transparent return routing service
+      ansible.builtin.systemd:
+        name: login-node-transparent-routing.service
+        enabled: true
+        state: started
 
     - name: Validate sshd config
       ansible.builtin.command: sshd -t

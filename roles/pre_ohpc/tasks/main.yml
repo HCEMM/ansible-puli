@@ -23,7 +23,14 @@
 - name: Enable IP forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: 1
+    value: '1'
+    state: present
+    reload: true
+  
+- name: Enable net.ipv4.ip_nonlocal_bind
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
     state: present
     reload: true
 
@@ -51,18 +58,4 @@
     name: chronyd
     state: restarted
 
-# dnf install haproxy
-- name: Install HAProxy
-  ansible.builtin.dnf:
-    name: haproxy
-    state: present
-  notify: Enable and start HAProxy
 
-- name: Copy HAProxy configuration file
-  ansible.builtin.copy:
-    src: haproxy.cfg
-    dest: /etc/haproxy/haproxy.cfg
-    owner: root
-    group: root
-    mode: "644"
-  notify: Enable and start HAProxy

@@ -1,0 +1,20 @@
+[Unit]
+Description=Transparent proxy iptables rules for HAProxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t mangle -L DIVERT -n >/dev/null 2>&1 || /usr/sbin/iptables -t mangle -N DIVERT'
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t mangle -C PREROUTING -p tcp -m socket -j DIVERT || /usr/sbin/iptables -t mangle -A PREROUTING -p tcp -m socket -j DIVERT'
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t mangle -C DIVERT -j MARK --set-mark 1 || /usr/sbin/iptables -t mangle -A DIVERT -j MARK --set-mark 1'
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t mangle -C DIVERT -j ACCEPT || /usr/sbin/iptables -t mangle -A DIVERT -j ACCEPT'
+ExecStop=-/usr/sbin/iptables -t mangle -D PREROUTING -p tcp -m socket -j DIVERT
+ExecStop=-/usr/sbin/iptables -t mangle -D DIVERT -j MARK --set-mark 1
+ExecStop=-/usr/sbin/iptables -t mangle -D DIVERT -j ACCEPT
+ExecStop=-/usr/sbin/iptables -t mangle -F DIVERT
+ExecStop=-/usr/sbin/iptables -t mangle -X DIVERT
+
+[Install]
+WantedBy=multi-user.target
