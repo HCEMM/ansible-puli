@@ -70,10 +70,13 @@
     path: "{{ item }}"
     state: directory
     mode: '0755'
+    owner: slurm
+    group: slurm
   loop:
     - /etc/slurm
     - /var/log/slurm
     - /var/spool/slurm
+  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd']
 
 # cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
@@ -82,12 +85,17 @@
     src: slurm.conf.j2
     dest: /etc/slurm/slurm.conf
     mode: '0644'
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
 
 - name: Copy slurmdbd.conf
   ansible.builtin.template:
     src: slurmdbd.conf.j2
     dest: /etc/slurm/slurmdbd.conf
     mode: '0600'
+    owner: slurm
+    group: slurm
   when: inventory_hostname in groups['slurmdbd']
 
 # cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
@@ -96,19 +104,44 @@
     src: "{{ item }}.j2"
     dest: "/etc/slurm/{{ item }}"
     mode: "{{ '0600' if item in ['acct_gather.conf'] else '0644' }}"
+    owner: slurm
+    group: slurm
   loop:
     - cgroup.conf
-    - acct_gather.conf
+    # - acct_gather.conf     # it ain't working, bunch of "unrecognized key"
     - topology.conf
-  notify: Enable and start slurmd service
-  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
+  notify: Enable and start slurmctld service
+  when: inventory_hostname in groups['slurmctld']
 
 - name: Deploy epilog.sh
   ansible.builtin.copy:
     src: epilog.sh
     dest: /etc/slurm/epilog.sh
     mode: '0755'
-  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
+
+- name: Deploy node2bmc.tsv
+  ansible.builtin.copy:
+    src: node2bmc.tsv
+    dest: /usr/local/etc/node2bmc.tsv
+    mode: '0644'
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
+
+- name: Deploy slurm_suspend.sh and slurm_resume.sh
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /usr/local/sbin/{{ item }}
+    mode: '0700'      # can never be visible to anyone else, since it contains BMC credentials
+    owner: slurm
+    group: slurm
+  loop:
+    - slurm_suspend.sh
+    - slurm_resume.sh
+  when: inventory_hostname in groups['slurmctld']
 
 # systemctl enable --now slurmctld
 - name: Enable and start slurmctld service
@@ -135,29 +168,8 @@
     state: enabled
     immediate: true
   loop:
-    - 6817/tcp   # slurmctld
-    - 6818/tcp   # slurmdbd
-    - 6819/tcp   # slurmd
-    - 32768-60999/tcp  # slurmctld/slurmd communication
+    - 6817/tcp          # slurmctld
+    - 6818/tcp          # slurmdbd
+    - 6819/tcp          # slurmd
+    - 32768-60999/tcp   # slurmctld/slurmd communication
   when: inventory_hostname in groups['login_nodes']
-
-- name: Copy Slurm configuration files to compute nodes
-  ansible.builtin.shell: |
-    set -o pipefail
-
-    # Copy common Slurm configs to all compute nodes
-    pdcp -w {{ compute_nodes | map(attribute='c_name') | join(',') }} \
-      /etc/slurm/slurm.conf \
-      /etc/slurm/epilog.sh \
-      /etc/slurm/cgroup.conf \
-      /etc/slurm/acct_gather.conf \
-      /etc/slurm/
-
-    # Copy gres.conf only to GPU nodes
-    pdcp -w {{ compute_nodes | selectattr('c_name', 'search', 'gpu') | map(attribute='c_name') | join(',') }} \
-    /etc/slurm/gres.conf \
-    /etc/slurm/
-
-  when:
-    - inventory_hostname in groups['sms']
-  notify: Enable and start slurmd service on all compute nodes

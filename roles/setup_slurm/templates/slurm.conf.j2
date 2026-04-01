@@ -30,7 +30,7 @@ JobCompPort=3306
 JobCompType=jobcomp/filetxt
 JobCompUser=job_database_mgr
 #JobContainerType=job_container/tmpfs
-#JobSubmitPlugins=require_timelimit,defaults,logging
+JobSubmitPlugins=lua,defaults
 KillOnBadExit=1
 LaunchParameters=use_interactive_step
 #MaxNodeCount=16
@@ -42,11 +42,13 @@ PriorityWeightFairshare=1
 ProctrackType=proctrack/cgroup
 PrologFlags=Contain
 PropagateResourceLimits=NONE
-SchedulerParameters=bf_busy_nodes,bf_continue,bf_hetjob_immediate,bf_hetjob_prio=min,
+# power_save: neccessary for power saving to work
+# See when "pack_serial_at_end" might be useful: https://lists.openhpc.community/g/users/topic/slurm_configuration_cores/6014102
+SchedulerParameters=bf_busy_nodes,bf_continue,bf_hetjob_immediate,bf_hetjob_prio=min,power_save
 SchedulerType=sched/backfill
 ScronParameters=enable,explicit_scancel
 SelectType=select/cons_tres
-SelectTypeParameters=CR_Core_Memory,LL_SHARED_GRES
+SelectTypeParameters=CR_Core,LL_SHARED_GRES
 SlurmctldDebug=debug
 SlurmctldHost={{ setup_slurm_slurmctld }}
 SlurmctldHost={{ setup_slurm_slurmctld_backup }}
@@ -66,13 +68,24 @@ TaskPlugin=task/cgroup,task/affinity
 #TopologyPlugin=topology/tree
 TrackWCKey=no
 TreeWidth=32
+
+# --- Power saving ---
+SuspendTime=3600            # 1 hour idle before shutdown
+SuspendTimeout=120          # Maximum time permitted (in seconds) between when a node suspend request is issued and when the node is shutdown
+ResumeTimeout=600           # Maximum time permitted (in seconds) between when a node resume request is issued and when the node is actually available for use
+SuspendProgram=/usr/local/sbin/slurm_suspend.sh
+ResumeProgram=/usr/local/sbin/slurm_resume.sh
+ReturnToService=2           # A DOWN node will become available for use upon registration with a valid configuration.
+SlurmdTimeout=300           # The interval, in seconds, that the Slurm controller waits for slurmd to respond before configuring that node's state to DOWN.
+SuspendExcNodes=login[1-2],scc-cpu[02-03]-10g        # Exclude 2 cpu nodes from power saving
+
+# --- Nodes info ---
 NodeName=scc-cpu[02-11]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=230400 CpuBind=core
 NodeName=scc-mem[01-2]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=1843200 Features=highmem CpuBind=core
-NodeName=scc-gpu[01-02]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=230400 Features=nvidia CpuBind=core
-NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
-NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
+NodeName=scc-gpu[01-02]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=230400 Features=nvidia CpuBind=core Gres=gpu:1
+#NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
+#NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
 PartitionName=cpu Nodes=scc-cpu[02-11]-10g MaxTime=30-00:00:00 CpuBind=core DefMemPerCPU=5333 Default=YES
-PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777
-PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333
-NodeName=login1 CPUs=4 RealMemory=8196 State=UNKNOWN
-NodeName=login2 CPUs=4 RealMemory=8196 State=UNKNOWN
+PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777 AllowAccounts=highmem
+PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=gpu
+NodeName=login[1-2] CPUs=4 RealMemory=6000 State=UNKNOWN
