@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+USER_NAME="$(id -un)"
 QR_SIZE="${1:-10}"
-OUTFILE="${2:-$HOME/otp-${USER}.png}"
+OUTFILE="${2:-$HOME/otp-${USER_NAME}.png}"
+LOG_TAG="ga-setup"
 
-need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1"; exit 1; }; }
+need() {
+  command -v "$1" >/dev/null 2>&1 || {
+    logger -t "$LOG_TAG" "[$USER_NAME] Missing command: $1"
+    echo "TOTP setup is not available on this system. Please contact the administrator."
+    exit 1
+  }
+}
+
+log_err() {
+  logger -t "$LOG_TAG" "[$USER_NAME] $*"
+}
+
 need ipa
 need klist
 need kinit
@@ -13,29 +26,72 @@ need awk
 need id
 need hostname
 
-USER="$(id -un)"
-HOST="$(hostname -f 2>/dev/null || hostname)"
+HOST_FQDN="$(hostname -f 2>/dev/null || hostname)"
 
 if ! klist -s; then
-  echo "No Kerberos ticket found. Running: kinit ${USER}"
-  kinit "${USER}"
+  if ! kinit "${USER_NAME}" >/dev/null 2>&1; then
+    log_err "kinit failed"
+    echo "Authentication failed. Please try again."
+    exit 1
+  fi
 fi
 
-OUT="$(ipa otptoken-add --type=totp --desc="TOTP for ${USER}@${HOST}")"
+TOKEN_FIND_OUTPUT="$(ipa otptoken-find --owner="${USER_NAME}" 2>&1 || true)"
 
-URI="$(echo "$OUT" | awk '/URI:/ {print $2; exit}')"
-if [ -z "${URI:-}" ]; then
-  echo "Could not find OTP URI in ipa output."
-  echo "$OUT"
+EXISTING_COUNT="$(
+  echo "${TOKEN_FIND_OUTPUT}" | awk '
+    /Number of entries returned/ {print $NF; found=1}
+    END {if (!found) print "PARSE_ERROR"}
+  '
+)"
+
+if [[ "${EXISTING_COUNT}" == "PARSE_ERROR" ]]; then
+  log_err "Could not parse token count from ipa otptoken-find output: ${TOKEN_FIND_OUTPUT}"
+  echo "Could not complete TOTP setup. Please contact the administrator."
   exit 1
 fi
 
-echo "OTP token created for ${USER}"
-echo "URI: ${URI}"
-echo
+if [[ ! "${EXISTING_COUNT}" =~ ^[0-9]+$ ]]; then
+  log_err "Non-numeric token count parsed: ${EXISTING_COUNT}; raw output: ${TOKEN_FIND_OUTPUT}"
+  echo "Could not complete TOTP setup. Please contact the administrator."
+  exit 1
+fi
 
-echo "Writing QR PNG to: ${OUTFILE}"
-echo "${URI}" | qrencode -o "${OUTFILE}" -s "${QR_SIZE}" -m 1
+if [[ "${EXISTING_COUNT}" -gt 0 ]]; then
+  echo "You already have an OTP token configured."
+  exit 0
+fi
+
+TOKEN_ADD_OUTPUT="$(
+  ipa otptoken-add \
+    --owner="${USER_NAME}" \
+    --type=totp \
+    --desc="TOTP for ${USER_NAME}@${HOST_FQDN}" 2>&1
+)" || {
+  rc=$?
+  log_err "ipa otptoken-add failed with rc=${rc}: ${TOKEN_ADD_OUTPUT:-<no output>}"
+  echo "Could not create your TOTP token. Please contact the administrator."
+  exit 1
+}
+
+URI="$(echo "${TOKEN_ADD_OUTPUT}" | awk '/URI:/ {print $2; exit}')"
+
+if [[ -z "${URI:-}" ]]; then
+  log_err "Could not find URI in ipa otptoken-add output: ${TOKEN_ADD_OUTPUT}"
+  echo "Could not complete TOTP setup. Please contact the administrator."
+  exit 1
+fi
+
+if ! echo "${URI}" | qrencode -o "${OUTFILE}" -s "${QR_SIZE}" -m 1 >/dev/null 2>&1; then
+  log_err "qrencode PNG generation failed"
+  echo "The TOTP token was created, but the QR image could not be generated. Please contact the administrator."
+  exit 1
+fi
+
+echo "OTP token created successfully."
+echo "QR image saved to: ${OUTFILE}"
 echo
-echo "Terminal QR (note: size scaling may not apply in ANSIUTF8):"
+echo "Terminal QR:"
 echo "${URI}" | qrencode -t ANSIUTF8 -m 1
+echo
+echo "Setup complete."

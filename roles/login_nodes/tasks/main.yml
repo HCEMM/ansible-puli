@@ -181,3 +181,51 @@
     name: kill-old-sessions.timer
     enabled: true
     state: started
+
+# Setup 2FA workflow
+- name: Ensure qrencode package is installed
+  ansible.builtin.package:
+    name: qrencode
+    state: present
+
+- name: Check admin keytab exists on login node
+  ansible.builtin.stat:
+    path: /root/admin.keytab
+  register: login_node_admin_keytab_stat
+
+- name: Fail if admin keytab is missing on login node
+  ansible.builtin.fail:
+    msg: "/root/admin.keytab is required on login nodes for 2FA enforcement."
+  when: not login_node_admin_keytab_stat.stat.exists
+
+- name: Deploy ga-setup script
+  ansible.builtin.copy:
+    src: usr/local/bin/ga-setup
+    dest: /usr/local/bin/ga-setup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy login node 2FA enforcement script
+  ansible.builtin.copy:
+    src: usr/local/sbin/loginnode-2fa-enforce.sh
+    dest: /usr/local/sbin/loginnode-2fa-enforce.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Ensure login node 2FA enforcement log file exists
+  ansible.builtin.file:
+    path: /var/log/loginnode-2fa-enforce.log
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+    
+- name: Deploy login node 2FA enforcement cron file
+  ansible.builtin.copy:
+    src: etc/cron.d/loginnode-2fa-enforce
+    dest: /etc/cron.d/loginnode-2fa-enforce
+    owner: root
+    group: root
+    mode: "0644"
