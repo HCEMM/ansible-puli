@@ -21,6 +21,24 @@
   loop: "{{ ldap_users }}"
   when: item.username is defined
 
+# Set XFS quota for LDAP users on /home 
+- name: Gather home directory UID for LDAP users
+  ansible.builtin.stat:
+    path: "/home/{{ item.username }}"
+  loop: "{{ ldap_users }}"
+  when: item.username is defined
+  register: ldap_home_stats
+
+- name: Apply XFS quota by UID
+  ansible.builtin.command:
+    cmd: "xfs_quota -x -c 'limit bsoft=20g bhard=20g {{ item.stat.uid }}' /home"
+  loop: "{{ ldap_home_stats.results }}"
+  when:
+    - item.stat is defined
+    - item.stat.exists
+    - item.stat.uid is defined
+  changed_when: false
+
 # also add new users to sacct
 #sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
 #sacctmgr add user USERNAME account=group_name cluster=sccluster
