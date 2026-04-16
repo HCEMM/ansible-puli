@@ -15,3 +15,9 @@ sacctmgr list user format=User,DefaultAccount,Account
 ## Configurations of Slurm
 
 Remote controller authority: `/etc/sysconfig/slurmd`
+
+### Node management
+
+```
+scontrol update nodename=scc-cpu02-10g state=drain reason='a reason'            # put a node unavailable
+```
