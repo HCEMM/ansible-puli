@@ -1,0 +1,4 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 * * * * root kinit -k -t /root/admin.keytab admin && /usr/local/sbin/freeipa-2fa-reconcile.sh >> /var/log/freeipa-2fa-reconcile.log 2>&1
