@@ -73,6 +73,23 @@ getent group groupname
 
 ssh -vvv username@login1
 
+# 2FA Enforcement
+
+A centralized TOTP-based 2FA enforcement mechanism is implemented using FreeIPA as the authority and login nodes as enforcement points.
+
+Users generate their TOTP token using: ga-setup
+
+The system periodically(each hour) checks whether each user has an OTP token.
+
+- If a user has an OTP token → authentication is restricted to OTP only
+- If a user does not have an OTP token → password login remains allowed
+Runtime enforcement (Login Nodes)
+- After login, users are given a grace period to configure 2FA
+- If they fail to do so:
+They are notified
+Their session is terminated
+Key Idea
+
 ## Sometimes httpd doesn't allow ipactl restart
 
 If `systemctl restart httpd` is failing, try killing it completely: `pkill -9 httpd`

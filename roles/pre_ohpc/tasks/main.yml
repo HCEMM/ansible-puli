@@ -23,9 +23,49 @@
 - name: Enable IP forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: 1
+    value: '1'
     state: present
     reload: true
+  
+- name: Enable net.ipv4.ip_nonlocal_bind
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    state: present
+    reload: true
+
+# Ensure /home uses XFS user quotas
+- name: Ensure /home is mounted with usrquota
+  ansible.builtin.mount:
+    path: /home
+    src: /dev/mapper/almalinux-home
+    fstype: xfs
+    opts: defaults,usrquota
+    state: mounted
+
+# Setup XFS quotas on /home
+- name: Remount /home to apply usrquota immediately
+  ansible.builtin.command:
+    cmd: mount -o remount /home
+  changed_when: false
+
+- name: Check /home mount options
+  ansible.builtin.command:
+    cmd: findmnt -no OPTIONS /home
+  register: home_mount_options
+  changed_when: false
+
+- name: Ensure usrquota is active on /home
+  ansible.builtin.assert:
+    that:
+      - "'usrquota' in home_mount_options.stdout or 'uquota' in home_mount_options.stdout"
+    fail_msg: "/home is not mounted with usrquota"
+    success_msg: "/home quota mount option is active"
+
+- name: Set default XFS quota for /home
+  ansible.builtin.command:
+    cmd: xfs_quota -x -c 'limit -d bsoft=20g bhard=20g' /home
+  changed_when: false
 
 # systemctl enable chronyd.service
 - name: Enable chronyd service
@@ -51,18 +91,4 @@
     name: chronyd
     state: restarted
 
-# dnf install haproxy
-- name: Install HAProxy
-  ansible.builtin.dnf:
-    name: haproxy
-    state: present
-  notify: Enable and start HAProxy
 
-- name: Copy HAProxy configuration file
-  ansible.builtin.copy:
-    src: haproxy.cfg
-    dest: /etc/haproxy/haproxy.cfg
-    owner: root
-    group: root
-    mode: "644"
-  notify: Enable and start HAProxy

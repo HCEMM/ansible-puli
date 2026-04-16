@@ -1,0 +1,15 @@
+[Unit]
+Description=Transparent proxy return routing for login node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '/usr/sbin/ip rule show | /usr/bin/grep -q "from {{ ansible_default_ipv4.address }} lookup 100" || /usr/sbin/ip rule add from {{ ansible_default_ipv4.address }} table 100'
+ExecStart=/bin/sh -c '/usr/sbin/ip route show table 100 | /usr/bin/grep -q "default via {{ hostvars[groups["sms"][0]].ansible_host }} dev {{ ansible_default_ipv4.interface }}" || /usr/sbin/ip route add default via {{ hostvars[groups["sms"][0]].ansible_host }} dev {{ ansible_default_ipv4.interface }} table 100'
+ExecStop=-/usr/sbin/ip rule del from {{ ansible_default_ipv4.address }} table 100
+ExecStop=-/usr/sbin/ip route del default via {{ hostvars[groups["sms"][0]].ansible_host }} dev {{ ansible_default_ipv4.interface }} table 100
+
+[Install]
+WantedBy=multi-user.target

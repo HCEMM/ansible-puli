@@ -220,6 +220,41 @@
       loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
       loop_control:
         label: "{{ item.0.username }} -> {{ item.1 }}"
+    
+    # 2FA reconciliation script and cron job
+    - name: Check that admin keytab exists for FreeIPA 2FA reconcile
+      ansible.builtin.stat:
+        path: /root/admin.keytab
+      register: freeipa_admin_keytab_stat
+
+    - name: Fail if admin keytab is missing
+      ansible.builtin.fail:
+        msg: "/root/admin.keytab is required for FreeIPA 2FA reconcile cron job."
+      when: not freeipa_admin_keytab_stat.stat.exists
+
+    - name: Deploy FreeIPA 2FA reconcile script
+      ansible.builtin.template:
+        src: usr/local/sbin/freeipa-2fa-reconcile.sh.j2
+        dest: /usr/local/sbin/freeipa-2fa-reconcile.sh
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Ensure FreeIPA 2FA reconcile log file exists
+      ansible.builtin.file:
+        path: /var/log/freeipa-2fa-reconcile.log
+        state: touch
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Deploy FreeIPA 2FA reconcile cron file
+      ansible.builtin.template:
+        src: etc/cron.d/freeipa-2fa-reconcile.j2
+        dest: /etc/cron.d/freeipa-2fa-reconcile
+        owner: root
+        group: root
+        mode: "0644"
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
