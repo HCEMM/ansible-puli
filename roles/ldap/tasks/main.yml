@@ -337,6 +337,7 @@
 # also add new users to sacct
 #sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
 #sacctmgr add user USERNAME account=group_name cluster=sccluster
+#sacctmgr add user $user account=gpu/highmem partition=gpu/highmem cluster=sccluster
 - name: Add newly created LDAP users to Slurm accounting
   when:
     - inventory_hostname == 'slurmctld1'
@@ -414,6 +415,65 @@
         - (item.item.groups | default([])) | length > 0
         - item.rc == 0
         - (item.stdout | trim) == ""
+    
+    - name: Check Slurm partition access (gpu/highmem) for new users
+      ansible.builtin.command:
+        argv:
+          - sacctmgr
+          - show
+          - assoc
+          - user={{ item.username }}
+          - format=Account,Partition
+          - --noheader
+      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - item.username is defined
+        - (item.slurm_groups | default([])) | length > 0
+      register: slurm_partition_check
+      changed_when: false
+      failed_when: false
+
+    - name: Add user to GPU partition if requested
+      ansible.builtin.command:
+        argv:
+          - sacctmgr
+          - -i
+          - add
+          - user
+          - "{{ item.item.username }}"
+          - account=gpu
+          - partition=gpu
+          - cluster=sccluster
+      loop: "{{ slurm_partition_check.results }}"
+      loop_control:
+        label: "{{ item.item.username }} -> gpu"
+      when:
+        - item.item.slurm_groups is defined
+        - "'gpu' in item.item.slurm_groups"
+        - item.rc == 0
+        - "'gpu' not in (item.stdout | lower)"
+
+    - name: Add user to HighMem partition if requested
+      ansible.builtin.command:
+        argv:
+          - sacctmgr
+          - -i
+          - add
+          - user
+          - "{{ item.item.username }}"
+          - account=highmem
+          - partition=highmem
+          - cluster=sccluster
+      loop: "{{ slurm_partition_check.results }}"
+      loop_control:
+        label: "{{ item.item.username }} -> highmem"
+      when:
+        - item.item.slurm_groups is defined
+        - "'highmem' in item.item.slurm_groups"
+        - item.rc == 0
+        - "'highmem' not in (item.stdout | lower)"
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
