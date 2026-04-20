@@ -6,3 +6,7 @@ It builds the environment for users. Most of the user experience outside of the 
 After deploying this role, the new systemd slice limits will not fully apply to existing user sessions. To ensure the limits take effect, one of the following actions is required:
 
 loginctl terminate-user
+
+### Check why home folders are so full
+
+If normal files/folders don't show much, see on the hidden ones: `du -sh /home/asuli/.[!.]* /home/asuli/..?*`

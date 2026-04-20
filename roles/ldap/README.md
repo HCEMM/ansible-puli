@@ -101,3 +101,9 @@ Runtime enforcement (Login Nodes)
 They are notified
 Their session is terminated
 Key Idea
+
+## Sometimes httpd doesn't allow ipactl restart
+
+If `systemctl restart httpd` is failing, try killing it completely: `pkill -9 httpd`
+
+Then, restart everything: `systemctl restart httpd; ipactl restart`

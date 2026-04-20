@@ -1,5 +1,12 @@
 ## Spack tips
 
+To install a package against our chosen gcc compiler
+```
+ml spack      # root doesn't have this by default, all users do
+spack install tree %gcc@14.2.0
+spack module lmod refresh -y              # regenerate the modules, creates for the new tool
+```
+
 `spack spec r-deseq2@1.40.0 ^r@4.3.3` shows the dependencies to be installed and already installed.
 
 ## Why can't Spack install my R package?
