@@ -1,5 +1,11 @@
 ## Troubleshoot
 
+```
+wwctl node list -n      # get network configuration
+cat /etc/warewulf/warewulf.conf         # check warewulf general configuration
+cat /etc/warewulf/nodes.conf            # check nodes configuration (mounts, slurmctld, etc)   
+```
+
 ### Kernel panic during PXE boot of the compute nodes
 
 Either 
