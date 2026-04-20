@@ -27,8 +27,10 @@
   tags: ldap
   hosts:
     - ldap_server
-    - galaxy_server
     - login_nodes
+    - sms
+    - slurmctld1
+    # - galaxy_server
   any_errors_fatal: true
   become: true
   gather_facts: true
