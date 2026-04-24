@@ -107,3 +107,20 @@ EOF
 dnf -y install xdg-utils
 xdg-mime query default text/plain
 update-mime-database /usr/share/mime
+
+
+
+# limitations on /tmp folder of computes (and maybe login nodes too) so it doesn't fill up
+# /etc/tmpfiles.d/tmp.conf
+r /tmp/brave_* - - - 6h
+r /tmp/_MEI* - - - 6h
+export TMPDIR=/scratch/$USER/tmp     # on Slurm prolog script
+tmpfs /tmp tmpfs size=20G
+
+
+# For all new users
+ln -s /dev/null /home/*/thinclient_drives
+
+
+# Just as general debugging, don't remember where this was used
+rm -rf /etc/logrotate.d/named; logrotate -d /etc/logrotate.conf; rm -f /var/lib/logrotate/logrotate.status; systemctl restart logrotate.service

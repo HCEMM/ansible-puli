@@ -9,6 +9,14 @@ spack module lmod refresh -y              # regenerate the modules, creates for 
 
 `spack spec r-deseq2@1.40.0 ^r@4.3.3` shows the dependencies to be installed and already installed.
 
+## The module exist, but it fails with all these weird tags, and dependencies... --ignore-cache?
+
+No, nuke previous built modules cause they broken. 
+```
+rm -rf /opt/ohpc/pub/apps/spack/0.23.1/share/spack/lmod/gcc/14.2.0/*          # if just one, that remove only that, but if many, just nuke all
+spack module lmod refresh --delete-tree -y
+```
+
 ## Why can't Spack install my R package?
 
 If getting something like
@@ -41,3 +49,4 @@ If getting something like
 Means Bioconductor is not playing ball with Spack. Like [here](https://github.com/spack/spack/issues/49333). 
 
 [This](https://github.com/spack/spack/commit/1b24dfb8bafe86fbff47a9751b199e2707e3c23e#diff-100b68317ab04956110b4cdbe88d236f162fdfad3ef5c686ef689a4ca177766c) is a possible solution, by removing all R packages, and installing `r-summarizedexperiment@1.1.6` and `r-biocgenerics@0.7.5`. Will need to test it later.
+
