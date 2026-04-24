@@ -113,11 +113,22 @@
         mode: "0644"
       loop:
         - galaxy.yml
-        - auth_conf.xml
+        # - auth_conf.xml        # NOT READY
         - container_resolvers.yml
-        - job_conf.yml
+        # - job_conf.yml         # NOT READY
         - tool_conf.xml
         - tool_destinations.yml
+        - themes.yml
+
+    - name: Copy htmls to static/
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ galaxy_base_dir }}/static/{{ item }}"
+        owner: "{{ galaxy_user }}"
+        group: "{{ galaxy_group }}"
+        mode: "0644"
+      loop:
+        - welcome.html
 
     # run.sh
     - name: Install Galaxy
@@ -126,3 +137,5 @@
         chdir: "{{ galaxy_base_dir }}"
       args:
         creates: "{{ galaxy_base_dir }}/.venv"
+
+# pip install galaxycloudrunner (on the environment)
