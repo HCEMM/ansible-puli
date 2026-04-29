@@ -1,18 +1,16 @@
 #!/bin/bash
 #SBATCH --job-name=tumor-sim
 #SBATCH --partition=cpu
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=1
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=2
 #SBATCH --time=00:30:00
-#SBATCH --output=logs/%x_%A_%a.out
-#SBATCH --error=logs/%x_%A_%a.err
+#SBATCH --output=/home/jsequeira/logs/%x_%A_%a.out
+#SBATCH --error=/home/jsequeira/logs/%x_%A_%a.err
 
-ml miniconda3
+cd /home/jsequeira/cancer_job
 
-conda activate
+SUBMIT_DIR=$(pwd)
 
-SUBMIT_DIR=~/scripts/tumor_simulation
+. .env/bin/activate
 
-cd $SUBMIT_DIR
-
-srun --multi-prog $SUBMIT_DIR/multi.conf
+srun --multi-prog multi.conf
