@@ -1,0 +1,8 @@
+# Managed by Ansible - don't edit manually!
+# Import Fail2Ban bans into CrowdSec
+# Runs every Saturday night
+
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+{{ crowdsec_f2b_cron_minute }} {{ crowdsec_f2b_cron_hour }} * * {{ crowdsec_f2b_cron_weekday }} root flock -n /tmp/crowdsec-f2b.lock /usr/local/sbin/crowdsec-f2b-reconcile >> /var/log/crowdsec-f2b-reconcile.log 2>&1
