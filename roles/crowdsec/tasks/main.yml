@@ -1,0 +1,160 @@
+---
+- name: Configure CrowdSec on SMS node
+  when: inventory_hostname in groups['sms']
+  block:
+    # dnf install curl -y
+    - name: Install curl for CrowdSec repository setup
+      ansible.builtin.dnf:
+        name: curl
+        state: present
+
+    - name: Check if CrowdSec repository is already installed
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns: "*crowdsec*.repo"
+        file_type: file
+      register: crowdsec_repo_files
+
+    - name: Install CrowdSec repository
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -s https://install.crowdsec.net | sh
+        dnf clean all
+        dnf makecache
+      args:
+        executable: /bin/bash
+      when: crowdsec_repo_files.matched | int == 0
+      changed_when: true
+
+    # dnf install -y crowdsec crowdsec-firewall-bouncer-iptables jq ipset iptables util-linux
+    - name: Install CrowdSec packages
+      ansible.builtin.dnf:
+        name:
+          - crowdsec
+          - crowdsec-firewall-bouncer-iptables
+          - jq
+          - ipset
+          - iptables
+          - util-linux
+        state: present
+
+    - name: Ensure CrowdSec directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /etc/crowdsec/parsers/s01-parse
+        - /etc/crowdsec/parsers/s02-enrich
+        - /etc/crowdsec/scenarios
+        - /etc/crowdsec/bouncers
+        - /var/lib/crowdsec-f2b-reconcile
+
+    - name: Deploy HCEMM CrowdSec whitelist
+      ansible.builtin.template:
+        src: hcemm-whitelists.yaml.j2
+        dest: /etc/crowdsec/parsers/s02-enrich/hcemm-whitelists.yaml
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart crowdsec
+
+    - name: Deploy HAProxy SSH parser
+      ansible.builtin.template:
+        src: hcemm-haproxy-ssh-logs.yaml.j2
+        dest: /etc/crowdsec/parsers/s01-parse/hcemm-haproxy-ssh-logs.yaml
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart crowdsec
+
+    - name: Deploy HAProxy SSH abuse scenario
+      ansible.builtin.template:
+        src: hcemm-haproxy-ssh-connection-abuse.yaml.j2
+        dest: /etc/crowdsec/scenarios/hcemm-haproxy-ssh-connection-abuse.yaml
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart crowdsec
+
+    - name: Check if CrowdSec local machine credentials exist
+      ansible.builtin.stat:
+        path: /etc/crowdsec/local_api_credentials.yaml
+      register: crowdsec_local_api_credentials
+
+    - name: Register local CrowdSec machine if credentials are missing
+      ansible.builtin.command: "cscli machines add {{ inventory_hostname }} -a"
+      when: not crowdsec_local_api_credentials.stat.exists
+      changed_when: true
+
+    - name: Ensure CrowdSec service is enabled and started
+      ansible.builtin.systemd:
+        name: crowdsec
+        enabled: true
+        state: started
+
+    - name: Flush CrowdSec handlers before bouncer validation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Check registered CrowdSec bouncers
+      ansible.builtin.command: cscli bouncers list -o json
+      register: crowdsec_bouncers_list
+      changed_when: false
+      failed_when: false
+
+    - name: Register CrowdSec firewall bouncer if missing
+      ansible.builtin.command: cscli bouncers add crowdsec-firewall-bouncer
+      register: crowdsec_new_bouncer_key
+      when: "'crowdsec-firewall-bouncer' not in crowdsec_bouncers_list.stdout"
+      changed_when: true
+      no_log: true
+
+    - name: Warn when bouncer key was generated
+      ansible.builtin.debug:
+        msg: >-
+          A new CrowdSec firewall bouncer API key was generated.
+          Copy it manually into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+          or store it in Ansible Vault as crowdsec_bouncer_api_key, then rerun the playbook.
+      when:
+        - crowdsec_new_bouncer_key is defined
+        - crowdsec_new_bouncer_key.changed | default(false)
+
+    - name: Deploy CrowdSec firewall bouncer config
+      ansible.builtin.template:
+        src: crowdsec-firewall-bouncer.yaml.j2
+        dest: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      when:
+        - crowdsec_manage_bouncer_config | default(false) | bool
+        - "'crowdsec-firewall-bouncer' not in crowdsec_bouncers_list.stdout"
+      notify: Restart crowdsec firewall bouncer
+
+    - name: Deploy Fail2Ban-to-CrowdSec reconcile script
+      ansible.builtin.template:
+        src: crowdsec-f2b-reconcile.j2
+        dest: /usr/local/sbin/crowdsec-f2b-reconcile
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Deploy CrowdSec Fail2Ban reconcile cron job
+      ansible.builtin.template:
+        src: crowdsec-f2b-reconcile.cron.j2
+        dest: /etc/cron.d/crowdsec-f2b-reconcile
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Validate CrowdSec configuration
+      ansible.builtin.command: crowdsec -c /etc/crowdsec/config.yaml -t -error
+      changed_when: false
+
+    - name: Ensure CrowdSec firewall bouncer is enabled and started
+      ansible.builtin.systemd:
+        name: crowdsec-firewall-bouncer
+        enabled: true
+        state: started

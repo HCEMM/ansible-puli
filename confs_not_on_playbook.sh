@@ -107,3 +107,65 @@ EOF
 dnf -y install xdg-utils
 xdg-mime query default text/plain
 update-mime-database /usr/share/mime
+
+
+##### CrowdSec Agent installation:
+
+dnf install curl -y
+
+curl -s https://install.crowdsec.net | sh
+
+dnf clean all
+dnf makecache
+
+dnf install crowdsec -y
+
+
+systemctl enable --now crowdsec
+systemctl status crowdsec --no-pager
+cscli version
+
+##### Firewall Bouncer installation:
+
+dnf install crowdsec-firewall-bouncer-iptables -y
+systemctl enable crowdsec-firewall-bouncer
+systemctl start crowdsec-firewall-bouncer
+systemctl status crowdsec-firewall-bouncer
+
+##### Check connection between Bouncer & Agent:
+
+cscli bouncers list
+
+(looking for something like this: 
+Name                         IP       Status
+firewall-bouncer             127.0.0.1  ✔ active)
+
+##### Whitelist management:
+
+/etc/crowdsec/parsers/s02-enrich/whitelist.yaml
+
+name: crowdsecurity/whitelists
+description: "Whitelist trusted HCEMM admin and infrastructure IPs"
+whitelist:
+  reason: "trusted HCEMM sources"      
+  ip:
+    - "79.120.228.107"
+  cidr:
+    - "127.0.0.0/8"
+    - "192.168.0.0/16"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+  # expression:
+  #   - "'foo.com' in evt.Meta.source_ip.reverse" 
+
+##### Threat Intelligence activation:
+
+cscli collections list
+cscli collections install crowdsecurity/linux
+cscli collections install crowdsecurity/sshd
+
+systemctl restart crowdsec
+cscli metrics
+cscli alerts list
+cscli decisions list
+iptables -L -n

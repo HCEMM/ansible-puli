@@ -1,0 +1,20 @@
+# Managed by Ansible - don't edit manually!
+name: hcemm/whitelists
+description: "Trusted HCEMM sources"
+
+whitelist:
+  reason: "{{ hcemm_network_whitelist.reason | default('HCEMM trusted networks') }}"
+
+{% if hcemm_network_whitelist.ip is defined and hcemm_network_whitelist.ip | length > 0 %}
+  ip:
+{% for ip in hcemm_network_whitelist.ip %}
+    - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
+{% if hcemm_network_whitelist.cidr is defined and hcemm_network_whitelist.cidr | length > 0 %}
+  cidr:
+{% for cidr in hcemm_network_whitelist.cidr %}
+    - "{{ cidr }}"
+{% endfor %}
+{% endif %}

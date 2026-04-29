@@ -93,6 +93,17 @@
   roles:
     - login_nodes
 
+- name: Setup HAProxy
+  tags: 
+    - haproxy
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - haproxy
+
 - name: Setup Fail2Ban
   tags: 
     - fail2ban
@@ -104,6 +115,16 @@
   gather_facts: true
   roles:
     - fail2ban
+
+- name: Setup Crowdsec
+  tags: 
+    - crowdsec
+  hosts:
+    - sms
+  become: true
+  gather_facts: true
+  roles:
+    - crowdsec
 
 - name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
   tags:
