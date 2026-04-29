@@ -43,20 +43,16 @@ galaxy:
   oidc_config_file: oidc_config.xml.sample 
   data_manager_config_file: data_manager_conf.xml.sample
   tool_sheds_config_file: tool_sheds_conf.xml.sample
-  tool_data_table_config_path: tool_data_table_conf.xml.sample
-  static_enabled: true 
-  themes_config_file: themes_conf.yml 
-  tool_config_file: tool_conf.xml.sample 
+  static_enabled: true
+  themes_config_file: themes_conf.yml
+  tool_config_file: tool_conf.xml
   tool_data_table_config_path: tool_data_table_conf.xml.sample 
   tool_dependency_dir: dependencies
   tool_sheds_config_file: tool_sheds_conf.xml.sample 
   tus_upload_store: {{ galaxy_tus_upload_store }}
   visualization_plugins_directory: config/plugins/visualizations
   admin_users: joao.sequeira@hcemm.eu,Alessandra.Vittorini@hcemm.eu
-  auth_config_file: auth_conf.xml
-  # Set log file path
-  log_destination: {{ galaxy_base_dir }}/log/galaxy.log
-  # Rotate once log reaches 100 MB
-  log_rotate_size: 100 MB
-  # Keep the 10 most recent log files
-  log_rotate_count: 10
+  log_level: INFO
+  log_destination: {{ galaxy_base_dir }}/log/galaxy.log     # Set log file path
+  log_rotate_size: 100 MB                                   # Rotate once log reaches 100 MB
+  log_rotate_count: 10                                      # Keep the 10 most recent log files
