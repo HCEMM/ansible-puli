@@ -91,4 +91,76 @@
     name: chronyd
     state: restarted
 
+# dnf install -y rear grub2-tools grub2-tools-extra grub2-tools-efi grub2-efi-x64 xorriso syslinux
+- name: Install ReaR packages
+  dnf:
+    name:
+      - rear
+      - grub2-tools
+      - grub2-tools-extra
+      - grub2-tools-efi
+      - grub2-efi-x64
+      - xorriso
+      - syslinux
+    state: present
+
+# ln -sf /sbin/grub2-probe /usr/bin/grub-probe
+- name: Create grub-probe symlink
+  file:
+    src: /sbin/grub2-probe
+    dest: /usr/bin/grub-probe
+    state: link
+    force: true
+
+# mkdir -p /mnt/root-admin/vms-backup
+# mkdir -p /mnt/root-admin/rear-backup
+- name: Create backup directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /mnt/root-admin/vms-backup
+    - /mnt/root-admin/rear-backup
+
+# cp backup-vms.sh /root/backup-vms.sh
+# chmod +x /root/backup-vms.sh
+- name: Install backup-vms.sh
+  copy:
+    src: backup-vms.sh
+    dest: /root/backup-vms.sh
+    mode: '0755'
+
+# cp weekly-full-cluster-backup.sh /root/weekly-full-cluster-backup.sh
+# chmod +x /root/weekly-full-cluster-backup.sh
+- name: Install weekly-full-cluster-backup.sh
+  copy:
+    src: weekly-full-cluster-backup.sh
+    dest: /root/weekly-full-cluster-backup.sh
+    mode: '0755'
+
+# cp rear-local.conf /etc/rear/local.conf
+- name: Install ReaR config
+  copy:
+    src: rear-local.conf
+    dest: /etc/rear/local.conf
+    mode: '0644'
+
+# cp weekly-full-system-backup.cron /etc/cron.d/weekly-full-system-backup
+# chmod 644 /etc/cron.d/weekly-full-system-backup
+- name: Install weekly backup cron
+  copy:
+    src: weekly-full-system-backup.cron
+    dest: /etc/cron.d/weekly-full-system-backup
+    mode: '0644'
+
+# bash -n /root/backup-vms.sh
+- name: Validate backup-vms.sh
+  command: bash -n /root/backup-vms.sh
+  changed_when: false
+
+# bash -n /root/weekly-full-cluster-backup.sh
+- name: Validate weekly-full-cluster-backup.sh
+  command: bash -n /root/weekly-full-cluster-backup.sh
+  changed_when: false
 
