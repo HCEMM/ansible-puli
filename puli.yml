@@ -153,6 +153,9 @@
   hosts:
     - monitoring
     - hosts
+    - ldap_servers
+    - login_nodes
+    - slurmctld
   become: true
   gather_facts: true
   roles:
