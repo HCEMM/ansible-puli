@@ -1,0 +1,32 @@
+#!/bin/bash
+
+SSH_KEY="{{ checkmk_puli_ssh_private_key_path }}"
+SSH_USER="{{ checkmk_puli_ssh_user }}"
+SSH_HOST="{{ checkmk_puli_ssh_host }}"
+
+OUTPUT=$(timeout 20 ssh \
+  -i "${SSH_KEY}" \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o LogLevel=ERROR \
+  -o BatchMode=yes \
+  -o PreferredAuthentications=publickey \
+  -o PasswordAuthentication=no \
+  "${SSH_USER}@${SSH_HOST}" \
+  "echo OK" 2>&1)
+
+RC=$?
+
+echo "<<<<{{ checkmk_puli_ssh_host }}>>>>"
+echo "<<<local:sep(0)>>>"
+
+if [[ $RC -ne 0 ]]; then
+    echo '2 "PULI_SSH_LOGIN" - SSH login failed'
+    exit 0
+fi
+
+if echo "$OUTPUT" | grep -qx "OK"; then
+    echo '0 "PULI_SSH_LOGIN" - SSH login successful'
+else
+    echo '2 "PULI_SSH_LOGIN" - Unexpected response'
+fi

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+SERVICE_NAME="{{ checkmk_slurm_nodes_service_name | default('Slurm_Nodes') }}"
+
+HOSTNAME_SHORT="$(hostname -s)"
+
+PING_OUTPUT="$(scontrol ping 2>/dev/null)"
+if [ $? -ne 0 ]; then
+    echo "2 ${SERVICE_NAME} - CRITICAL - cannot run scontrol ping"
+    exit 0
+fi
+
+PRIMARY_HOST="$(echo "$PING_OUTPUT" | awk -F'[() ]+' '/primary/ {print $4}')"
+
+if [ "$HOSTNAME_SHORT" != "$PRIMARY_HOST" ]; then
+    echo "0 ${SERVICE_NAME} - OK - standby slurmctld, check skipped"
+    exit 0
+fi
+
+SINFO_OUTPUT="$(sinfo -N -h -o "%N|%T|%E" 2>/dev/null)"
+if [ $? -ne 0 ]; then
+    echo "2 ${SERVICE_NAME} - CRITICAL - cannot run sinfo"
+    exit 0
+fi
+
+CRITICAL_NODES=()
+WARNING_NODES=()
+
+while IFS='|' read -r NODE STATE REASON; do
+    STATE_LOWER="$(echo "$STATE" | tr '[:upper:]' '[:lower:]')"
+    REASON="${REASON:-none}"
+
+    case "$STATE_LOWER" in
+        idle|allocated|mixed|idle~)
+            ;;
+        *drain*|*down*|*fail*|*not_responding*)
+            CRITICAL_NODES+=("${NODE}=${STATE} reason=${REASON}")
+            ;;
+        *powering_up*)
+            WARNING_NODES+=("${NODE}=${STATE} reason=${REASON}")
+            ;;
+        *)
+            WARNING_NODES+=("${NODE}=${STATE} reason=${REASON}")
+            ;;
+    esac
+done <<< "$SINFO_OUTPUT"
+
+if [ ${#CRITICAL_NODES[@]} -gt 0 ]; then
+    echo "2 ${SERVICE_NAME} - CRITICAL - ${#CRITICAL_NODES[@]} problematic Slurm node(s): ${CRITICAL_NODES[*]}"
+elif [ ${#WARNING_NODES[@]} -gt 0 ]; then
+    echo "1 ${SERVICE_NAME} - WARNING - ${#WARNING_NODES[@]} Slurm node(s) in unusual state: ${WARNING_NODES[*]}"
+else
+    NODE_COUNT="$(echo "$SINFO_OUTPUT" | wc -l)"
+    echo "0 ${SERVICE_NAME} - OK - all ${NODE_COUNT} Slurm nodes are healthy"
+fi

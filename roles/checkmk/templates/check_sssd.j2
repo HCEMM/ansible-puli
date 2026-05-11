@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SSSD_DOMAIN="{{ ldap_domain }}"
+
+if sssctl domain-status "${SSSD_DOMAIN}" --online >/dev/null 2>&1
+then
+    echo "0 SSSD_Status - SSSD domain online (${SSSD_DOMAIN})"
+else
+    echo "2 SSSD_Status - SSSD domain offline (${SSSD_DOMAIN})"
+fi

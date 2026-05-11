@@ -2,7 +2,7 @@
 set -euo pipefail
 
 LOG_TAG="${LOG_TAG:-freeipa-2fa-reconcile}"
-EXCLUDE_USERS_REGEX="${EXCLUDE_USERS_REGEX:-^(admin|root|guacadmin|ipaapi|dirsrv|pkiuser)$}"
+EXCLUDE_USERS_REGEX="${EXCLUDE_USERS_REGEX:-^(admin|root|guacadmin|ipaapi|dirsrv|pkiuser|Monitoring)$}"
 DRY_RUN="${DRY_RUN:-false}"
 DEBUG_USER="${DEBUG_USER:-}"
 

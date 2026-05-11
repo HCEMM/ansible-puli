@@ -240,7 +240,118 @@
       changed_when: true
       no_log: true
 
+- name: Deploy Checkmk local checks for KDC port monitoring
+  when:
+    - inventory_hostname in groups['ldap_server']
+      or inventory_hostname in groups['login_nodes']
+      or inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy KDC port check
+      ansible.builtin.template:
+        src: check_kdc_port.j2
+        dest: /usr/lib/check_mk_agent/local/check_kdc_port
+        owner: root
+        group: root
+        mode: '0755'
+  
+- name: Deploy Checkmk local checks for Kerberos DNS monitoring
+  when:
+    - inventory_hostname in groups['monitoring']
+      or inventory_hostname in groups['login_nodes']
+      or inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy Kerberos DNS check
+      ansible.builtin.template:
+        src: check_kerberos_dns.j2
+        dest: /usr/lib/check_mk_agent/local/check_kerberos_dns
+        owner: root
+        group: root
+        mode: '0755'
 
+- name: Deploy Checkmk local checks for LDAP user resolution monitoring
+  when:
+    - inventory_hostname in groups['login_nodes']
+      or inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy LDAP user resolution check
+      ansible.builtin.template:
+        src: check_ldap_user.j2
+        dest: /usr/lib/check_mk_agent/local/check_ldap_user
+        owner: root
+        group: root
+        mode: '0755'
 
+- name: Deploy Checkmk local check for LDAP query monitoring
+  when:
+    - inventory_hostname in groups['monitoring']
+  block:
+    - name: Deploy LDAP query check
+      ansible.builtin.template:
+        src: check_ldap.j2
+        dest: /usr/lib/check_mk_agent/local/check_ldap
+        owner: root
+        group: root
+        mode: '0755'
 
+- name: Check PULI SSH private key exists
+  ansible.builtin.stat:
+    path: "{{ checkmk_puli_ssh_private_key_path }}"
+  register: checkmk_puli_ssh_key_stat
+  when:
+    - inventory_hostname in groups['monitoring']
 
+- name: Fail if PULI SSH private key is missing
+  ansible.builtin.fail:
+    msg: "PULI SSH private key is missing: {{ checkmk_puli_ssh_private_key_path }}"
+  when:
+    - inventory_hostname in groups['monitoring']
+    - not checkmk_puli_ssh_key_stat.stat.exists
+    
+- name: Deploy Checkmk local check for PULI SSH login monitoring
+  when:
+    - inventory_hostname in groups['monitoring']
+  block:
+    - name: Deploy PULI SSH login check
+      ansible.builtin.template:
+        src: check_puli_ssh.j2
+        dest: /usr/lib/check_mk_agent/local/check_puli_ssh
+        owner: root
+        group: root
+        mode: '0755'
+
+- name: Deploy Checkmk local checks for SSSD monitoring
+  when:
+    - inventory_hostname in groups['login_nodes']
+      or inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy SSSD status check
+      ansible.builtin.template:
+        src: check_sssd.j2
+        dest: /usr/lib/check_mk_agent/local/check_sssd
+        owner: root
+        group: root
+        mode: '0755'
+
+- name: Deploy Checkmk local checks for Slurm job monitoring
+  when:
+    - inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy Slurm jobs check
+      ansible.builtin.template:
+        src: check_slurm_jobs.j2
+        dest: /usr/lib/check_mk_agent/local/check_slurm_jobs
+        owner: root
+        group: root
+        mode: '0755'
+
+- name: Deploy Checkmk local checks for Slurm node monitoring
+  when:
+    - inventory_hostname in groups['slurmctld']
+  block:
+    - name: Deploy Slurm nodes check
+      ansible.builtin.template:
+        src: check_slurm_nodes.j2
+        dest: /usr/lib/check_mk_agent/local/check_slurm_nodes
+        owner: root
+        group: root
+        mode: '0755'
