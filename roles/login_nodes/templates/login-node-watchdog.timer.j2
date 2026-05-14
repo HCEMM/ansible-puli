@@ -1,0 +1,11 @@
+[Unit]
+Description=Run login node watchdog periodically
+
+[Timer]
+OnBootSec={{ login_nodes_watchdog.timer_on_boot }}
+OnUnitInactiveSec={{ login_nodes_watchdog.timer_interval }}
+AccuracySec={{ login_nodes_watchdog.accuracy }}
+Unit=login-node-watchdog.service
+
+[Install]
+WantedBy=timers.target

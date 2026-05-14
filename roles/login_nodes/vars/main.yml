@@ -1,8 +1,10 @@
 login_nodes_per_user_limits:
   cpu_quota: "200%"
   tasks_max: 512
-  memory_high: "3G"
-  memory_max: "4G"
+  # Generous per-user limit to avoid killing XRDP/VSCode sessions too early.
+  # Heavy compute workloads are handled separately by login-node-watchdog.
+  memory_high: "5800M"
+  memory_max: "6000M"
   memory_swap_max: "0"
 
 login_nodes_global_limits:
@@ -10,7 +12,32 @@ login_nodes_global_limits:
   tasks_max: 4096
   memory_high: "26G"
   memory_max: "28G"
-  memory_swap_max: "2G"
+  memory_swap_max: "0"
+
+login_nodes_io_limits:
+  io_weight: 30
+  startup_io_weight: 30
+
+login_nodes_watchdog:
+  enabled: true
+  timer_on_boot: "1min"
+  timer_interval: "10s"
+  accuracy: "1s"
+  min_uid: 100000
+  cpu_limit_percent: 80
+  rss_limit_kb: 1572864      # 1.5 GiB
+  time_limit_seconds: 600    # 10 minutes
+  terminate_delay_seconds: 20
+  kill_delay_seconds: 5
+  protected_commands:
+    - python
+    - python3
+    - R
+    - Rscript
+    - jupyter
+    - matlab
+
+login_nodes_remove_runtime_override_uids: []
 
 login_nodes_runtime_limits:
   cpu_time_soft: 7200
@@ -22,3 +49,4 @@ login_nodes_session_cleanup:
   rdp_max_age_seconds: 604800       # 7 days
   timer_on_boot: "10min"
   timer_interval: "1h"
+  excluded_users: []
