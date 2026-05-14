@@ -129,6 +129,25 @@
   notify:
     - Reload systemd daemon
 
+# /etc/systemd/system/user-.slice.d/60-io.conf
+- name: Configure per-user systemd IO limits
+  ansible.builtin.template:
+    src: 60-io.conf.j2
+    dest: /etc/systemd/system/user-.slice.d/60-io.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon   
+
+- name: Remove selected stale per-user runtime overrides if requested
+  ansible.builtin.file:
+    path: "/etc/systemd/system.control/user-{{ item }}.slice.d"
+    state: absent
+  loop: "{{ login_nodes_remove_runtime_override_uids | default([]) }}"
+  notify:
+    - Reload systemd daemon 
+
 # mkdir -p /etc/systemd/logind.conf.d
 - name: Create systemd-logind drop-in directory
   ansible.builtin.file:
@@ -181,7 +200,47 @@
     name: kill-old-sessions.timer
     enabled: true
     state: started
+# /usr/local/sbin/login-node-watchdog.sh
+- name: Install login node workload watchdog script
+  ansible.builtin.template:
+    src: login-node-watchdog.sh.j2
+    dest: /usr/local/sbin/login-node-watchdog.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: login_nodes_watchdog.enabled | bool
 
+# /etc/systemd/system/login-node-watchdog.service
+- name: Install login node workload watchdog service
+  ansible.builtin.template:
+    src: login-node-watchdog.service.j2
+    dest: /etc/systemd/system/login-node-watchdog.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: login_nodes_watchdog.enabled | bool
+  notify:
+    - Reload systemd daemon
+
+# /etc/systemd/system/login-node-watchdog.timer
+- name: Install login node workload watchdog timer
+  ansible.builtin.template:
+    src: login-node-watchdog.timer.j2
+    dest: /etc/systemd/system/login-node-watchdog.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when: login_nodes_watchdog.enabled | bool
+  notify:
+    - Reload systemd daemon
+
+- name: Ensure login node workload watchdog timer is enabled and running
+  ansible.builtin.systemd:
+    name: login-node-watchdog.timer
+    enabled: true
+    state: started
+  when: login_nodes_watchdog.enabled | bool
+  
 # Setup 2FA workflow
 - name: Ensure qrencode package is installed
   ansible.builtin.package:
