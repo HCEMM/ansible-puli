@@ -18,7 +18,7 @@ echo "Expanded nodes:" >> "$LOG"
 echo "$NODES" >> "$LOG"
 
 for NODE in $NODES; do
-    SHORT=${NODE%%.*}
+    SHORT=${NODE%%.*}           # Get short hostname (e.g., scc-cpu10-10g from scc-cpu10-10g.cluster.hcemm.eu); kinda deprecated, but good to keep
 
     # Safe lookup of BMC address
     BMC_ADDR=$(awk -v n="$SHORT" '$1==n {print $2}' \
@@ -40,6 +40,20 @@ for NODE in $NODES; do
         power on >> "$LOG" 2>&1 || true
 
     echo "Power on command issued for $NODE" >> "$LOG"
+
+    # Remove the downtime in Checkmk for this host, if it exists, since we're powering it on now
+    BIG_G=$(echo "$NODE" | sed 's/\([0-9]\)g/\1G/')      # -10g to -10G for Checkmk compatibility
+    curl -s -X POST   "http://{{ checkmk_site }}/monitoring/check_mk/api/1.0/domain-types/downtime/actions/delete/invoke" \
+    -H "Authorization: Bearer {{ checkmk_username }} {{ checkmk_password }}" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    -d '{
+    "delete_type": "params",
+    "host_name": "'"${BIG_G}"'"
+    }'
+
+    echo "Downtime removed for $BIG_G" >> "$LOG"
+
 done
 
 echo "Resume script completed" >> "$LOG"
