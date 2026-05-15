@@ -1,0 +1,11 @@
+#!/bin/bash
+
+KERBEROS_DOMAIN="{{ ldap_realm | lower }}"
+EXPECTED_KDC="{{ ldap_server_fqdn }}"
+
+if dig +short _kerberos._tcp.${KERBEROS_DOMAIN} SRV | grep -q "${EXPECTED_KDC}\."
+then
+    echo "0 Kerberos_DNS - Kerberos SRV record OK (${EXPECTED_KDC})"
+else
+    echo "2 Kerberos_DNS - Kerberos SRV record FAILED (${EXPECTED_KDC})"
+fi

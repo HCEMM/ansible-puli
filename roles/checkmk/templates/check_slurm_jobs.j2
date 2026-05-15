@@ -1,0 +1,93 @@
+#!/bin/bash
+
+SERVICE_NAME="Slurm_Jobs"
+
+FAILED_WINDOW="{{ checkmk_slurm_failed_window | default('now-15minutes') }}"
+NODEFAIL_WINDOW="{{ checkmk_slurm_nodefail_window | default('now-15minutes') }}"
+OOM_WINDOW="{{ checkmk_slurm_oom_window | default('now-1hour') }}"
+TIMEOUT_WINDOW="{{ checkmk_slurm_timeout_window | default('now-1hour') }}"
+
+HOSTNAME_SHORT="$(hostname -s)"
+
+PING_OUTPUT="$(scontrol ping 2>/dev/null)"
+if [ $? -ne 0 ]; then
+    echo "2 ${SERVICE_NAME} - CRITICAL - cannot run scontrol ping"
+    exit 0
+fi
+
+PRIMARY_HOST="$(echo "$PING_OUTPUT" | awk -F'[() ]+' '/primary/ {print $4}')"
+
+if [ "$HOSTNAME_SHORT" != "$PRIMARY_HOST" ]; then
+    echo "0 ${SERVICE_NAME} - OK - standby slurmctld, check skipped"
+    exit 0
+fi
+
+check_jobs () {
+    local WINDOW="$1"
+    local STATE="$2"
+
+    sacct \
+        -S "$WINDOW" \
+        --state="$STATE" \
+        --noheader \
+        --format=JobIDRaw,User,State,JobName \
+        2>/dev/null | grep -vE '\.batch|\.extern' || true
+}
+
+FAILED_JOBS="$(check_jobs "$FAILED_WINDOW" FAILED)"
+NODEFAIL_JOBS="$(check_jobs "$NODEFAIL_WINDOW" NODE_FAIL)"
+OOM_JOBS="$(check_jobs "$OOM_WINDOW" OUT_OF_MEMORY)"
+TIMEOUT_JOBS="$(check_jobs "$TIMEOUT_WINDOW" TIMEOUT)"
+
+FAILED_COUNT="$(echo "$FAILED_JOBS" | sed '/^\s*$/d' | wc -l)"
+NODEFAIL_COUNT="$(echo "$NODEFAIL_JOBS" | sed '/^\s*$/d' | wc -l)"
+OOM_COUNT="$(echo "$OOM_JOBS" | sed '/^\s*$/d' | wc -l)"
+TIMEOUT_COUNT="$(echo "$TIMEOUT_JOBS" | sed '/^\s*$/d' | wc -l)"
+
+TOTAL_PROBLEMS=$((FAILED_COUNT + NODEFAIL_COUNT + OOM_COUNT + TIMEOUT_COUNT))
+
+DETAILS=""
+
+if [ "$NODEFAIL_COUNT" -gt 0 ]; then
+    DETAILS+="NODE_FAIL=${NODEFAIL_COUNT} "
+fi
+
+if [ "$OOM_COUNT" -gt 0 ]; then
+    DETAILS+="OOM=${OOM_COUNT} "
+fi
+
+if [ "$FAILED_COUNT" -gt 0 ]; then
+    DETAILS+="FAILED=${FAILED_COUNT} "
+fi
+
+if [ "$TIMEOUT_COUNT" -gt 0 ]; then
+    DETAILS+="TIMEOUT=${TIMEOUT_COUNT} "
+fi
+
+if [ "$TOTAL_PROBLEMS" -eq 0 ]; then
+    echo "0 ${SERVICE_NAME} - OK - no problematic Slurm jobs detected"
+    exit 0
+fi
+
+LONG_DETAILS=""
+
+append_details () {
+    local LABEL="$1"
+    local CONTENT="$2"
+
+    if [ -n "$CONTENT" ]; then
+        local TMP
+        TMP=$(echo "$CONTENT" | awk '
+        {
+            printf "%s(%s) ", $1, $2
+        }')
+        LONG_DETAILS+="${LABEL}: ${TMP} | "
+    fi
+}
+
+append_details "NODE_FAIL" "$NODEFAIL_JOBS"
+append_details "OOM" "$OOM_JOBS"
+append_details "FAILED" "$FAILED_JOBS"
+append_details "TIMEOUT" "$TIMEOUT_JOBS"
+
+echo "2 ${SERVICE_NAME} - CRITICAL - ${DETAILS}- ${LONG_DETAILS}"

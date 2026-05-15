@@ -135,7 +135,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # ipa user-add username --first= --last= --email= --uid= --
+        # ipa user-add username --first= --last= --email= --uid= --
     - name: Check users existence (ipa user-show)
       ansible.builtin.command: ipa user-show "{{ item.username }}"
       register: ipa_user_show
@@ -155,10 +155,7 @@
             | list
           }}
 
-    # ipa user-add username --first= --last= --email= --uid= --gidnumber= --homedir= --shell=
-    - name: Create IPA users (fixed UID, let IPA manage private group)
-      when:
-        - (item.groups | default([])) | length > 0
+    - name: Create IPA users
       vars:
         primary_group_name: "{{ item.groups[0] }}"
       ansible.builtin.command:
@@ -176,12 +173,21 @@
           - "--noprivate"
       register: ipa_user_add
       changed_when: "'Added user' in (ipa_user_add.stdout | default(''))"
-      failed_when: ipa_user_add.rc != 0 and ('already exists' not in (ipa_user_add.stderr | default('')))
+      failed_when: >
+        ipa_user_add.rc != 0 and
+        ('already exists' not in (ipa_user_add.stderr | default('')))
       loop: "{{ ipa_new_users }}"
       loop_control:
         label: "{{ item.username }}"
+      when:
+        - item.username is defined
+        - item.uid is defined
+        - item.first is defined
+        - item.last is defined
+        - item.email is defined
+        - (item.groups | default([])) | length > 0
 
-    - name: Set initial password only on create
+    - name: Set initial password only for newly created users with password
       ansible.builtin.shell: |
         set -euo pipefail
         PASS="{{ item.password }}"
@@ -189,6 +195,7 @@
       args:
         executable: /bin/bash
       changed_when: true
+      no_log: true
       loop: "{{ ipa_new_users }}"
       loop_control:
         label: "{{ item.username }}"
@@ -196,7 +203,28 @@
         - item.password is defined
         - item.password | length > 0
 
-    - name: Enforce user authentication type only for newly created users
+    - name: Enforce SSH public key for IPA users
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-mod
+          - "{{ item.username }}"
+          - "--sshpubkey={{ item.ssh_public_key }}"
+      register: ipa_user_ssh_key
+      changed_when: >
+        ipa_user_ssh_key.rc == 0 and
+        ('no modifications to be performed' not in (ipa_user_ssh_key.stderr | default('')))
+      failed_when: >
+        ipa_user_ssh_key.rc != 0 and
+        ('no modifications to be performed' not in (ipa_user_ssh_key.stderr | default('')))
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - item.ssh_public_key is defined
+        - item.ssh_public_key | length > 0
+
+    - name: Enforce user authentication type only for newly created password users
       ansible.builtin.command:
         argv: >-
           {{
@@ -211,9 +239,12 @@
       loop: "{{ ipa_new_users }}"
       loop_control:
         label: "{{ item.username }}"
+      when:
+        - ldap_user_auth_type is defined
+        - item.password is defined
+        - item.password | length > 0
 
-    # ipa group-add-member groupname --users=user1,user2
-    - name: Enforce group membership only for newly created users
+    - name: Enforce group membership for all IPA users
       community.general.ipa_group:
         ipa_host: "{{ ldap_server_fqdn }}"
         ipa_user: "{{ ldap_admin_user | default('admin') }}"
@@ -222,9 +253,11 @@
         user: "{{ item.0.username }}"
         append: true
         state: present
-      loop: "{{ ipa_new_users | default([]) | subelements('groups', skip_missing=True) }}"
+      loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
       loop_control:
         label: "{{ item.0.username }} -> {{ item.1 }}"
+      when:
+        - item.0.username is defined
     
     # 2FA reconciliation script and cron job
     - name: Check that admin keytab exists for FreeIPA 2FA reconcile

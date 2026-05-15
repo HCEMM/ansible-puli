@@ -1,0 +1,28 @@
+---
+# Nodes from which the SMS/cpu1 node collects Fail2Ban ban history.
+crowdsec_f2b_login_nodes:
+  - login1
+  - login2
+
+# CrowdSec has no true non-expiring manual decision through cscli.
+# Use a long duration and refresh through the weekly cron job.
+crowdsec_f2b_duration: "168h"
+crowdsec_f2b_min_bans: 5
+crowdsec_f2b_reason: "hcemm/fail2ban-import"
+
+# Saturday 23:00.
+crowdsec_f2b_cron_minute: "0"
+crowdsec_f2b_cron_hour: "23"
+crowdsec_f2b_cron_weekday: "6"
+
+# HAProxy SSH parser/scenario tuning.
+crowdsec_haproxy_ssh_frontend: "fe_ssh"
+crowdsec_haproxy_ssh_capacity: 3
+crowdsec_haproxy_ssh_leakspeed: "1m"
+crowdsec_haproxy_ssh_blackhole: "8760h"
+crowdsec_haproxy_ssh_duration: "8760h"
+
+# Keep this false if the bouncer config is already generated manually and its API key is not in Ansible Vault.
+# Set true only when crowdsec_bouncer_api_key is provided securely, for example via Ansible Vault.
+crowdsec_manage_bouncer_config: false
+crowdsec_bouncer_api_key: "CHANGE_ME_USE_ANSIBLE_VAULT"
