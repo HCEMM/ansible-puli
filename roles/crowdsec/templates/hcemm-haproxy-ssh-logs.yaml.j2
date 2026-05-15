@@ -1,0 +1,17 @@
+# Managed by Ansible - don't edit manually!
+name: hcemm/haproxy-ssh-logs
+description: "Parse HAProxy TCP logs for SSH frontend"
+filter: "evt.Parsed.program == 'haproxy' && evt.Line.Raw contains '{{ crowdsec_haproxy_ssh_frontend }}'"
+onsuccess: next_stage
+grok:
+  pattern: '%{IP:source_ip}:%{INT:source_port} \[%{DATA:haproxy_timestamp}\] %{DATA:frontend} %{DATA:backend}/%{DATA:server} %{GREEDYDATA:haproxy_rest}'
+  apply_on: message
+statics:
+  - meta: log_type
+    value: haproxy_ssh
+  - meta: service
+    value: ssh
+  - meta: source_ip
+    expression: evt.Parsed.source_ip
+  - meta: frontend
+    expression: evt.Parsed.frontend

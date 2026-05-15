@@ -1,0 +1,10 @@
+#!/bin/bash
+
+TESTUSER="{{ checkmk_test_ldap_user }}"
+
+if getent passwd "$TESTUSER" >/dev/null 2>&1
+then
+    echo "0 LDAP_User_Resolution - LDAP user resolution OK (${TESTUSER})"
+else
+    echo "2 LDAP_User_Resolution - LDAP user resolution FAILED (${TESTUSER})"
+fi

@@ -1,0 +1,20 @@
+# Managed by Ansible - don't edit manually!
+type: leaky
+name: hcemm/haproxy-ssh-connection-abuse
+description: "Detect repeated SSH connection attempts seen by HAProxy"
+filter: "evt.Meta.log_type == 'haproxy_ssh' && evt.Meta.service == 'ssh'"
+groupby: evt.Meta.source_ip
+capacity: {{ crowdsec_haproxy_ssh_capacity }}
+leakspeed: "{{ crowdsec_haproxy_ssh_leakspeed }}"
+blackhole: "{{ crowdsec_haproxy_ssh_blackhole }}"
+labels:
+  remediation: true
+  service: ssh
+  behavior: tcp_connection_abuse
+  classification:
+    - attack.T1110
+  spoofable: 0
+  confidence: 2
+  label: "SSH connection abuse through HAProxy"
+  type: bruteforce
+  duration: "{{ crowdsec_haproxy_ssh_duration }}"

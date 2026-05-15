@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# Managed by Ansible - don't edit manually!
+set -euo pipefail
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+LOCK_FILE="/run/crowdsec-f2b-reconcile.lock"
+exec 200>"$LOCK_FILE"
+flock -n 200 || {
+    echo "[INFO] Another instance is already running. Exiting."
+    exit 0
+}
+
+LOGIN_NODES=({% for node in crowdsec_f2b_login_nodes %}"{{ node }}"{% if not loop.last %} {% endif %}{% endfor %})
+
+WORKDIR="/var/lib/crowdsec-f2b-reconcile"
+RAW_FILE="$WORKDIR/raw.txt"
+FILTERED_FILE="$WORKDIR/filtered.txt"
+EXISTING_FILE="$WORKDIR/existing.txt"
+
+CROWDSEC_WHITELIST="/etc/crowdsec/parsers/s02-enrich/hcemm-whitelists.yaml"
+
+REASON="{{ crowdsec_f2b_reason }}"
+DURATION="{{ crowdsec_f2b_duration }}"
+MIN_BANS="{{ crowdsec_f2b_min_bans }}"
+
+DRY_RUN="false"
+[[ "${1:-}" == "--dry-run" ]] && DRY_RUN="true"
+
+mkdir -p "$WORKDIR"
+: > "$RAW_FILE"
+: > "$FILTERED_FILE"
+: > "$EXISTING_FILE"
+
+echo "[INFO] Starting at $(date -Is)"
+
+# -------------------------
+# LOAD EXISTING IPs (REAL FIX)
+# -------------------------
+{
+    cscli decisions list -o json \
+    | jq -r '.. | objects | select(has("value")) | .value' \
+    | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' \
+    | sort -u
+} > "$EXISTING_FILE" || true
+
+echo "[INFO] Existing decisions: $(wc -l < "$EXISTING_FILE")"
+
+# -------------------------
+# COLLECT FAIL2BAN DATA
+# -------------------------
+for node in "${LOGIN_NODES[@]}"; do
+    echo "[INFO] Collecting from $node"
+
+    ssh -o BatchMode=yes -o ConnectTimeout=10 root@"$node" '
+        zgrep -h " Ban " /var/log/fail2ban.log* 2>/dev/null || true
+    ' | grep -Eo "([0-9]{1,3}\.){3}[0-9]{1,3}" >> "$RAW_FILE" || true
+done
+
+# -------------------------
+# FILTER + COUNT
+# -------------------------
+python3 - "$RAW_FILE" "$CROWDSEC_WHITELIST" "$FILTERED_FILE" "$MIN_BANS" <<'PY'
+import sys, ipaddress, re
+from collections import Counter
+
+raw, whitelist, out, min_bans = sys.argv[1:]
+min_bans = int(min_bans)
+
+ips = Counter()
+
+with open(raw) as f:
+    for line in f:
+        try:
+            ip = ipaddress.ip_address(line.strip())
+            if ip.version == 4:
+                ips[str(ip)] += 1
+        except:
+            pass
+
+allowed = []
+try:
+    import re
+    txt = open(whitelist).read()
+    for x in re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d+)?\b', txt):
+        allowed.append(ipaddress.ip_network(x, strict=False))
+except:
+    pass
+
+internal = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("79.120.228.106"),
+]
+
+with open(out, "w") as f:
+    for ip, count in ips.items():
+        ip_obj = ipaddress.ip_address(ip)
+
+        if count < min_bans:
+            continue
+
+        if any(ip_obj in n for n in internal + allowed):
+            continue
+
+        f.write(f"{ip} {count}\n")
+PY
+
+# -------------------------
+# ADD DECISIONS (NO DUPLICATE)
+# -------------------------
+while read -r ip count; do
+    [[ -z "${ip:-}" ]] && continue
+
+    if cscli decisions list --ip "$ip" | grep -q "Ip:$ip"; then
+        echo "[SKIP] $ip already exists"
+        continue
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY-RUN] Would add $ip count=$count reason=$REASON duration=$DURATION"
+        continue
+    fi
+
+    echo "[ADD] $ip count=$count"
+
+    cscli decisions add \
+        --ip "$ip" \
+        --type ban \
+        --duration "8760h" \
+        --reason "$REASON"
+
+done < "$FILTERED_FILE"
+
+echo "[INFO] Finished at $(date -Is)"
