@@ -1,6 +1,6 @@
 login_nodes_per_user_limits:
   cpu_quota: "200%"
-  tasks_max: 512
+  tasks_max: 2048
   # Generous per-user limit to avoid killing XRDP/VSCode sessions too early.
   # Heavy compute workloads are handled separately by login-node-watchdog.
   memory_high: "5800M"

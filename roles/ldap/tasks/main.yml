@@ -245,19 +245,28 @@
         - item.password | length > 0
 
     - name: Enforce group membership for all IPA users
-      community.general.ipa_group:
-        ipa_host: "{{ ldap_server_fqdn }}"
-        ipa_user: "{{ ldap_admin_user | default('admin') }}"
-        ipa_pass: "{{ ldap_admin_password_raw }}"
-        cn: "{{ item.1 }}"
-        user: "{{ item.0.username }}"
-        append: true
-        state: present
-      loop: "{{ ldap_users | subelements('groups', skip_missing=True) }}"
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - group-add-member
+          - "{{ item.1 }}"
+          - "--users={{ item.0.username }}"
+      register: ipa_group_member
+      changed_when: >
+        ipa_group_member.rc == 0 and
+        ('Number of members added 1' in (ipa_group_member.stdout | default('')))
+      failed_when: >
+        ipa_group_member.rc != 0 and
+        ('This entry is already a member' not in (ipa_group_member.stdout | default(''))) and
+        ('This entry is already a member' not in (ipa_group_member.stderr | default('')))
+      loop: >-
+        {{
+          (ldap_users | subelements('groups', skip_missing=True))
+          if inventory_hostname in groups['ldap_server']
+          else []
+        }}
       loop_control:
         label: "{{ item.0.username }} -> {{ item.1 }}"
-      when:
-        - item.0.username is defined
     
     # 2FA reconciliation script and cron job
     - name: Check that admin keytab exists for FreeIPA 2FA reconcile
