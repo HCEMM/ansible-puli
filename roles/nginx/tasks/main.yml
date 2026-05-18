@@ -36,7 +36,7 @@
 - name: Bootstrap certificates with standalone mode
   ansible.builtin.command:
     cmd: >
-      certbot certonly --standalone
+      certbot certonly --nginx
       --non-interactive --agree-tos
       -m {{ nginx_gateway_certbot_email }}
       -d {{ item.item.server_name }}

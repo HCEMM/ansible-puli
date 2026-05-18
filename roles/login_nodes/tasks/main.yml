@@ -54,7 +54,7 @@
 #   Add Network Time Protocol (NTP) support
 #   dnf -y install chrony
 #   Include modules user environment
-#   dnf -y install lmod-ohpc
+#   dnf -y install lmod-ohpc - lmod is no longer installed in the login nodes, only needs the lua and tcl dependencies
 - name: Install required packages
   ansible.builtin.dnf:
     name:
