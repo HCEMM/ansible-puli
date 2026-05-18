@@ -6,3 +6,6 @@ For storage and server hardware monitoring, BMC sensors must be periodically che
 
 Dashboard --> Sensor Reading
 
+## The REST API
+
+Access documentation: http://10.0.150.208/monitoring/check_mk/api/1.0/ui/#
