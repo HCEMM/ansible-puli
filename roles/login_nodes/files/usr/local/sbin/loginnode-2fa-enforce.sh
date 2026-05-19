@@ -97,7 +97,7 @@ main() {
 
     log "[$user] session ${session_id} has no OTP after ${age}s; notifying and terminating"
 
-    notify_user_sessions "$user" "You did not configure 2FA within the allowed time. Your session is being terminated now. Please log in again and run: ga-setup"
+    notify_user_sessions "$user" "You did not configure 2FA within the allowed time. Your session is being terminated now. Please log in again and run: 2fa-setup"
     sleep 5
     terminate_user "$user"
   done < <(loginctl list-sessions --no-legend 2>/dev/null)

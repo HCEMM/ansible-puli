@@ -89,7 +89,7 @@ ssh -vvv username@login1
 
 A centralized TOTP-based 2FA enforcement mechanism is implemented using FreeIPA as the authority and login nodes as enforcement points.
 
-Users generate their TOTP token using: ga-setup
+Users generate their TOTP token using: 2fa-setup
 
 The system periodically(each hour) checks whether each user has an OTP token.
 

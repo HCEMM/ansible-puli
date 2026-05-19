@@ -4,7 +4,7 @@ set -euo pipefail
 USER_NAME="$(id -un)"
 QR_SIZE="${1:-10}"
 OUTFILE="${2:-$HOME/otp-${USER_NAME}.png}"
-LOG_TAG="ga-setup"
+LOG_TAG="2fa-setup"
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
