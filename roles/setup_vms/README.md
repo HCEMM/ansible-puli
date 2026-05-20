@@ -1,0 +1,3 @@
+## To birth a VM manually
+
+virt-install --name galaxy1 --memory 32768 --vcpus 8 --os-variant almalinux9 --disk path=/var/lib/libvirt/images/galaxy1.qcow2,format=qcow2 --network bridge=br0,mac=52:54:00:aa:bb:08,model=virtio --graphics none --console pty,target_type=serial --location /tmp/AlmaLinux-9-latest-x86_64-minimal.iso --extra-args "inst.ks=http://10.0.150.101:9876/ks/galaxy1-ks.cfg console=ttyS0"

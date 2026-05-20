@@ -1,0 +1,10 @@
+---
+# Configure ipv4 dns and search to 10.0.150.203 and cluster.hcemm.eu with nmcli for connection enp1s0
+- name: Configure DNS and search domains with nmcli
+  community.general.nmcli:
+    conn_name: enp1s0
+    state: present
+    dns4:
+      - "{{ ldap_vm_ip }}"
+    dns4_search:
+      - "{{ ldap_domain }}"
