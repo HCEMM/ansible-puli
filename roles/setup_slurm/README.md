@@ -21,3 +21,11 @@ Remote controller authority: `/etc/sysconfig/slurmd`
 ```
 scontrol update nodename=scc-cpu02-10g state=drain reason='a reason'            # put a node unavailable
 ```
+
+
+## Add some more accounts to use partitions
+
+```bash
+sacctmgr -i add account nogpu description="No GPU users" cluster=sccluster
+sacctmgr -i add user <username> account=nogpu partition=nogpu cluster=sccluster
+```

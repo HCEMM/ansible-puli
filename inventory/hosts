@@ -98,6 +98,7 @@ all:
         login_nodes:
         sms:
         galaxy_server:
+        nginx:    # just for the DNS
 
   hosts:
     scc-cpu01-10G:
