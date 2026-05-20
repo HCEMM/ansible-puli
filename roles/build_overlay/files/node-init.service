@@ -1,0 +1,13 @@
+[Unit]
+Description=Cluster node initialization
+After=network-online.target
+Before=slurmd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=sh /usr/local/sbin/node-init.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

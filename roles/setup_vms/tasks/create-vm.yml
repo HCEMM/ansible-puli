@@ -7,16 +7,6 @@
       args:
         creates: "/var/lib/libvirt/images/{{ vm_name }}.qcow2"
 
-    - name: Generate XML definition of image
-      ansible.builtin.template:
-        src: vm.xml.j2
-        dest: "/tmp/{{ vm_name }}.xml"
-        mode: '0644'
-      vars:
-        xml_vm_name: "{{ vm_name }}"
-        vm_memory: "{{ vm_params.memory }}"
-        vm_vcpus: "{{ vm_params.vcpus }}"
-
     - name: Generate kickstart file into HTTP server directory
       ansible.builtin.template:
         src: ks.cfg.j2
@@ -35,16 +25,13 @@
         --name {{ vm_name }}
         --memory {{ vm_params.memory }}
         --vcpus {{ vm_params.vcpus }}
-        --cpu host-model
         --os-variant almalinux9
-        --cdrom=/tmp/AlmaLinux-9.6-x86_64-minimal.iso
         --disk path=/var/lib/libvirt/images/{{ vm_name }}.qcow2,format=qcow2
         --network bridge=br0,mac={{ vm_params.mac }},model=virtio
         --graphics none
         --console pty,target_type=serial
-        --location /tmp/AlmaLinux-9.6-x86_64-minimal.iso
+        --location /tmp/{{ setup_vms_base_image_name }}
         --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks/{{ vm_name }}-ks.cfg console=ttyS0"
-        --noautoconsole
       changed_when: true
 
 - name: Ensure VM is started

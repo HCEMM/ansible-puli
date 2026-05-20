@@ -1,0 +1,33 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    daemon
+    maxconn 2000
+    setcap cap_net_raw
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    timeout connect 5s
+    timeout client  2h
+    timeout server  2h
+    timeout check   5s
+
+frontend fe_ssh
+    bind 0.0.0.0:{{ haproxy_ssh_listen_port | default(22) }}
+    mode tcp
+    option tcplog
+    default_backend be_ssh
+
+backend be_ssh
+    mode tcp
+    balance {{ haproxy_balance | default('source') }}
+    source 0.0.0.0 usesrc clientip
+    option tcp-check
+    tcp-check connect port {{ haproxy_backend_port | default(22) }}
+
+{% set bg = haproxy_backend_group | default('login_nodes') %}
+{% for h in groups.get(bg, []) %}
+    server {{ h }} {{ hostvars[h].ansible_host }}:{{ haproxy_backend_port | default(22) }} check inter 2s fall 3 rise 2
+{% endfor %}

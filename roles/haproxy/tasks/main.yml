@@ -1,0 +1,253 @@
+- name: Configure SSH proxy
+  when:
+    - inventory_hostname in groups['sms']
+  block:
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name:
+          - haproxy
+          - policycoreutils-python-utils   # semanage
+        state: present
+
+    - name: Enable sysctl settings for HAProxy transparent proxy
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+      loop:
+        - { name: "net.ipv4.ip_forward", value: "1" }
+        - { name: "net.ipv4.ip_nonlocal_bind", value: "1" }
+
+    - name: Ensure /etc/ssh/sshd_config.d exists
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy HAProxy config (SSH proxy)
+      ansible.builtin.template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart haproxy
+
+    - name: Validate HAProxy config
+      ansible.builtin.command: haproxy -c -f /etc/haproxy/haproxy.cfg
+      changed_when: false
+
+    - name: Install transparent proxy routing service
+      ansible.builtin.template:
+        src: haproxy-transparent-routing.service.j2
+        dest: /etc/systemd/system/haproxy-transparent-routing.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    - name: Install transparent proxy iptables service
+      ansible.builtin.template:
+        src: haproxy-transparent-iptables.service.j2
+        dest: /etc/systemd/system/haproxy-transparent-iptables.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    - name: Flush handlers before enabling transparent proxy services
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable transparent proxy routing service
+      ansible.builtin.systemd:
+        name: haproxy-transparent-routing.service
+        enabled: true
+        state: started
+
+    - name: Enable transparent proxy iptables service
+      ansible.builtin.systemd:
+        name: haproxy-transparent-iptables.service
+        enabled: true
+        state: started
+
+    # Move sshd off 22 so HAProxy can bind :22
+    - name: Configure sshd on thinlinc2 to use admin port (free port 22 for HAProxy)
+      when: haproxy_sms_move_sshd_off_22 | default(true) | bool
+      block:
+        - name: Deploy sshd drop-in (admin port)
+          ansible.builtin.template:
+            src: sms-sshd.conf.j2
+            dest: /etc/ssh/sshd_config.d/sms-sshd.conf
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Restart sshd
+
+        - name: Validate sshd config
+          ansible.builtin.command: sshd -t
+          changed_when: false
+
+        - name: Check if SELinux already allows sshd admin port (ssh_port_t)
+          ansible.builtin.shell: |
+            set -eo pipefail
+            p="{{ haproxy_sms_sshd_admin_port | default(2222) }}"
+            semanage port -l | awk '$1=="ssh_port_t"{print $4}' | tr ',' '\n' | grep -qx "$p"
+          args:
+            executable: /bin/bash
+          register: seport_exists
+          changed_when: false
+          failed_when: false
+          when: (haproxy_sms_sshd_admin_port | default(2222)) | int != 22
+
+        - name: Add sshd admin port to SELinux (ssh_port_t) if missing
+          ansible.builtin.shell: |
+            set -eo pipefail
+            p="{{ haproxy_sms_sshd_admin_port | default(2222) }}"
+            semanage port -a -t ssh_port_t -p tcp "$p" 2>/dev/null || semanage port -m -t ssh_port_t -p tcp "$p"
+          args:
+            executable: /bin/bash
+          when:
+            - (haproxy_sms_sshd_admin_port | default(2222)) | int != 22
+            - seport_exists.rc is defined
+            - seport_exists.rc != 0
+          changed_when: true
+          failed_when: false
+
+        - name: Apply sshd restart immediately (so 22 becomes free)
+          ansible.builtin.meta: flush_handlers
+
+        - name: Check sshd is listening on admin port
+          ansible.builtin.shell: |
+            set -eo pipefail
+            ss -tlnp | grep -E ':{{ haproxy_sms_sshd_admin_port | default(2222) }}\b' | grep -i sshd
+          args:
+            executable: /bin/bash
+          changed_when: false
+
+        - name: Fail if sshd is still listening on port 22
+          ansible.builtin.shell: |
+            set -eo pipefail
+            ss -tlnp | grep -E ':22\b' | grep -qi sshd
+          args:
+            executable: /bin/bash
+          register: sshd_on_22
+          changed_when: false
+          failed_when: sshd_on_22.rc == 0
+
+    # firewalld rules
+    - name: Detect firewalld state
+      ansible.builtin.command: firewall-cmd --state
+      register: fw_state
+      changed_when: false
+      failed_when: false
+
+    - name: Open firewall service ssh for users
+      when: fw_state.stdout == "running"
+      ansible.posix.firewalld:
+        service: ssh
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: Open firewall admin ssh port
+      when:
+        - fw_state.stdout == "running"
+        - haproxy_sms_move_sshd_off_22 | default(true) | bool
+      ansible.posix.firewalld:
+        port: "{{ haproxy_sms_sshd_admin_port | default(2222) }}/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: Allow HAProxy outbound connections (SELinux)
+      ansible.posix.seboolean:
+        name: haproxy_connect_any
+        state: true
+        persistent: true
+      failed_when: false
+
+    - name: Ensure HAProxy is enabled
+      ansible.builtin.systemd:
+        name: haproxy
+        enabled: true
+
+    - name: Apply HAProxy restart immediately
+      ansible.builtin.meta: flush_handlers
+
+    - name: Confirm HAProxy is listening on 22
+      ansible.builtin.shell: |
+        set -eo pipefail
+        ss -tlnp | grep -E ':{{ haproxy_ssh_listen_port | default(22) }}\b' | grep -qi haproxy
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+- name: Configure sshd policy on Login Nodes
+  when: inventory_hostname in groups['login_nodes']
+  block:
+    - name: Ensure /etc/ssh/sshd_config.d exists
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy sshd drop-in
+      when: haproxy_login_nodes_bind_sshd_to_primary_ip | default(true) | bool
+      ansible.builtin.template:
+        src: loginnode-sshd.conf.j2
+        dest: /etc/ssh/sshd_config.d/loginnode-sshd.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart sshd
+
+    - name: Deploy shared SSH host private key
+      ansible.builtin.copy:
+        src: ssh_host_ed25519_key
+        dest: /etc/ssh/ssh_host_ed25519_key
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Restart sshd
+
+    - name: Deploy shared SSH host public key
+      ansible.builtin.copy:
+        src: ssh_host_ed25519_key.pub
+        dest: /etc/ssh/ssh_host_ed25519_key.pub
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart sshd
+
+    - name: Deploy login-node transparent return routing service
+      ansible.builtin.template:
+        src: login-node-transparent-routing.service.j2
+        dest: /etc/systemd/system/login-node-transparent-routing.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd daemon
+
+    - name: Flush handlers before enabling login-node transparent routing
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable login-node transparent return routing service
+      ansible.builtin.systemd:
+        name: login-node-transparent-routing.service
+        enabled: true
+        state: started
+
+    - name: Validate sshd config
+      ansible.builtin.command: sshd -t
+      changed_when: false
+
+    - name: Apply sshd restart immediately on login nodes
+      ansible.builtin.meta: flush_handlers

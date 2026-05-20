@@ -22,8 +22,8 @@
 #   dnf -y update
 # EOF
 - name: Check if OpenHPC repo is installed inside image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'rpm -q ohpc-release' | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'rpm -q ohpc-release'
   register: ohpc_repo_check
   changed_when: false
   failed_when: false    # warewulf will fail with "package ohpc-release is not installed (exit code 127)"
@@ -31,13 +31,15 @@
     - inventory_hostname in groups['sms']
 
 - name: Install OpenHPC repo inside image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm; dnf -y update' |
-    wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c
+    'dnf -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm; dnf -y update'
   changed_when: ohpc_repo_check.rc != 0
   when:
     - ( "package ohpc-release is not installed" in ohpc_repo_check.stdout )
     - inventory_hostname in groups['sms']
+  notify:
+    - Build overlays if image was changed
 
 # wwctl image exec --build=false almalinux-9 /bin/bash <<- EOF
 #   dnf -y install ohpc-base-compute
@@ -62,15 +64,36 @@
     - ohpc-slurm-client
     - chrony
     - lmod-ohpc
+    # stuff for LDAP client
+    - ipa-client
+    - sssd
+    - oddjob
+    - oddjob-mkhomedir
+    - authselect
+    - certmonger
+    - krb5-workstation
+    - bind-utils
+    - polkit
+  when:
+    - inventory_hostname in groups['sms']
+  # notify:  -> not valid in include_tasks    # TODO: maybe not necessary to trigger these handlers for every package, but only when this whole playbook is run
+  #   - Enable munge and slurmd inside Warewulf image
+  #   - Build overlays if image was changed
+
+- name: Check if /var/spool/slurm exists inside Warewulf image
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'test -d /var/spool/slurm && echo "exists" || echo "not exists"'
+  register: slurm_spool_check
+  changed_when: false
   when:
     - inventory_hostname in groups['sms']
 
-- name: Enable services inside Warewulf image
-  ansible.builtin.shell: >
-    set -o pipefail; echo 'systemctl enable {{ item }}' | wwctl image exec --build=false almalinux-9 /bin/bash
-  changed_when: true   # systemctl doesn't mark change - and I could check for "Created symlink..." but it would be a bit messy
-  loop:
-    - munge
-    - slurmd
+- name: Create /var/spool/slurm and /var/log/slurm inside Warewulf
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'mkdir -p /var/spool/slurm /var/log/slurm && chown slurm:slurm /var/spool/slurm /var/log/slurm && chmod 700 /var/spool/slurm /var/log/slurm'
+  changed_when: true
   when:
+    - slurm_spool_check.stdout == "not exists"
     - inventory_hostname in groups['sms']
+  notify:
+    - Build overlays if image was changed

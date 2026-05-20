@@ -1,0 +1,193 @@
+---
+- name: Setup the foundations
+  tags: foundations
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - create_bridge
+    - setup_vms
+
+- name: Setup NFS shares
+  tags: nfs
+  hosts:
+    - sms
+    - login1
+    - login_nodes
+    - galaxy_server
+    - emma_server
+  become: true
+  gather_facts: true
+  roles:
+    - configure_shares
+
+- name: Setup DNS
+  tags: dns
+  hosts:
+    - ldap_server
+    - login_nodes
+    - slurmctld
+    - nginx
+    - galaxy_server
+  become: true
+  gather_facts: true
+  roles:
+    - dns
+
+- name: Setup LDAP server
+  tags: ldap
+  hosts:
+    - ldap_server
+    - login_nodes
+    - sms
+    - slurmctld
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - ldap
+
+- name: Build main server
+  tags: main_server
+  hosts:
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+
+  roles:
+    - pre_ohpc
+    - setup_ohpc
+    - setup_warewulf
+    - build_compute_images
+    - customize_nodes
+    - build_overlay
+    - finalize_provision
+
+- name: Setup Nginx gateway
+  tags: nginx
+  hosts: nginx_gateway
+  become: true
+  gather_facts: true
+  roles:
+    - nginx
+
+- name: Setup EMMA webservice
+  tags: emma
+  hosts: emma_server
+  become: true
+  become_user: hcemm
+  gather_facts: true
+  roles:
+    - emma
+
+- name: Setup Slurm
+  tags: slurm
+  hosts:
+    - slurmctld
+    - slurmdbd
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - setup_slurm
+
+- name: Setup Login nodes
+  tags:
+    - login_nodes
+    - maintenance
+  hosts:
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - login_nodes
+
+- name: Setup HAProxy
+  tags:
+    - haproxy
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - haproxy
+
+- name: Setup Fail2Ban
+  tags:
+    - fail2ban
+    - maintenance
+  hosts:
+    - login_nodes
+    - nginx_gateway
+  become: true
+  gather_facts: true
+  roles:
+    - fail2ban
+
+- name: Setup Crowdsec
+  tags:
+    - crowdsec
+  hosts:
+    - sms
+  become: true
+  gather_facts: true
+  roles:
+    - crowdsec
+
+- name: Setup Modules     # this one has to be after login_nodes role to get lmod.sh copied
+  tags:
+    - modules
+    - maintenance
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - modules
+
+- name: Setup SSH proxy on SMS and sshd policy on login nodes
+  tags: haproxy
+  hosts:
+    - sms
+    - login_nodes
+  become: true
+  gather_facts: true
+  roles:
+    - haproxy
+
+- name: Setup Checkmk
+  tags: checkmk
+  hosts:
+    - monitoring
+    - hosts
+    - ldap_servers
+    - login_nodes
+    - slurmctld
+  become: true
+  gather_facts: true
+  roles:
+    - checkmk
+
+- name: Setup Guacamole
+  tags: guacamole
+  hosts:
+    - guacamole_server
+    - login_nodes
+    - sms             # for HAProxy config
+  become: true
+  gather_facts: true
+  roles:
+    - guacamole
+
+- name: Setup Galaxy
+  tags: galaxy
+  hosts: galaxy_server
+  become: true
+  gather_facts: true
+  roles:
+    - galaxy

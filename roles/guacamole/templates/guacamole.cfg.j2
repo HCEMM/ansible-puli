@@ -1,0 +1,22 @@
+frontend rdp_front
+    bind 0.0.0.0:3389
+    mode tcp
+    option tcplog
+    acl from_guac src {{ hostvars[groups['guacamole_server'][0]]['ansible_host'] }}
+    tcp-request connection reject if !from_guac
+    timeout client 168h
+    default_backend rdp_nodes
+
+backend rdp_nodes
+    mode tcp
+    balance roundrobin
+
+    option tcp-check
+    tcp-check connect
+
+    timeout connect 10s
+    timeout server 168h
+
+    {% for host in groups['login_nodes'] %}
+    server {{ host }} {{ hostvars[host]['ansible_host'] | default(host) }}:3389 check inter 5s fall 3 rise 2
+    {% endfor %}

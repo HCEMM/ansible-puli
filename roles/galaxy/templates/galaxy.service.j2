@@ -1,0 +1,17 @@
+[Unit]
+Description=Galaxy service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User={{ galaxy_user }}
+Group={{ galaxy_group }}
+WorkingDirectory={{ galaxy_root }}
+ExecStart={{ galaxy_root }}/venv/bin/galaxyctl start
+ExecStop={{ galaxy_root }}/venv/bin/galaxyctl stop
+Restart=on-failure
+Environment=VIRTUAL_ENV={{ galaxy_root }}/venv
+Environment=PATH={{ galaxy_root }}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+
+[Install]
+WantedBy=multi-user.target

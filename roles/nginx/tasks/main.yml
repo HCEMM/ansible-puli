@@ -1,0 +1,73 @@
+---
+- name: Install Nginx and Certbot
+  ansible.builtin.package:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Ensure HTTP and HTTPS services are allowed in the firewall
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: false
+  notify: Reload firewalld
+  loop:
+    - http
+    - https
+
+- name: Deploy Nginx vhost configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/conf.d/services.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Check if certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ item.server_name }}/fullchain.pem"
+  loop: "{{ nginx_gateway_services }}"
+  register: cert_stat
+
+- name: Bootstrap certificates with standalone mode
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --nginx
+      --non-interactive --agree-tos
+      -m {{ nginx_gateway_certbot_email }}
+      -d {{ item.item.server_name }}
+  loop: "{{ cert_stat.results }}"
+  when: not item.stat.exists
+  changed_when: true
+
+- name: Request/renew Let’s Encrypt certs (nginx plugin)
+  ansible.builtin.command:
+    cmd: >
+      certbot --nginx --non-interactive --agree-tos
+      -m {{ nginx_gateway_certbot_email }}
+      -d {{ item.item.server_name }}
+  loop: "{{ cert_stat.results }}"
+  when: item.stat.exists
+  changed_when: true
+  notify: Reload Nginx
+
+- name: Allow Nginx to make network connections (SELinux)
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - httpd_can_network_connect     # setsebool -P httpd_can_network_connect 1
+    - httpd_use_nfs                 # setsebool -P httpd_use_nfs 1
+
+# Mount the static files for Galaxy to be served through the Nginx gateway
+- name: Mount NFS share for Galaxy
+  ansible.posix.mount:
+    path: /srv/galaxy
+    src: 10.0.150.209:/srv/galaxy
+    fstype: nfs
+    state: mounted

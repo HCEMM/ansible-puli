@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+LOG=/tmp/suspend_debug.log
+
+if [[ $# -lt 1 ]]; then
+    echo "Suspend called with no arguments" >> "$LOG"
+    exit 0
+fi
+
+HOSTLIST="$1"
+
+echo "ARGS: $HOSTLIST" >> "$LOG"
+
+NODES=$(scontrol show hostnames "$HOSTLIST")        # Expand Slurm hostlist into individual hostnames
+
+echo "Expanded nodes:" >> "$LOG"
+echo "$NODES" >> "$LOG"
+
+for NODE in $NODES; do
+    SHORT=${NODE%%.*}
+
+    # start downtime in Checkmk for this host, since we're powering it off now
+    BIG_G=$(echo "$SHORT" | sed 's/\([0-9]\)g/\1G/')            # -10g to -10G for Checkmk compatibility
+    START=$(date -u +"%Y-%m-%dT%H:%M:%SZ")                      # start downtime now
+    END=$(date -u -d "+100 days" +"%Y-%m-%dT%H:%M:%SZ")         # end downtime in 100 days, effectively making it indefinite until manually removed
+    curl -s -X POST   http://{{ checkmk_site }}/monitoring/check_mk/api/1.0/domain-types/downtime/collections/host \
+        -H "Authorization: Bearer {{ checkmk_username }} {{ checkmk_password }}" \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -d "{
+        \"start_time\": \"$START\",
+        \"end_time\": \"$END\",
+        \"comment\": \"Slurm power save\",
+        \"downtime_type\": \"host\",
+        \"host_name\": \"${BIG_G}\"
+    }" >> "$LOG" 2>&1 || true
+
+    echo "Downtime started for $BIG_G from $START to $END" >> "$LOG"
+
+    # Safe lookup of BMC address
+    BMC_ADDR=$(awk -v n="$SHORT" '$1==n {print $2}' \
+        /usr/local/etc/node2bmc.tsv || true)
+
+    echo "NODE=$NODE SHORT=$SHORT BMC=$BMC_ADDR" >> "$LOG"
+
+    if [[ -z "$BMC_ADDR" ]]; then
+        echo "No BMC entry for $NODE" >> "$LOG"
+        continue
+    fi
+
+    echo "Powering off $NODE via $BMC_ADDR" >> "$LOG"
+
+    /usr/bin/ipmitool -I lanplus \
+        -H "$BMC_ADDR" \
+        -U {{ bmc_username }} \
+        -P {{ bmc_password }} \
+        power off >> "$LOG" 2>&1 || true
+
+    echo "Power off command issued for $NODE" >> "$LOG"
+
+done
+
+echo "Suspend script completed" >> "$LOG"
+exit 0

@@ -1,0 +1,58 @@
+# https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/galaxy.yml.sample
+gravity:
+  app_server: gunicorn
+  celery: 
+    concurrency: 2 
+    enable: true 
+    enable_beat: true 
+    loglevel: DEBUG 
+    memory_limit: 2 
+    pool: threads 
+    queues: celery,galaxy.internal,galaxy.external 
+  galaxy_config_file: {{ galaxy_config_dir }}/galaxy.yml
+  galaxy_root: {{ galaxy_base_dir }}
+  galaxy_user: {{ galaxy_user }}
+  gunicorn: 
+    bind: 0.0.0.0:{{ galaxy_port }} 
+    extra_args: --forwarded-allow-ips="*" 
+    preload: true 
+    workers: 2 
+  handlers: 
+    handler: 
+      pools: 
+      - job-handlers 
+      - workflow-schedulers 
+      processes: 2 
+  process_manager: systemd
+  tusd: 
+    enable: true 
+    host: 0.0.0.0
+    tusd_path: {{ galaxy_tus_exec_dir }}/tusd
+    upload_dir: {{ galaxy_tus_upload_store }}
+  virtualenv: {{ galaxy_base_dir }}/.venv
+
+galaxy:
+  auth_config_file: auth_conf.xml
+  builds_file_path: shared/ucsc/builds.txt.sample 
+  data_dir: /mnt/galaxy
+  data_manager_config_file: data_manager_conf.xml.sample 
+  database_connection: postgresql:///galaxy?host=/run/postgresql 
+  datatypes_config_file: datatypes_conf.xml.sample 
+  galaxy_infrastructure_url: http://{{ galaxy_ip }}:{{ galaxy_port }}
+  job_working_directory: jobs 
+  oidc_config_file: oidc_config.xml.sample 
+  data_manager_config_file: data_manager_conf.xml.sample
+  tool_sheds_config_file: tool_sheds_conf.xml.sample
+  static_enabled: true
+  themes_config_file: themes_conf.yml
+  tool_config_file: tool_conf.xml
+  tool_data_table_config_path: tool_data_table_conf.xml.sample 
+  tool_dependency_dir: dependencies
+  tool_sheds_config_file: tool_sheds_conf.xml.sample 
+  tus_upload_store: {{ galaxy_tus_upload_store }}
+  visualization_plugins_directory: config/plugins/visualizations
+  admin_users: joao.sequeira@hcemm.eu,Alessandra.Vittorini@hcemm.eu
+  log_level: INFO
+  log_destination: {{ galaxy_base_dir }}/log/galaxy.log     # Set log file path
+  log_rotate_size: 100 MB                                   # Rotate once log reaches 100 MB
+  log_rotate_count: 10                                      # Keep the 10 most recent log files

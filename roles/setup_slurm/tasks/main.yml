@@ -5,52 +5,34 @@
     name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
     state: present
     disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
-  when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
-
-# dnf -y install dnf-plugins-core
-- name: Install dnf plugins
-  ansible.builtin.dnf:
-    name: dnf-plugins-core
-    state: present
-  when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
 
 # dnf -y config-manager --set-enabled crb
 - name: Ensure the crb repository is enabled
   community.general.dnf_config_manager:
     name: crb
     state: enabled
+
+- name: Install general Slurm dependencies
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - dnf-plugins-core    # dnf -y install dnf-plugins-core
+    - munge
+
+- name: Install Slurm client
+  ansible.builtin.dnf:
+    name: ohpc-slurm-client
+    state: present
   when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
+    - inventory_hostname in groups['login_nodes']
 
 - name: Install Slurm server
   ansible.builtin.dnf:
     name: ohpc-slurm-server
     state: present
   when:
-    ( inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] )
-
-### Create Users and Groups where Warewulf is stil not managing
-- name: Ensure user groups exist (login nodes)
-  ansible.builtin.group:
-    name: "{{ item.name }}"
-    gid: "{{ item.gid }}"
-    state: present
-  loop: "{{ user_groupnames }}"
-  when: inventory_hostname in groups['login_nodes']
-
-- name: Ensure users exist (login nodes)
-  ansible.builtin.user:
-    name: "{{ item.username }}"
-    uid: "{{ item.uid }}"
-    groups: "{{ item.groups | join(',') }}"
-    append: true
-    shell: /bin/bash
-    create_home: true
-    state: present
-  loop: "{{ user_usernames }}"
-  when: inventory_hostname in groups['login_nodes']
+    - inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd']
 
 - name: Ensure munge user and group exist
   ansible.builtin.user:
@@ -81,23 +63,20 @@
     owner: munge
     group: munge
     mode: '0400'
-
-# systemctl enable --now munge
-- name: Enable and start munge service
-  ansible.builtin.systemd:
-    name: munge
-    enabled: true
-    state: started
+  notify: Enable and start munge service
 
 - name: Create slurm folders
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: '0755'
+    owner: slurm
+    group: slurm
   loop:
     - /etc/slurm
     - /var/log/slurm
     - /var/spool/slurm
+  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd']
 
 # cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
@@ -106,31 +85,63 @@
     src: slurm.conf.j2
     dest: /etc/slurm/slurm.conf
     mode: '0644'
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
 
 - name: Copy slurmdbd.conf
   ansible.builtin.template:
     src: slurmdbd.conf.j2
     dest: /etc/slurm/slurmdbd.conf
     mode: '0600'
+    owner: slurm
+    group: slurm
   when: inventory_hostname in groups['slurmdbd']
 
 # cp /etc/slurm/cgroup.conf.example /etc/slurm/cgroup.conf
 - name: Copy other Slurm templates
   ansible.builtin.template:
     src: "{{ item }}.j2"
-    dest: /etc/slurm/{{ item }}"
+    dest: "/etc/slurm/{{ item }}"
     mode: "{{ '0600' if item in ['acct_gather.conf'] else '0644' }}"
+    owner: slurm
+    group: slurm
   loop:
     - cgroup.conf
-    - acct_gather.conf
+    # - acct_gather.conf     # it ain't working, bunch of "unrecognized key"
     - topology.conf
-  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['login_nodes']
+  notify: Enable and start slurmctld service
+  when: inventory_hostname in groups['slurmctld']
 
 - name: Deploy epilog.sh
   ansible.builtin.copy:
     src: epilog.sh
     dest: /etc/slurm/epilog.sh
     mode: '0755'
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
+
+- name: Deploy node2bmc.tsv
+  ansible.builtin.copy:
+    src: node2bmc.tsv
+    dest: /usr/local/etc/node2bmc.tsv
+    mode: '0644'
+    owner: slurm
+    group: slurm
+  when: inventory_hostname in groups['slurmctld']
+
+- name: Deploy slurm_suspend.sh and slurm_resume.sh
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /usr/local/sbin/{{ item }}
+    mode: '0700'      # can never be visible to anyone else, since it contains BMC credentials
+    owner: slurm
+    group: slurm
+  loop:
+    - slurm_suspend.sh
+    - slurm_resume.sh
+  when: inventory_hostname in groups['slurmctld']
 
 # systemctl enable --now slurmctld
 - name: Enable and start slurmctld service
@@ -140,24 +151,25 @@
     state: started
   when:
     - ( inventory_hostname in groups['slurmctld'] )
-    - env == 'production'
 
-- name: Enable and start slurmd service
-  ansible.builtin.systemd:
-    name: slurmd
-    enabled: true
-    state: started
-  when:
-    - ( inventory_hostname in groups['computes'] )
-    - env == 'production'
-
-# pdsh -w $(IFS=','; echo "${c_name[*]}") "/usr/sbin/nhc-genconf -H '*' -c -" | dshbak -c
 - name: Generate NHC configuration on compute nodes
   ansible.builtin.shell: |
     set -o pipefail
-    /usr/sbin/nhc-genconf -H '*' -c - | dshbak -c
+    pdsh -w {{ compute_nodes | map(attribute='c_name') | join(',') }} "/usr/sbin/nhc-genconf -H '*' -c - | dshbak -c"
   args:
-    creates: /etc/nhc/nhc.conf
+    creates: "/etc/nhc/nhc.conf"
   when:
-    - ( inventory_hostname in groups['computes'] )
-    - env == 'production'
+    - inventory_hostname in groups['sms']
+
+- name: Open firewall ports on login nodes
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 6817/tcp          # slurmctld
+    - 6818/tcp          # slurmdbd
+    - 6819/tcp          # slurmd
+    - 32768-60999/tcp   # slurmctld/slurmd communication
+  when: inventory_hostname in groups['login_nodes']

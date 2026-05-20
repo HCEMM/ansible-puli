@@ -1,8 +1,0 @@
-- name: Configure the image
-  ansible.builtin.command: |
-    virt-customize -a {{ setup_vms_libvirt_pool_dir }}/{{ setup_vms_vm_name }}.qcow2 \
-    --hostname {{ setup_vms_vm_name }} \
-    --root-password password:{{ setup_vms_vm_root_pass }} \
-    --ssh-inject 'root:file:{{ setup_vms_ssh_key }}' \
-    --uninstall cloud-init --selinux-relabel
-  changed_when: true

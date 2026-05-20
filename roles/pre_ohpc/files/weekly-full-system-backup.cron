@@ -1,0 +1,6 @@
+# Weekly full backup: VMs + cpu1 (ReaR)
+
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+0 0 * * 0 root flock -n /tmp/weekly-backup.lock /root/weekly-full-cluster-backup.sh >> /var/log/weekly-full-cluster-backup.log 2>&1

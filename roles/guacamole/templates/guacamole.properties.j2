@@ -1,0 +1,22 @@
+guacd-hostname: 127.0.0.1
+guacd-port: 4822
+
+case-sensitivity: disabled
+ban-max-invalid-attempts: 9999
+ban-address-duration: 60
+
+extension-priority: ldap,mysql
+ldap-hostname: {{ ldap_vm_ip }}
+ldap-port: 389
+ldap-encryption-method: none
+ldap-user-base-dn: {{ ldap_user_base_dn }}
+ldap-username-attribute: {{ ldap_username_attribute }}
+ldap-search-bind-dn: {{ ldap_search_bind_dn }}
+ldap-search-bind-password: {{ ldap_admin_password_raw }}
+
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: {{ guacamole_db_name }}
+mysql-username: {{ guacamole_db_user }}
+mysql-password: {{ guacamole_db_password }}
+mysql-driver: mysql

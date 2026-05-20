@@ -1,0 +1,34 @@
+---
+# systemctl enable --now munge
+- name: Enable and start munge service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+
+# systemctl enable --now slurmctld
+- name: Enable and start slurmctld service
+  ansible.builtin.systemd:
+    name: slurmctld
+    enabled: true
+    state: started
+
+- name: Enable and start slurmdbd
+  ansible.builtin.systemd:
+    name: slurmdbd
+    state: started
+    enabled: true
+
+- name: Enable and start slurmd service
+  ansible.builtin.systemd:
+    name: slurmd
+    enabled: true
+    state: started
+
+- name: Enable and start slurmd service on all compute nodes
+  ansible.builtin.shell: |
+    set -o pipefail
+    pdsh -w {{ compute_nodes | map(attribute='c_name') | join(',') }} "systemctl enable --now slurmd"
+  when:
+    - inventory_hostname in groups['sms']
+  changed_when: true

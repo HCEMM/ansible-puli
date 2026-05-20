@@ -1,18 +1,18 @@
-AccountingStorageBackupHost=slurmdbd2
+#AccountingStorageBackupHost=
 AccountingStorageEnforce=associations
-AccountingStorageHost=slurmdbd1
-AccountingStoragePass=/var/run/munge/global.socket.2
+AccountingStorageHost={{ setup_slurm_slurmdbd }}
+AccountingStoragePass=/var/run/munge/munge.socket.2
 AccountingStoragePort=6819
 AccountingStorageTRES=gres/gpu,gres/shard
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageUser={{ setup_slurm_accounting_storage_user }}
 AccountingStoreFlags=job_comment,job_env,job_extra,job_script
-AcctGatherNodeFreq=300
-AcctGatherEnergyType=acct_gather_energy/ipmi
-AcctGatherProfileType=acct_gather_profile/hdf5
+#AcctGatherNodeFreq=300
+#AcctGatherEnergyType=acct_gather_energy/ipmi
+#AcctGatherProfileType=acct_gather_profile/hdf5
 AllowSpecResourcesUsage=NO
 AuthType=auth/munge
-BurstBufferType=burst_buffer/none
+#BurstBufferType=burst_buffer/none
 ClusterName={{ setup_slurm_cluster_name }}
 DefMemPerCPU=5120
 EnforcePartLimits=ALL
@@ -23,35 +23,35 @@ GpuFreqDef=high
 HealthCheckInterval=300
 HealthCheckNodeState=ANY
 HealthCheckProgram=/usr/sbin/nhc
-InactiveLimit=proctrack/cgroup
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=task=30,energy=30,network=30,filesystem=30
-JobCompLoc=slurm_jobcomp_db
-JobCompPass=password
+JobCompPass={{ setup_slurm_storage_pass }}
 JobCompPort=3306
-JobCompType=jobcomp/mysql
+JobCompType=jobcomp/filetxt
 JobCompUser=job_database_mgr
-JobContainerType=job_container/tmpfs
-JobSubmitPlugins=require_timelimit,defaults,logging
+#JobContainerType=job_container/tmpfs
+JobSubmitPlugins=lua,defaults
 KillOnBadExit=1
-LaunchParameters=disable_send_gids
-MaxNodeCount=11
+LaunchParameters=use_interactive_step
+#MaxNodeCount=16
 MpiDefault=none
 PriorityDecayHalfLife=7-0
 PriorityType=priority/multifactor
 PriorityWeightAge=1
 PriorityWeightFairshare=1
-PrivateData=accounts,events,jobs,reservations,usage,users
 ProctrackType=proctrack/cgroup
 PrologFlags=Contain
-SchedulerParameters=bf_busy_nodes,bf_continue,bf_hetjob_immediate,bf_hetjob_prio=min,
+PropagateResourceLimits=NONE
+# power_save: neccessary for power saving to work
+# See when "pack_serial_at_end" might be useful: https://lists.openhpc.community/g/users/topic/slurm_configuration_cores/6014102
+SchedulerParameters=bf_busy_nodes,bf_continue,bf_hetjob_immediate,bf_hetjob_prio=min,power_save
 SchedulerType=sched/backfill
 ScronParameters=enable,explicit_scancel
 SelectType=select/cons_tres
-SelectTypeParameters=CR_Core_Memory,LL_SHARED_GRES
+SelectTypeParameters=CR_Core,LL_SHARED_GRES
 SlurmctldDebug=debug
-SlurmctldHost=slurmctld1
-SlurmctldHost=slurmctld2
+SlurmctldHost={{ setup_slurm_slurmctld }}
+SlurmctldHost={{ setup_slurm_slurmctld_backup }}
 SlurmctldLogFile=/var/log/slurm/slurmctld.log
 SlurmctldParameters=enable_configless
 SlurmctldSyslogDebug=debug
@@ -62,16 +62,31 @@ SlurmdSyslogDebug=debug
 SlurmSchedLogFile=/var/log/slurm/slurmsched.log
 SlurmSchedLogLevel=1
 SlurmUser={{ setup_slurm_slurm_user }}
+StateSaveLocation=/var/spool/slurm
 TaskPlugin=task/cgroup,task/affinity
-TopologyParam=RouteTree
-TopologyPlugin=topology/block
+#TopologyParam=RouteTree
+#TopologyPlugin=topology/tree
 TrackWCKey=no
 TreeWidth=32
-NodeName=scc-cpu[02-11]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 CpuBind=core
-NodeName=scc-mem[01-2]-10G CPUs=32 Sockets=4 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=1024000 Features=highmem CpuBind=core
-NodeName=scc-gpu[01-02]-10G CPUs=32 Sockets=2 CoresPerSocket=16 ThreadsPerCore=2 RealMemory=128000 Features=nvidia Gres=gpu:nvidia:2,gpu:2,shard:22344 CpuBind=core
-NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
-NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
-PartitionName=cpu Nodes=scc-cpu[02-11]-10G MaxTime=30-00:00:00 AllowAccounts=CPU CpuBind=core DefMemPerCPU=5333 Default=YES
-PartitionName=highmem Nodes=scc-mem[01-02]-10G MaxTime=10-00:00:00 AllowAccounts=MEM CpuBind=core DefMemPerCPU=42777
-PartitionName=gpu Nodes=scc-gpu[01-02]-10G MaxTime=10-00:00:00 AllowAccounts=GPU AllowGroups=LAMSA CpuBind=core DefMemPerCPU=5333
+
+# --- Power saving ---
+SuspendTime=3600            # 1 hour idle before shutdown
+SuspendTimeout=120          # Maximum time permitted (in seconds) between when a node suspend request is issued and when the node is shutdown
+ResumeTimeout=600           # Maximum time permitted (in seconds) between when a node resume request is issued and when the node is actually available for use
+SuspendProgram=/usr/local/sbin/slurm_suspend.sh
+ResumeProgram=/usr/local/sbin/slurm_resume.sh
+ReturnToService=2           # A DOWN node will become available for use upon registration with a valid configuration.
+SlurmdTimeout=300           # The interval, in seconds, that the Slurm controller waits for slurmd to respond before configuring that node's state to DOWN.
+SuspendExcNodes=login[1-2],scc-cpu[02-03]-10g        # Exclude 2 cpu nodes from power saving
+
+# --- Nodes info ---
+NodeName=scc-cpu[02-11]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=230400 CpuBind=core
+NodeName=scc-mem[01-2]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=1843200 Features=highmem CpuBind=core
+NodeName=scc-gpu[01-02]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2 RealMemory=230400 Features=nvidia CpuBind=core Gres=gpu:1
+#NodeSet=rack6 Nodes=mem02,gpu02,cpu02,cpu04,cpu06,cpu08,cpu10
+#NodeSet=rack7 Nodes=mem01,gpu01,cpu01,cpu03,cpu05,cpu07,cpu09,cpu11
+PartitionName=cpu Nodes=scc-cpu[02-11]-10g MaxTime=30-00:00:00 CpuBind=core DefMemPerCPU=5333 Default=YES
+PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777 AllowAccounts=highmem
+PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=gpu
+PartitionName=nogpu Nodes=scc-cpu[02-11]-10g,scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=nogpu
+NodeName=login[1-2] CPUs=4 RealMemory=6000 State=UNKNOWN

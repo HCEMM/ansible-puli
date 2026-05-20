@@ -5,15 +5,11 @@
   ansible.builtin.service:
     name: firewalld
     enabled: false
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # timedatectl set-timezone Europe/Budapest
 - name: Set timezone
   community.general.timezone:
     name: Europe/Budapest
-  when:
-    ( inventory_hostname in groups['sms'] or inventory_hostname in groups['computes'] )
 
 # ip link set dev ${sms_eth_internal} up
 # ip address add ${sms_ip}/${internal_netmask} broadcast + dev ${sms_eth_internal}
@@ -22,15 +18,150 @@
     conn_name: "{{ sms_eth_internal }}"
     ip4: "{{ sms_ip }}/{{ '24' if internal_netmask == '255.255.255.0' else '32' }}"
     state: present
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # sysctl -w net.ipv4.ip_forward=1 - so computes have internet
 - name: Enable IP forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: 1
+    value: '1'
     state: present
     reload: true
-  when:
-    ( inventory_hostname in groups['sms'] )
+
+- name: Enable net.ipv4.ip_nonlocal_bind
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    state: present
+    reload: true
+
+# Ensure /home uses XFS user quotas
+- name: Ensure /home is mounted with usrquota
+  ansible.posix.mount:
+    path: /home
+    src: /dev/mapper/almalinux-home
+    fstype: xfs
+    opts: defaults,usrquota
+    state: mounted
+
+# Setup XFS quotas on /home
+- name: Remount /home to apply usrquota immediately
+  ansible.posix.mount:
+    path: /home
+    state: remounted
+
+- name: Check /home mount options
+  ansible.builtin.command:
+    cmd: findmnt -no OPTIONS /home
+  register: home_mount_options
+  changed_when: false
+
+- name: Ensure usrquota is active on /home
+  ansible.builtin.assert:
+    that:
+      - "'usrquota' in home_mount_options.stdout or 'uquota' in home_mount_options.stdout"
+    fail_msg: "/home is not mounted with usrquota"
+    success_msg: "/home quota mount option is active"
+
+- name: Set default XFS quota for /home
+  ansible.builtin.command:
+    cmd: xfs_quota -x -c 'limit -d bsoft=20g bhard=20g' /home
+  changed_when: false
+
+# systemctl enable chronyd.service
+- name: Enable chronyd service
+  ansible.builtin.service:
+    name: chronyd
+    enabled: true
+
+# echo "local stratum 10" >> /etc/chrony.conf
+# echo "server ${ntp_server}" >> /etc/chrony.conf
+# echo "allow all" >> /etc/chrony.conf
+- name: Configure chrony
+  ansible.builtin.lineinfile:
+    dest: /etc/chrony.conf
+    line: "{{ item }}"
+  loop:
+    - "local stratum 10"
+    - "server {{ ntp_server }}"
+    - "allow all"
+
+# systemctl restart chronyd
+- name: Restart chronyd
+  ansible.builtin.service:
+    name: chronyd
+    state: restarted
+
+# dnf install -y rear grub2-tools grub2-tools-extra grub2-tools-efi grub2-efi-x64 xorriso syslinux
+- name: Install ReaR packages
+  ansible.builtin.dnf:
+    name:
+      - rear
+      - grub2-tools
+      - grub2-tools-extra
+      - grub2-tools-efi
+      - grub2-efi-x64
+      - xorriso
+      - syslinux
+    state: present
+
+# ln -sf /sbin/grub2-probe /usr/bin/grub-probe
+- name: Create grub-probe symlink
+  ansible.builtin.file:
+    src: /sbin/grub2-probe
+    dest: /usr/bin/grub-probe
+    state: link
+    force: true
+
+# mkdir -p /mnt/root-admin/vms-backup
+# mkdir -p /mnt/root-admin/rear-backup
+- name: Create backup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /mnt/root-admin/vms-backup
+    - /mnt/root-admin/rear-backup
+
+# cp backup-vms.sh /root/backup-vms.sh
+# chmod +x /root/backup-vms.sh
+- name: Install backup-vms.sh
+  ansible.builtin.copy:
+    src: backup-vms.sh
+    dest: /root/backup-vms.sh
+    mode: '0755'
+
+# cp weekly-full-cluster-backup.sh /root/weekly-full-cluster-backup.sh
+# chmod +x /root/weekly-full-cluster-backup.sh
+- name: Install weekly-full-cluster-backup.sh
+  ansible.builtin.copy:
+    src: weekly-full-cluster-backup.sh
+    dest: /root/weekly-full-cluster-backup.sh
+    mode: '0755'
+
+# cp rear-local.conf /etc/rear/local.conf
+- name: Install ReaR config
+  ansible.builtin.copy:
+    src: rear-local.conf
+    dest: /etc/rear/local.conf
+    mode: '0644'
+
+# cp weekly-full-system-backup.cron /etc/cron.d/weekly-full-system-backup
+# chmod 644 /etc/cron.d/weekly-full-system-backup
+- name: Install weekly backup cron
+  ansible.builtin.copy:
+    src: weekly-full-system-backup.cron
+    dest: /etc/cron.d/weekly-full-system-backup
+    mode: '0644'
+
+# bash -n /root/backup-vms.sh
+- name: Validate backup-vms.sh
+  ansible.builtin.command:
+    cmd: bash -n /root/backup-vms.sh
+  changed_when: false
+
+# bash -n /root/weekly-full-cluster-backup.sh
+- name: Validate weekly-full-cluster-backup.sh
+  ansible.builtin.command:
+    cmd: bash -n /root/weekly-full-cluster-backup.sh
+  changed_when: false

@@ -28,8 +28,20 @@
     checksum: "sha256:{{ setup_vms_base_image_sha }}"
     mode: "0660"
 
+- name: Disable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+
+- name: Create kickstart directory
+  ansible.builtin.file:
+    path: /var/www/html/ks
+    state: directory
+    mode: "0755"
+
 - name: Check if HTTP server is already running
-  ansible.builtin.shell: "ss -ltn '( sport = :{{ setup_vms_kickstart_port }} )' | grep -q {{ setup_vms_kickstart_port }}"
+  ansible.builtin.shell: "ss -ltn '( sport = :{{ setup_vms_kickstart_port }} )' | grep {{ setup_vms_kickstart_port }}"
   register: http_port_check
   ignore_errors: true
   changed_when: false
@@ -65,7 +77,7 @@
 - name: Decrypt and place root SSH private key (root user)
   ansible.builtin.copy:
     src: "id_puli_root"
-    dest: /root/.ssh/id_rsa
+    dest: /root/.ssh/id_puli_root
     mode: '0600'
     decrypt: true
 
@@ -88,7 +100,7 @@
     state: present
   loop: "{{ setup_vms_vm_list | dict2items }}"
 
-- name: Wait for SSH to become available on all VMs
+- name: Wait for SSH to become available on all VMs (this will take a while, wait ~15 minutes)
   ansible.builtin.wait_for:
     host: "{{ item.value.ip }}"
     port: 22
@@ -115,3 +127,27 @@
   loop: "{{ setup_vms_vm_list | dict2items }}"
   delegate_to: localhost
   changed_when: false
+
+# dnf install -y epel-release
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+
+# dnf config-manager --set-enabled crb
+- name: Ensure the crb repository is enabled
+  community.general.dnf_config_manager:
+    name: crb
+    state: enabled
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_vm_list | dict2items }}"
+
+- name: Add 10.0.150.101 as ntp server
+  ansible.builtin.lineinfile:
+    path: /etc/chrony.conf
+    line: "server 10.0.150.101 iburst"
+    state: present
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_vm_list | dict2items }}"

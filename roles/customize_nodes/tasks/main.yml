@@ -4,6 +4,8 @@
   ansible.builtin.command: wwctl image show almalinux-9
   register: chroot_path_result
   changed_when: false
+  when:
+    - ( inventory_hostname in groups['sms'] )
 
 - name: Extract chroot path from wwctl output
   ansible.builtin.set_fact:
@@ -19,10 +21,10 @@
     state: present
     insertbefore: '^# End of file'
   loop:
-    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock {{ customize_nodes_max_memory_soft }}' }
-    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock {{ customize_nodes_max_memory_hard }}' }
-    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time {{ customize_nodes_max_cpu_soft }}' }
-    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time {{ customize_nodes_max_cpu_hard }}' }
+    - { regexp: '^\* soft memlock unlimited', line: '* soft memlock unlimited' }
+    - { regexp: '^\* hard memlock unlimited', line: '* hard memlock unlimited' }
+    - { regexp: '^\* soft cpu time unlimited', line: '* soft cpu time unlimited' }
+    - { regexp: '^\* hard cpu time unlimited', line: '* hard cpu time unlimited' }
   when:
     - ( inventory_hostname in groups['sms'] )
 
@@ -82,8 +84,8 @@
 # dkms status
 # EOF
 - name: Check if CUDA and NVIDIA packages are installed in image
-  ansible.builtin.shell: |
-    set -o pipefail; echo rpm -q cuda-repo-ohpc nvidia-driver nvidia-driver-cuda cuda-devel-ohpc dkms | wwctl image exec --build=false almalinux-9 /bin/bash
+  ansible.builtin.command:
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'rpm -q cuda-repo-ohpc nvidia-driver nvidia-driver-cuda cuda-devel-ohpc dkms'
   register: nvidia_cuda_pkgs
   changed_when: false
   failed_when: false
@@ -97,7 +99,7 @@
   loop:
     - dnf -y install cuda-repo-ohpc
     - dnf -y module install nvidia-driver:latest-dkms
-    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k \${KVER}
+    - KVER=$(rpm -q --queryformat='%{version}-%{release}.%{arch}\\n' kernel-core | sort -r | head -1); dkms autoinstall --verbose -k ${KVER}    # \ in \${KVER} is a typo
     - dkms status
   changed_when:
     - ( 'package not installed' in nvidia_cuda_pkgs.stdout )

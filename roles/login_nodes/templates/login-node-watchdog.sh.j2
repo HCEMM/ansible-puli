@@ -1,0 +1,83 @@
+#!/bin/bash
+
+HOST="$(hostname -s)"
+
+CPU_LIMIT={{ login_nodes_watchdog.cpu_limit_percent }}
+RSS_LIMIT_KB={{ login_nodes_watchdog.rss_limit_kb }}
+TIME_LIMIT={{ login_nodes_watchdog.time_limit_seconds }}
+MIN_UID={{ login_nodes_watchdog.min_uid }}
+TERMINATE_DELAY={{ login_nodes_watchdog.terminate_delay_seconds }}
+KILL_DELAY={{ login_nodes_watchdog.kill_delay_seconds }}
+
+is_protected_command() {
+    local comm="$1"
+    case "$comm" in
+{% for cmd in login_nodes_watchdog.protected_commands %}
+        {{ cmd }}) return 0 ;;
+{% endfor %}
+        *) return 1 ;;
+    esac
+}
+
+ps -eo uid,user,pid,etimes,%cpu,rss,comm,tty,args --no-headers | while read PROC_UID USER PID ETIME CPU RSS COMM TTY CMD
+do
+    [ "$PROC_UID" -ge "$MIN_UID" ] 2>/dev/null || continue
+    [ -d "/proc/$PID" ] || continue
+
+    is_protected_command "$COMM" || continue
+
+    # Do not touch Slurm jobs.
+    if grep -q slurm "/proc/$PID/cgroup" 2>/dev/null; then
+        continue
+    fi
+
+    CPU_INT=${CPU%.*}
+
+    if [ "$ETIME" -gt "$TIME_LIMIT" ] || \
+       [ "$CPU_INT" -gt "$CPU_LIMIT" ] || \
+       [ "$RSS" -gt "$RSS_LIMIT_KB" ]; then
+
+        MSG="
+=================================================================
+ WARNING: Heavy compute workload detected on login node ($HOST)
+=================================================================
+
+User: $USER
+PID : $PID
+
+This process is running directly on a login node.
+
+Please run compute-intensive workloads on compute nodes via Slurm.
+
+Examples:
+
+  Interactive:
+    srun --pty -p cpu -c 4 --mem=8G bash
+
+  Batch:
+    sbatch job.sh
+
+This process will be terminated in ${TERMINATE_DELAY} seconds.
+
+=================================================================
+"
+
+        logger -t login-watchdog \
+          "Heavy workload detected: user=$USER uid=$PROC_UID pid=$PID cpu=$CPU rss_kb=$RSS etime_s=$ETIME comm=$COMM tty=$TTY cmd=$CMD"
+
+        # Send the warning only to the terminal that owns the process.
+        # Do not use wall here; it broadcasts to all users.
+        if [ "$TTY" != "?" ] && [ -e "/dev/$TTY" ]; then
+            printf '%s\n' "$MSG" > "/dev/$TTY" 2>/dev/null || true
+        fi
+
+        sleep "$TERMINATE_DELAY"
+
+        kill -TERM "$PID" 2>/dev/null
+        sleep "$KILL_DELAY"
+        kill -KILL "$PID" 2>/dev/null
+
+        logger -t login-watchdog \
+          "Terminated process: user=$USER uid=$PROC_UID pid=$PID comm=$COMM tty=$TTY"
+    fi
+done

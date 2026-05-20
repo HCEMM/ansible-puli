@@ -30,7 +30,4 @@ jobs:
         run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass.txt
 
       - name: Run ansible-lint
-        run: ansible-lint site.yml
-
-      #- name: Run ansible-playbook
-      #  run: ansible-playbook -i inventory/test_hosts site.yml -e "env=test"
+        run: ansible-lint puli.yml

@@ -17,45 +17,63 @@ setup_vms_vm_list:
     disk_size: 20G
     ip: '10.0.150.202'
     mac: '52:54:00:aa:bb:09'
-  slurmdbd2:
-    memory: 4096
-    vcpus: 4
-    disk_size: 20G
+  ldap1:
+    memory: 2048
+    vcpus: 1
+    disk_size: 10G
     ip: '10.0.150.203'
     mac: '52:54:00:aa:bb:10'
   login1:
-    memory: 8192
+    memory: 32768
     vcpus: 4
     disk_size: 30G
     ip: '10.0.150.204'
     mac: '52:54:00:aa:bb:03'
   login2:
-    memory: 8192
+    memory: 32768
     vcpus: 4
     disk_size: 30G
     ip: '10.0.150.205'
     mac: '52:54:00:aa:bb:04'
-  tlmaster1:
-    memory: 4096
-    vcpus: 2
-    disk_size: 20G
+  login3:      # deprecated for now
+    memory: 16384
+    vcpus: 4
+    disk_size: 30G
     ip: '10.0.150.206'
     mac: '52:54:00:aa:bb:05'
-  tlmaster2:
+  tlmaster2:      # deprecated for now
     memory: 4096
     vcpus: 2
     disk_size: 20G
     ip: '10.0.150.207'
     mac: '52:54:00:aa:bb:06'
   checkmk1:
-    memory: 2048
-    vcpus: 1
+    memory: 8192
+    vcpus: 2
     disk_size: 15G
     ip: '10.0.150.208'
     mac: '52:54:00:aa:bb:07'
   galaxy1:
-    memory: 4096
-    vcpus: 16
-    disk_size: 20G
+    memory: 32768       # to keep monitoring, see if it's enough
+    vcpus: 8
+    disk_size: 200G     # Galaxy has a lot of logs and environments and stuff... let's see how this fills up
     ip: '10.0.150.209'
     mac: '52:54:00:aa:bb:08'
+  # emma1:              # Still need to finish Ubuntu automatic VM setup
+  #   memory: 2048
+  #   vcpus: 1
+  #   disk_size: 10G
+  #   ip: '10.0.150.210'
+  #   mac: '52:54:00:aa:bb:11'
+  nginx1:
+    memory: 2048
+    vcpus: 2
+    disk_size: 10G
+    ip: '10.0.150.211'
+    mac: '52:54:00:aa:bb:12'
+  guacamole1:
+    memory: 4096
+    vcpus: 2
+    disk_size: 30G
+    ip: '10.0.150.212'
+    mac: '52:54:00:aa:bb:13'

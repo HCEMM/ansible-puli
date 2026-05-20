@@ -1,0 +1,86 @@
+---
+# dnf install -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+- name: Install OpenHPC repo
+  ansible.builtin.dnf:
+    name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+    state: present
+    disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
+  when: ansible_hostname in groups['sms']
+
+- name: Install Spack
+  ansible.builtin.dnf:
+    name:
+      - spack-ohpc
+      - libstdc++
+      - libstdc++-devel
+    state: present
+  when: ansible_hostname in groups['sms']
+
+- name: Set Spack module management   # I don't think there's a simpler way to do this, without hardcoded spack version
+  ansible.builtin.replace:
+    path: /opt/ohpc/pub/apps/spack/{{ modules_spack_version }}/etc/spack/defaults/modules.yaml
+    regexp: 'enable:\s*\["tcl"\]'
+    replace: 'enable: ["lmod"]'
+  when: ansible_hostname in groups['sms']
+  notify: Refresh modules
+
+- name: Install Spack packages
+  ansible.builtin.shell: >
+    source /etc/profile.d/lmod.sh; ml spack;
+    spack find {{ item }} || spack install {{ item }} gcc@{{ modules_spack_gcc }}   # `spack find` returns 0 if package is installed, 1 otherwise
+  loop: "{{ modules_spack_packages }}"
+  register: spack_result
+  changed_when: "'Installing' in spack_result.stdout"
+  when:
+    - modules_spack_packages is defined
+    - modules_spack_packages | length > 0
+    - ansible_hostname in groups['sms']
+  notify: Refresh modules
+
+- name: Download Miniconda3
+  ansible.builtin.get_url:
+    url: "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+    dest: /tmp/Miniconda3-latest-Linux-x86_64.sh
+    mode: '0755'
+    force: false
+  when: ansible_hostname in groups['sms']
+
+- name: Install Miniconda3
+  ansible.builtin.shell: >
+    /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda3
+  args:
+    creates: /opt/miniconda3/bin/conda
+  when: ansible_hostname in groups['sms']
+
+- name: Get conda version (JSON)
+  ansible.builtin.command: /opt/miniconda3/bin/conda info --json
+  register: conda_info
+  changed_when: false
+  when: ansible_hostname in groups['sms']
+
+- name: Set Miniconda version fact
+  ansible.builtin.set_fact:
+    modules_miniconda3_version: "{{ (conda_info.stdout | from_json).conda_version }}"
+  when: ansible_hostname in groups['sms']
+
+- name: Copy Miniconda3 modulefile
+  ansible.builtin.copy:
+    src: miniconda3.lua
+    dest: "{{ modules_custom_location }}/miniconda3/{{ modules_miniconda3_version }}.lua"
+    owner: root
+    group: root
+    mode: '0644'
+    force: false
+  when: ansible_hostname in groups['sms']
+  notify: Refresh modules
+
+- name: Set default Miniconda3 module version
+  ansible.builtin.copy:
+    dest: "{{ modules_custom_location }}/miniconda3/.version"
+    content: |
+      set ModulesVersion "{{ modules_miniconda3_version }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_hostname in groups['sms']
+  notify: Refresh modules

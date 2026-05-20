@@ -1,0 +1,13 @@
+- name: Enable munge and slurmd inside Warewulf image
+  ansible.builtin.command: >
+    wwctl image exec --build=false almalinux-9 /bin/bash -c 'systemctl enable {{ item }}'
+  changed_when: true
+  loop:
+    - munge
+    - slurmd
+
+# wwctl image build almalinux-9
+# wwctl overlay build
+- name: Build overlays if image was changed
+  ansible.builtin.command: wwctl overlay build
+  changed_when: true

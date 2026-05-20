@@ -1,0 +1,24 @@
+# --- SMS SSH proxy settings ---
+haproxy_ssh_listen_port: 22
+haproxy_balance: "roundrobin"   # or "source"
+
+# Backend group (login nodes)
+haproxy_backend_group: "login_nodes"
+haproxy_backend_port: 22
+
+# --- SMS sshd policy ---
+# When true, move sshd on sms away from 22 to admin port.
+haproxy_ansible_port: 22
+haproxy_sms_move_sshd_off_22: true
+haproxy_sms_sshd_admin_port: 2222
+
+# Optional: restrict who can SSH directly to sms on admin port.
+# If empty => no AllowUsers line is written.
+haproxy_sms_sshd_allow_users:
+  - root
+  - hcemm
+  - jsequeira
+  - mkavoosi
+
+# --- Login nodes sshd bind ---
+haproxy_login_nodes_bind_sshd_to_primary_ip: true

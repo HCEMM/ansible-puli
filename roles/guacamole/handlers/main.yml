@@ -1,0 +1,32 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart guacd
+  ansible.builtin.systemd:
+    name: guacd
+    state: restarted
+
+- name: Restart Tomcat
+  ansible.builtin.systemd:
+    name: tomcat
+    state: restarted
+
+- name: Restart HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
+
+- name: Restart XRDP services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - xrdp
+    - xrdp-sesman
+
+- name: Restart SSH service
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted

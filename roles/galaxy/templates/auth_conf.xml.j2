@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/auth_conf.xml.sample -->
+<auth>
+	<authenticator>
+		<type>ldap3</type>
+		<filter>True</filter>   <!-- Apply to all users. -->
+		<options>
+			<allow-register>Challenge</allow-register>
+			<auto-register>True</auto-register>
+			<max-retries>3</max-retries>
+			<allow-password-change>False</allow-password-change>
+			<auto-create-roles>False</auto-create-roles>
+			<auto-create-groups>False</auto-create-groups>
+			<auto-assign-roles-to-groups-only>False</auto-assign-roles-to-groups-only>
+			<server>ldap://freeipa.cluster.hcemm.eu</server>   <!--{{ ldap_vm_ip }}:{{ ldap_port }}-->
+			<ldap-options>OPT_X_TLS_REQUIRE_CERT=never</ldap-options>
+			<login-use-username>True</login-use-username>
+			<continue-on-failure>False</continue-on-failure>
+			<search-fields>uid,mail</search-fields>
+			<search-base>{{ ldap_user_base_dn }}</search-base>
+			<search-filter>(uid={username})</search-filter>
+			<search-user>{{ ldap_search_bind_dn  }}</search-user>
+			<search-password>{{ ldap_admin_password_raw  }}</search-password>
+			<bind-user>{dn}</bind-user>
+			<bind-password>{password}</bind-password>
+			<auto-register-username>{uid}</auto-register-username>
+			<auto-register-email>{mail}</auto-register-email>
+			<auto-register-roles>{gidNumber}</auto-register-roles>
+		</options>
+	</authenticator>
+</auth>

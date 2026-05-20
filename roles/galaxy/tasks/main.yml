@@ -1,0 +1,141 @@
+---
+- name: Install dependencies for Galaxy
+  ansible.builtin.dnf:
+    name:
+      - git
+      - policycoreutils-python-utils      # for semanage
+      - nfs-utils
+      - golang              # to build tusd
+      - apptainer
+    state: present
+
+- name: Create galaxy group
+  ansible.builtin.group:
+    name: "{{ galaxy_group }}"
+    gid: "{{ galaxy_gid | default(1001) }}"
+    state: present
+
+- name: Create galaxy user
+  ansible.builtin.user:
+    name: "{{ galaxy_user }}"
+    groups:
+      - "{{ galaxy_group }}"
+      - systemd-journal
+    state: present
+    uid: "{{ galaxy_uid | default(1001) }}"
+    create_home: true
+
+- name: Open ports on firewall for Galaxy
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 8080
+    - 1080
+
+# setsebool -P httpd_can_network_connect 1
+- name: Enable Selinux httpd traffic
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+
+# # /srv/galaxy 10.0.150.209(rw,sync,no_subtree_check,no_root_squash) in /etc/exports
+# - name: Mount /mnt/galaxy
+#   ansible.posix.mount:
+#     path: /mnt/galaxy
+#     src: "10.0.150.209:{{ galaxy_base_dir }}"
+#     fstype: nfs
+#     state: mounted
+
+# # Setup postgresql
+# # Install the repository RPM:
+# sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+# # Disable the built-in PostgreSQL module:
+# sudo dnf -qy module disable postgresql
+
+# # Install PostgreSQL:
+# sudo dnf install -y postgresql18-server
+
+# # Optionally initialize the database and enable automatic start:
+# sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
+# sudo systemctl enable postgresql-18
+# sudo systemctl start postgresql-18
+
+- name: Galaxy setup (user-level)
+  become: true
+  become_user: "{{ galaxy_user }}"
+  environment:
+    HOME: "/home/{{ galaxy_user }}"
+  block:
+    # git clone https://github.com/tus/tusd.git
+    - name: Clone tusd repository
+      ansible.builtin.git:
+        repo: 'https://github.com/tus/tusd.git'
+        dest: "{{ galaxy_tus_exec_dir }}"
+        version: 'v2.8.0'  # Pin to keep idempotency
+
+    # go build -o tusd cmd/tusd/main.go
+    - name: Build tusd binary
+      ansible.builtin.command:
+        cmd: go build -o tusd cmd/tusd/main.go
+        chdir: "{{ galaxy_tus_exec_dir }}"
+      args:
+        creates: "{{ galaxy_tus_exec_dir }}/tusd"
+
+    # tusd -host localhost -port 1080 -upload-dir=/scratch/galaxy/database/tmp -hooks-http=galaxy.hcemm.eu/api/upload/hooks -hooks-http-forward-headers=X-Api-Key,Cookie
+    - name: Start tusd service
+      ansible.builtin.command:
+        cmd: >
+          {{ galaxy_tus_exec_dir }}/tusd -host localhost -port 1080
+          -upload-dir=/scratch/galaxy/database/tmp
+          -hooks-http=galaxy.hcemm.eu/api/upload/hooks
+          -hooks-http-forward-headers=X-Api-Key,Cookie
+      args:
+        creates: "{{ galaxy_tus_exec_dir }}/tusd"
+
+    - name: Clone Galaxy repository
+      ansible.builtin.git:
+        repo: 'https://github.com/galaxyproject/galaxy'
+        dest: "{{ galaxy_base_dir }}"
+        version: 'v25.0.4'  # Pin to keep idempotency
+        update: false
+
+    - name: Copy configs
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ galaxy_config_dir }}/{{ item }}"
+        owner: "{{ galaxy_user }}"
+        group: "{{ galaxy_group }}"
+        mode: "0644"
+      loop:
+        - galaxy.yml
+        # - auth_conf.xml        # NOT READY
+        - container_resolvers.yml
+        # - job_conf.yml         # NOT READY
+        - tool_conf.xml
+        - tool_destinations.yml
+        - themes.yml
+
+    - name: Copy htmls to static/
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ galaxy_base_dir }}/static/{{ item }}"
+        owner: "{{ galaxy_user }}"
+        group: "{{ galaxy_group }}"
+        mode: "0644"
+      loop:
+        - welcome.html
+
+    # run.sh
+    - name: Install Galaxy
+      ansible.builtin.command:
+        cmd: ./run.sh
+        chdir: "{{ galaxy_base_dir }}"
+      args:
+        creates: "{{ galaxy_base_dir }}/.venv"
+
+# pip install galaxycloudrunner (on the environment)

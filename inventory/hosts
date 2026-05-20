@@ -1,100 +1,182 @@
 all:
   children:
-    physical:
-      vars:
-        ansible_user: jsequeira
-        ansible_connection: local
-        ansible_become: true
 
+    physical:
       children:
+
         sms:
           hosts:
-            scc-cpu11-10G:
-              ansible_host: 10.0.50.155
+            scc-cpu01-10G:
+          vars:
+            ansible_user: hcemm
+            ansible_connection: local
+            ansible_become: true
 
         computes:
           hosts:
-            scc-mem01-10G:
-              ansible_host: 10.0.50.143
-            scc-mem02-10G:
-              ansible_host: 10.0.50.146
-            scc-gpu01-10G:
-              ansible_host: 10.0.50.149
-            scc-gpu02-10G:
-              ansible_host: 10.0.50.152
             scc-cpu02-10G:
-              ansible_host: 10.0.50.158
             scc-cpu03-10G:
-              ansible_host: 10.0.50.161
             scc-cpu04-10G:
-              ansible_host: 10.0.50.164
             scc-cpu05-10G:
-              ansible_host: 10.0.50.167
             scc-cpu06-10G:
-              ansible_host: 10.0.50.170
             scc-cpu07-10G:
-              ansible_host: 10.0.50.173
             scc-cpu08-10G:
-              ansible_host: 10.0.50.176
             scc-cpu09-10G:
-              ansible_host: 10.0.50.179
             scc-cpu10-10G:
-              ansible_host: 10.0.50.182
             scc-cpu11-10G:
-              ansible_host: 10.0.50.185
+            scc-mem01-10G:
+            scc-mem02-10G:
+            scc-gpu01-10G:
+            scc-gpu02-10G:
 
     virtual:
       vars:
         ansible_user: root
         ansible_connection: ssh
-        ansible_ssh_private_key_file: ~/.ssh/id_puli_root
+        ansible_ssh_private_key_file: "~/.ssh/id_puli_root"
         ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
       children:
+
         slurmctld:
           hosts:
             slurmctld1:
-              ansible_host: 10.0.50.194
             slurmctld2:
-              ansible_host: 10.0.50.195
+
+        slurmdbd:
+          hosts:
+            slurmdbd1:
+
+        ldap_server:
+          hosts:
+            ldap1:
 
         login_nodes:
           hosts:
             login1:
-              ansible_host: 10.0.50.196
             login2:
-              ansible_host: 10.0.50.197
 
         thinlinc_masters:
           hosts:
             thinlinc1:
-              ansible_host: 10.0.50.198
             thinlinc2:
-              ansible_host: 10.0.50.199
 
         thinlinc_agents:
           hosts:
             login1:
             login2:
 
-        thinlinc_servers:
-          children:
-            thinlinc_masters:
-            thinlinc_agents:
-
         monitoring:
           hosts:
             checkmk1:
-              ansible_host: 10.0.50.200
 
-        galaxy:
+        galaxy_server:
           hosts:
             galaxy1:
-              ansible_host: 10.0.50.201
 
-        slurmdbd:
+        emma_server:
           hosts:
-            slurmdbd1:
-              ansible_host: 10.0.50.202
-            slurmdbd2:
-              ansible_host: 10.0.50.203
+            emma1:
+
+        nginx_gateway:
+          hosts:
+            nginx1:
+
+        guacamole_server:
+          hosts:
+            guacamole1:
+
+    thinlinc_servers:
+      children:
+        sms:      # thinlinc_masters:      Eventually should change to thinlinc_masters
+        thinlinc_agents:
+    
+    ldap:         # mostly to get the group_vars/ldap.yml
+      children:
+        ldap_server:
+        guacamole_server:
+        login_nodes:
+        sms:
+        galaxy_server:
+        nginx:    # just for the DNS
+
+  hosts:
+    scc-cpu01-10G:
+      ansible_host: 10.0.150.101
+    scc-cpu02-10G:
+      ansible_host: 10.0.150.104
+    scc-cpu03-10G:
+      ansible_host: 10.0.150.107
+    scc-cpu04-10G:
+      ansible_host: 10.0.150.110
+    scc-cpu05-10G:
+      ansible_host: 10.0.150.113
+    scc-cpu06-10G:
+      ansible_host: 10.0.150.116
+    scc-cpu07-10G:
+      ansible_host: 10.0.150.119
+    scc-cpu08-10G:
+      ansible_host: 10.0.150.122
+    scc-cpu09-10G:
+      ansible_host: 10.0.150.125
+    scc-cpu10-10G:
+      ansible_host: 10.0.150.128
+    scc-cpu11-10G:
+      ansible_host: 10.0.150.131
+    scc-mem01-10G:
+      ansible_host: 10.0.150.134
+    scc-mem02-10G:
+      ansible_host: 10.0.150.137
+    scc-gpu01-10G:
+      ansible_host: 10.0.150.140
+    scc-gpu02-10G:
+      ansible_host: 10.0.150.143
+
+    slurmctld1:
+      ansible_host: 10.0.150.200
+      fqdn: slurmctld1.hcemm.eu
+    slurmctld2:
+      ansible_host: 10.0.150.201
+      fqdn: slurmctld2.hcemm.eu
+
+    slurmdbd1:
+      ansible_host: 10.0.150.202
+      fqdn: slurmdbd1.hcemm.eu
+
+    ldap1:
+      ansible_host: 10.0.150.203
+      fqdn: freeipa.hcemm.eu
+
+    login1:
+      ansible_host: 10.0.150.204
+      fqdn: login1.hcemm.eu
+    login2:
+      ansible_host: 10.0.150.205
+      fqdn: login2.hcemm.eu
+
+    thinlinc1:
+      ansible_host: 10.0.150.206
+      fqdn: thinlinc1.hcemm.eu
+    thinlinc2:
+      ansible_host: 10.0.150.207
+      fqdn: thinlinc2.hcemm.eu
+
+    checkmk1:
+      ansible_host: 10.0.150.208
+      fqdn: checkmk.hcemm.eu
+
+    galaxy1:
+      ansible_host: 10.0.150.209
+      fqdn: galaxy.hcemm.eu
+
+    emma1:
+      ansible_host: 10.0.150.210
+      fqdn: emma.hcemm.eu
+
+    nginx1:
+      ansible_host: 10.0.150.211
+      fqdn: nginx.hcemm.eu
+
+    guacamole1:
+      ansible_host: 10.0.150.212
+      fqdn: guacamole.hcemm.eu

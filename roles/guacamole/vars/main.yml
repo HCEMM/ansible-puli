@@ -1,0 +1,48 @@
+guacamole_version: "1.6.0"
+guacamole_libssh2_version: "1.11.1"
+
+guacamole_db_name: "guacamole_db"
+guacamole_db_user: "guacamole_user"
+guacamole_db_password: "guacamole_user_password"
+
+guacamole_case_sensitivity: "disabled"
+guacamole_ban_max_invalid_attempts: 9999
+guacamole_ban_address_duration: 60
+
+guacamole_guacd_host: "127.0.0.1"
+guacamole_guacd_port: 4822
+
+guacamole_ldap_hostname: "{{ ldap_server_fqdn }}"
+guacamole_ldap_port: "{{ ldap_port }}"
+guacamole_ldap_encryption_method: "none"
+guacamole_ldap_user_base_dn: "{{ ldap_user_base_dn }}"
+guacamole_ldap_username_attribute: "{{ ldap_username_attribute }}"
+guacamole_ldap_search_bind_dn: "{{ ldap_search_bind_dn }}"
+guacamole_ldap_search_bind_password: "{{ ldap_admin_password_raw }}"
+
+guacamole_xrdp_port: 3389
+
+guacamole_tomcat_version: "9.0.115"
+guacamole_java_home: "/usr/lib/jvm/java-21-openjdk"
+
+guacamole_admin_users:
+  - guacadmin
+
+guacamole_connections:
+  - name: PULI_SSH
+    protocol: ssh
+    parameters:
+      hostname: 10.0.150.101
+      port: "22"
+      username: "${GUAC_USERNAME}"
+      private-key: "{{ lookup('file', role_path + '/files/guacamole_key') }}"
+
+  - name: PULI_GUI
+    protocol: rdp
+    parameters:
+      hostname: 10.0.150.101
+      port: "3389"
+      username: "${GUAC_USERNAME}"
+      password: "${GUAC_PASSWORD}"
+      security: rdp
+      ignore-cert: "true"

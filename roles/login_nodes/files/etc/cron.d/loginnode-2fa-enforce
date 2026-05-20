@@ -1,0 +1,4 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/5 * * * * root kinit -k -t /root/admin.keytab admin && GRACE_SECONDS=3600 /usr/local/sbin/loginnode-2fa-enforce.sh >> /var/log/loginnode-2fa-enforce.log 2>&1

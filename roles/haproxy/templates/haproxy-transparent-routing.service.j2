@@ -1,0 +1,15 @@
+[Unit]
+Description=Transparent proxy routing for HAProxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '/usr/sbin/ip rule show | /usr/bin/grep -q "fwmark 0x1 lookup 100" || /usr/sbin/ip rule add fwmark 1 lookup 100'
+ExecStart=/bin/sh -c '/usr/sbin/ip route show table 100 | /usr/bin/grep -q "local 0.0.0.0/0 dev lo" || /usr/sbin/ip route add local 0.0.0.0/0 dev lo table 100'
+ExecStop=-/usr/sbin/ip rule del fwmark 1 lookup 100
+ExecStop=-/usr/sbin/ip route del local 0.0.0.0/0 dev lo table 100
+
+[Install]
+WantedBy=multi-user.target

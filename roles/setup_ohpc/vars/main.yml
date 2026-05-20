@@ -1,0 +1,13 @@
+setup_ohpc_packages:
+  - ohpc-autotools
+  - EasyBuild-ohpc
+  - spack-ohpc
+  - gnu14-compilers-ohpc
+  - openmpi5-pmix-gnu14-ohpc
+  - mpich-ofi-gnu14-ohpc
+  - lmod-defaults-gnu14-openmpi5-ohpc
+setup_ohpc_performance_packages:
+  - hwloc-ohpc
+  - valgrind-ohpc
+  - ohpc-gnu14-perf-tools
+setup_ohpc_install_performance_packages: false

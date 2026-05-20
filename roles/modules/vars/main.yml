@@ -1,0 +1,53 @@
+modules_spack_version: "0.23.1"
+modules_spack_gcc: "14.2.0"
+modules_spack_packages:
+  - bwa
+  - sratoolkit
+  - picard
+  - samtools
+  - py-macs3
+  - bedtools2
+  # - miniconda3      # Miniconda3 is now installed manually, not via Spack
+  - apptainer
+  - py-multiqc
+  - seqkit
+  - cdhit
+  - py-pandas
+  - py-numpy
+  - py-scipy
+  - py-matplotlib
+  - py-seaborn
+  - py-scikit-image
+  - py-tifffile
+  - opencv
+  # - cellpose         # it don't work
+  - py-torch
+  - py-ipywidgets
+  - py-jupyter
+  - py-notebook
+  - py-tqdm
+  - openjdk
+  - fastqc
+  - trimmomatic
+  - fastp
+  - hisat2
+  - star
+  - samtools
+  - subread           # featureCounts
+  - seqkit
+  - salmon
+  # - sra-tools        # it don't work
+  - r-base64
+  - r-tidyverse
+  - r-pheatmap
+  - r-ggplot2
+  # - r-deseq2         # it don't work
+  - r-limma
+  - r-tximport
+  - r-org-hs-eg-db
+  - r-edger
+  - htop
+  - tar
+  - tree
+  - nano
+modules_custom_location: /opt/pub/modulefiles/site

@@ -1,0 +1,290 @@
+---
+- name: Copy configuration files into /etc      # Never mount this. There are host specific files here (e.g. /etc/hostname), SELinux breaks, etc.
+  ansible.builtin.copy:
+    src: system_root/etc/
+    dest: /etc
+    owner: root
+    group: root
+    mode: "0644"
+    force: true                                 # we want to overwrite files in /etc with our versions, even if they already exist
+
+- name: Copy user executables into /usr/local/bin
+  ansible.builtin.copy:
+    src: usr/local/bin/
+    dest: /usr/local
+    owner: root
+    group: root
+    mode: "0755"
+    force: true
+
+- name: Copy root executables into /root/bin
+  ansible.builtin.copy:
+    src: root/bin/
+    dest: /root
+    owner: root
+    group: root
+    mode: "0700"
+    force: true
+
+- name: Copy lmod.sh
+  ansible.builtin.copy:
+    src: /etc/profile.d/lmod.sh
+    dest: /etc/profile.d/lmod.sh
+    owner: root
+    group: root
+    mode: "0755"
+    force: true
+
+# - name: Add cron job to check 2FA users hourly
+#   ansible.builtin.cron:
+#     name: "Check 2FA users"
+#     minute: "0"
+#     job: "/root/bin/enforce-2fa.sh"
+
+# dnf install -y install http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+- name: Install OpenHPC repo
+  ansible.builtin.dnf:
+    name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
+    state: present
+    disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
+
+#   dnf -y install ohpc-slurm-client
+#   systemctl enable munge
+#   systemctl enable slurmd
+#   Add Network Time Protocol (NTP) support
+#   dnf -y install chrony
+#   Include modules user environment
+#   dnf -y install lmod-ohpc - lmod is no longer installed in the login nodes, only needs the lua and tcl dependencies
+- name: Install required packages
+  ansible.builtin.dnf:
+    name:
+      # slurm dependencies
+      - ohpc-slurm-client
+      - chrony
+      # lua must be installed for lmod to work
+      - lua
+      - lua-posix
+      - lua-filesystem
+      - tcl
+      # other essentials that I don't want to have as modules
+      - git
+      - htop
+      - nano
+      - mousepad
+      - xdg-utils
+    state: present
+
+# tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+- name: Configure logrotate for slurm
+  ansible.builtin.shell: |
+    set -o pipefail
+    tr -d '\r' < /etc/logrotate.d/slurm > /etc/logrotate.d/slurm
+  changed_when: false
+
+- name: Configure limits.conf
+  ansible.builtin.template:
+    src: limits.conf.j2
+    dest: /etc/security/limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+# mkdir -p /etc/systemd/system/user.slice.d
+- name: Create systemd directory for global user slice overrides
+  ansible.builtin.file:
+    path: /etc/systemd/system/user.slice.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# mkdir -p /etc/systemd/system/user-.slice.d
+- name: Create systemd directory for per-user slice overrides
+  ansible.builtin.file:
+    path: /etc/systemd/system/user-.slice.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# /etc/systemd/system/user.slice.d/50-login-limits.conf
+- name: Configure global systemd user slice limits
+  ansible.builtin.template:
+    src: 50-login-limits.conf.j2
+    dest: /etc/systemd/system/user.slice.d/50-login-limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+# /etc/systemd/system/user-.slice.d/50-per-user.conf
+- name: Configure per-user systemd slice limits
+  ansible.builtin.template:
+    src: 50-per-user.conf.j2
+    dest: /etc/systemd/system/user-.slice.d/50-per-user.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+# /etc/systemd/system/user-.slice.d/60-io.conf
+- name: Configure per-user systemd IO limits
+  ansible.builtin.template:
+    src: 60-io.conf.j2
+    dest: /etc/systemd/system/user-.slice.d/60-io.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+- name: Remove selected stale per-user runtime overrides if requested
+  ansible.builtin.file:
+    path: "/etc/systemd/system.control/user-{{ item }}.slice.d"
+    state: absent
+  loop: "{{ login_nodes_remove_runtime_override_uids | default([]) }}"
+  notify:
+    - Reload systemd daemon
+
+# mkdir -p /etc/systemd/logind.conf.d
+- name: Create systemd-logind drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure logind for login nodes
+  ansible.builtin.template:
+    src: 50-login-nodes.conf.j2
+    dest: /etc/systemd/logind.conf.d/50-login-nodes.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Restart systemd-logind
+
+- name: Install old session cleanup script
+  ansible.builtin.template:
+    src: kill_old_sessions.sh.j2
+    dest: /usr/local/bin/kill_old_sessions.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install old session cleanup service
+  ansible.builtin.template:
+    src: kill-old-sessions.service.j2
+    dest: /etc/systemd/system/kill-old-sessions.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+- name: Install old session cleanup timer
+  ansible.builtin.template:
+    src: kill-old-sessions.timer.j2
+    dest: /etc/systemd/system/kill-old-sessions.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+
+- name: Ensure old session cleanup timer is enabled and running
+  ansible.builtin.systemd:
+    name: kill-old-sessions.timer
+    enabled: true
+    state: started
+# /usr/local/sbin/login-node-watchdog.sh
+- name: Install login node workload watchdog script
+  ansible.builtin.template:
+    src: login-node-watchdog.sh.j2
+    dest: /usr/local/sbin/login-node-watchdog.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: login_nodes_watchdog.enabled | bool
+
+# /etc/systemd/system/login-node-watchdog.service
+- name: Install login node workload watchdog service
+  ansible.builtin.template:
+    src: login-node-watchdog.service.j2
+    dest: /etc/systemd/system/login-node-watchdog.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: login_nodes_watchdog.enabled | bool
+  notify:
+    - Reload systemd daemon
+
+# /etc/systemd/system/login-node-watchdog.timer
+- name: Install login node workload watchdog timer
+  ansible.builtin.template:
+    src: login-node-watchdog.timer.j2
+    dest: /etc/systemd/system/login-node-watchdog.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when: login_nodes_watchdog.enabled | bool
+  notify:
+    - Reload systemd daemon
+
+- name: Ensure login node workload watchdog timer is enabled and running
+  ansible.builtin.systemd:
+    name: login-node-watchdog.timer
+    enabled: true
+    state: started
+  when: login_nodes_watchdog.enabled | bool
+
+# Setup 2FA workflow
+- name: Ensure qrencode package is installed
+  ansible.builtin.package:
+    name: qrencode
+    state: present
+
+- name: Check admin keytab exists on login node
+  ansible.builtin.stat:
+    path: /root/admin.keytab
+  register: login_node_admin_keytab_stat
+
+- name: Fail if admin keytab is missing on login node
+  ansible.builtin.fail:
+    msg: "/root/admin.keytab is required on login nodes for 2FA enforcement."
+  when: not login_node_admin_keytab_stat.stat.exists
+
+- name: Deploy 2fa-setup script
+  ansible.builtin.copy:
+    src: usr/local/bin/2fa-setup
+    dest: /usr/local/bin/2fa-setup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy login node 2FA enforcement script
+  ansible.builtin.copy:
+    src: usr/local/sbin/loginnode-2fa-enforce.sh
+    dest: /usr/local/sbin/loginnode-2fa-enforce.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Ensure login node 2FA enforcement log file exists
+  ansible.builtin.file:
+    path: /var/log/loginnode-2fa-enforce.log
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Deploy login node 2FA enforcement cron file
+  ansible.builtin.copy:
+    src: etc/cron.d/loginnode-2fa-enforce
+    dest: /etc/cron.d/loginnode-2fa-enforce
+    owner: root
+    group: root
+    mode: "0644"

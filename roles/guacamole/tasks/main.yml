@@ -1,0 +1,549 @@
+---
+# dnf -y install epel-release, ...
+- name: Install Guacamole natively
+  when: inventory_hostname in groups['guacamole_server']
+  block:
+    - name: Install Guacamole native dependencies
+      ansible.builtin.dnf:
+        name:
+          - epel-release
+          - gcc
+          - make
+          - autoconf
+          - automake
+          - libtool
+          - tar
+          - cairo-devel
+          - libjpeg-turbo-devel
+          - libpng-devel
+          - uuid-devel
+          - freerdp-devel
+          - pango-devel
+          - openssl-devel
+          - libvorbis-devel
+          - libwebp-devel
+          - java-21-openjdk-headless
+          - mariadb-server
+          - mariadb
+          - python3-PyMySQL
+          - wget
+        state: present
+
+    - name: Ensure MariaDB is enabled and started
+      ansible.builtin.systemd:
+        name: mariadb
+        enabled: true
+        state: started
+
+    # Install libssh2 from source
+    - name: Download libssh2 source
+      ansible.builtin.get_url:
+        url: "https://www.libssh2.org/download/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
+        dest: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
+        force: false
+        mode: "0644"
+
+    - name: Extract libssh2 source
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
+        dest: /usr/local/src/
+        remote_src: true
+        creates: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
+
+    - name: Configure libssh2
+      ansible.builtin.command:
+        cmd: ./configure
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
+      args:
+        creates: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}/Makefile"
+
+    - name: Build libssh2
+      ansible.builtin.command:
+        cmd: "make -j{{ ansible_processor_vcpus | default(2) }}"
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
+      args:
+        creates: /usr/local/src/libssh2-{{ guacamole_libssh2_version }}/src/.libs/libssh2.so
+
+    - name: Install libssh2
+      ansible.builtin.command:
+        cmd: make install
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
+      args:
+        creates: /usr/local/lib/libssh2.so
+
+    - name: Run ldconfig after libssh2 install
+      ansible.builtin.command: ldconfig
+      changed_when: false
+
+    # Install guacamole-server from source
+    - name: Download guacamole-server source
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/source/guacamole-server-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
+      args:
+        creates: "/usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz"
+
+    - name: Extract guacamole-server source
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz"
+        dest: /usr/local/src/
+        remote_src: true
+        creates: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+
+    - name: Clean previous guacamole-server build
+      ansible.builtin.command:
+        cmd: make clean
+        chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      # ignore_errors: true
+      changed_when: false
+
+    - name: Configure guacamole-server
+      ansible.builtin.command:
+        cmd: ./configure --with-systemd-dir=/etc/systemd/system
+        chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      changed_when: true
+
+    - name: Build guacamole-server
+      ansible.builtin.command:
+        cmd: "make -j{{ ansible_processor_vcpus | default(2) }}"
+        chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      changed_when: true
+
+    - name: Install guacamole-server
+      ansible.builtin.command:
+        cmd: make install
+        chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      notify:
+        - Reload systemd
+        - Restart guacd
+      changed_when: true
+
+    - name: Run ldconfig
+      ansible.builtin.command: ldconfig
+      changed_when: false
+
+    # Install Apache Tomcat 9
+    - name: Download Apache Tomcat 9 tarball
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/tomcat/tomcat-9/v{{ guacamole_tomcat_version }}/bin/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+        dest: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+        force: false
+        mode: "0644"
+      args:
+        creates: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+
+    - name: Extract Apache Tomcat 9
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+        dest: /opt/
+        remote_src: true
+        creates: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
+
+    - name: Fix Tomcat ownership
+      ansible.builtin.file:
+        path: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
+        state: directory
+        recurse: true
+        owner: tomcat
+        group: tomcat
+
+    - name: Symlink Tomcat current directory
+      ansible.builtin.file:
+        src: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
+        dest: /opt/tomcat
+        state: link
+        force: true
+
+    - name: Ensure Tomcat temp directory exists
+      ansible.builtin.file:
+        path: /opt/tomcat/temp
+        state: directory
+        owner: tomcat
+        group: tomcat
+        mode: "0755"
+
+    - name: Deploy Tomcat systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/tomcat.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Apache Tomcat 9
+          After=network.target
+
+          [Service]
+          Type=forking
+          User=tomcat
+          Group=tomcat
+          Environment=JAVA_HOME={{ guacamole_java_home }}
+          Environment=CATALINA_HOME=/opt/tomcat
+          Environment=CATALINA_BASE=/opt/tomcat
+          Environment=GUACAMOLE_HOME=/etc/guacamole
+          Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+          ExecStart=/opt/tomcat/bin/startup.sh
+          ExecStop=/opt/tomcat/bin/shutdown.sh
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Reload systemd
+        - Restart Tomcat
+
+    - name: Remove packaged Tomcat override directory if present
+      ansible.builtin.file:
+        path: /etc/systemd/system/tomcat.service.d
+        state: absent
+      notify:
+        - Reload systemd
+        - Restart Tomcat
+
+    - name: Ensure Tomcat is enabled and started
+      ansible.builtin.systemd:
+        name: tomcat
+        enabled: true
+        state: started
+
+    # Install and configure guacd
+    - name: Create systemd override directory for guacd
+      ansible.builtin.file:
+        path: /etc/systemd/system/guacd.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy guacd systemd override
+      ansible.builtin.template:
+        src: guacd.override.conf.j2
+        dest: /etc/systemd/system/guacd.service.d/override.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart guacd
+
+    - name: Ensure guacd is enabled and started
+      ansible.builtin.systemd:
+        name: guacd
+        enabled: true
+        state: started
+
+    # Install Guacamole database and extensions
+    - name: Create Guacamole database
+      ansible.mysql.mysql_db:
+        name: "{{ guacamole_db_name }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        login_user: root
+        login_password: "{{ guacamole_db_root_password | default(omit) }}"
+
+    - name: Create Guacamole database user
+      ansible.mysql.mysql_user:
+        name: "{{ guacamole_db_user }}"
+        password: "{{ guacamole_db_password }}"
+        host: localhost
+        priv: "{{ guacamole_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        login_user: root
+        login_password: "{{ guacamole_db_root_password | default(omit) }}"
+
+    - name: Download JDBC auth archive
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
+
+    - name: Extract JDBC auth archive
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+        dest: /usr/local/src/
+        remote_src: true
+        creates: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}"
+
+    - name: Check whether Guacamole schema already exists
+      ansible.mysql.mysql_query:
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        login_user: root
+        login_password: "{{ guacamole_db_root_password | default(omit) }}"
+        login_db: "{{ guacamole_db_name }}"
+        query: "SHOW TABLES LIKE 'guacamole_connection';"
+      register: guac_schema_check
+
+    - name: Import Guacamole schema
+      ansible.builtin.shell: |
+        set -o pipefail
+        cat /usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}/mysql/schema/*.sql | \
+        mysql -u root {% if guacamole_db_root_password is defined %}-p'{{ guacamole_db_root_password }}'{% endif %} {{ guacamole_db_name }}
+      when: guac_schema_check.query_result[0] | length == 0
+      changed_when: true
+
+    - name: Create Guacamole configuration directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "/etc/guacamole", owner: "tomcat", group: "tomcat", mode: "0755" }
+        - { path: "/etc/guacamole/extensions", owner: "tomcat", group: "tomcat", mode: "0755" }
+        - { path: "/etc/guacamole/lib", owner: "tomcat", group: "tomcat", mode: "0755" }
+
+    # Deploy Guacamole web application and extensions
+    - name: Download Guacamole WAR
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-{{ guacamole_version }}.war"
+        dest: "/opt/tomcat/webapps/guacamole.war"
+        force: false
+        mode: "0644"
+      notify: Restart Tomcat
+
+    - name: Download LDAP auth archive
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
+
+    # LDAP and JDBC configuration
+    - name: Extract LDAP auth archive
+      ansible.builtin.unarchive:
+        src: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+        dest: /usr/local/src/
+        remote_src: true
+        creates: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}"
+
+    - name: Deploy LDAP extension
+      ansible.builtin.copy:
+        src: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}/guacamole-auth-ldap-{{ guacamole_version }}.jar"
+        dest: "/etc/guacamole/extensions/guacamole-auth-ldap-{{ guacamole_version }}.jar"
+        remote_src: true
+        owner: tomcat
+        group: tomcat
+        mode: "0644"
+      notify: Restart Tomcat
+
+    - name: Deploy JDBC MySQL extension
+      ansible.builtin.copy:
+        src: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}/mysql/guacamole-auth-jdbc-mysql-{{ guacamole_version }}.jar"
+        dest: "/etc/guacamole/extensions/guacamole-auth-jdbc-mysql-{{ guacamole_version }}.jar"
+        remote_src: true
+        owner: tomcat
+        group: tomcat
+        mode: "0644"
+      notify: Restart Tomcat
+
+    - name: Download MySQL Connector/J RPM
+      ansible.builtin.get_url:
+        url: "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-9.6.0-1.el9.noarch.rpm"
+        dest: "/tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm"
+        force: false
+        mode: "0644"
+
+    - name: Install MySQL Connector/J RPM
+      ansible.builtin.dnf:
+        name: /tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm
+        state: present
+        disable_gpg_check: true
+
+    - name: Find MySQL Connector/J jar
+      ansible.builtin.find:
+        paths: /usr/share/java
+        patterns:
+          - "mysql-connector-j*.jar"
+          - "mysql-connector-java*.jar"
+        file_type: file
+      register: mysql_connector_jars
+
+    - name: Fail if MySQL Connector/J jar was not found
+      ansible.builtin.fail:
+        msg: "MySQL Connector/J jar not found under /usr/share/java"
+      when: mysql_connector_jars.matched | int == 0
+
+    - name: Deploy MySQL Connector/J library to Guacamole lib
+      ansible.builtin.copy:
+        src: "{{ (mysql_connector_jars.files | sort(attribute='path') | last).path }}"
+        dest: /etc/guacamole/lib/mysql-connector-j.jar
+        remote_src: true
+        owner: tomcat
+        group: tomcat
+        mode: "0644"
+      notify: Restart Tomcat
+
+    # Deploy Guacamole properties
+    - name: Deploy guacamole.properties
+      ansible.builtin.template:
+        src: guacamole.properties.j2
+        dest: /etc/guacamole/guacamole.properties
+        owner: tomcat
+        group: tomcat
+        mode: "0600"
+      notify: Restart Tomcat
+
+    # Configure firewall
+    - name: Allow 8080/tcp on Guacamole server
+      ansible.posix.firewalld:
+        port: 8080/tcp
+        permanent: true
+        state: enabled
+        immediate: true
+
+# Deploy HAProxy configuration
+- name: Deploy HAProxy Guacamole config
+  ansible.builtin.template:
+    src: guacamole.cfg.j2
+    dest: /etc/haproxy/conf.d/guacamole.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['sms']
+  notify: Restart HAProxy
+
+# Install and configure XRDP on login nodes
+- name: Install XRDP on login nodes
+  ansible.builtin.dnf:
+    name:
+      - xrdp
+      - xorgxrdp
+      - "@Xfce"
+    state: present
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Deploy XRDP main configuration on login nodes
+  ansible.builtin.template:
+    src: xrdp.ini.j2
+    dest: /etc/xrdp/xrdp.ini
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Deploy XRDP Xfce start script on login nodes
+  ansible.builtin.template:
+    src: xrdp-startxfce4.sh.j2
+    dest: /usr/local/bin/xrdp-startxfce4.sh
+    owner: root
+    group: root
+    mode: "0755"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Deploy XRDP sesman PAM configuration on login nodes
+  ansible.builtin.template:
+    src: xrdp-sesman.pam.j2
+    dest: /etc/pam.d/xrdp-sesman
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart XRDP services
+
+- name: Remove generic RDP service exposure on login nodes
+  ansible.posix.firewalld:
+    service: rdp
+    permanent: true
+    state: disabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Remove generic XRDP port exposure on login nodes
+  ansible.posix.firewalld:
+    port: "{{ xrdp_port }}/tcp"
+    permanent: true
+    state: disabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Allow XRDP only from Guacamole server on login nodes
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4"
+      source address="{{ hostvars[groups['guacamole_server'][0]]['ansible_host'] }}"
+      port protocol="tcp" port="{{ xrdp_port }}"
+      accept
+    permanent: true
+    state: enabled
+    immediate: true
+  when: inventory_hostname in groups['login_nodes']
+
+# Configure public key authentication for SSH connections
+- name: Copy Guacamole public key to login nodes
+  ansible.builtin.copy:
+    src: guacamole_key.pub
+    dest: /etc/ssh/guacamole_key.pub
+    owner: root
+    group: root
+    mode: "0644"
+    decrypt: true
+  when: inventory_hostname in groups['login_nodes']
+
+- name: Configure SSH to allow Guacamole public key authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^AuthorizedKeysFile'
+    line: 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/guacamole_key.pub'
+    state: present
+  when: inventory_hostname in groups['login_nodes']
+  notify: Restart SSH service
+
+- name: Configure Xfce as default session for XRDP
+  ansible.builtin.copy:
+    dest: /etc/skel/.Xclients
+    content: "exec startxfce4\n"
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups['sms']
+
+# echo "exec startxfce4" > ~/.Xclients
+- name: Get passwd database entries
+  ansible.builtin.getent:
+    database: passwd
+  when: inventory_hostname in groups['sms']
+
+- name: Ensure current users have .Xclients for Xfce
+  ansible.builtin.copy:
+    dest: "/home/{{ item.username }}/.Xclients"
+    content: "exec startxfce4\n"
+    owner: "{{ item.username }}"
+    group: "{{ item.groups[0] }}"
+    mode: "0755"
+    force: false
+  loop: "{{ ldap_users }}"
+  when:
+    - inventory_hostname in groups['sms']
+    - item.username in ansible_facts.getent_passwd
+
+# Connections Configuration
+- name: Render Guacamole connections SQL
+  ansible.builtin.template:
+    src: guacamole-connections.sql.j2
+    dest: /tmp/guacamole-connections.sql
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - inventory_hostname in groups['guacamole_server']
+    - guacamole_connections is defined
+    - guacamole_connections | length > 0
+
+- name: Apply Guacamole connections SQL
+  ansible.builtin.shell: |
+    mysql -u root {% if guacamole_db_root_password is defined %}-p'{{ guacamole_db_root_password }}'{% endif %} {{ guacamole_db_name }} < /tmp/guacamole-connections.sql
+  when:
+    - inventory_hostname in groups['guacamole_server']
+    - guacamole_connections is defined
+    - guacamole_connections | length > 0
+  changed_when: true

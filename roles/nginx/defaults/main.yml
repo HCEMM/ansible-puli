@@ -1,0 +1,3 @@
+nginx_gateway_domain: "hcemm.eu"
+nginx_gateway_ssl: true
+nginx_gateway_certbot_email: "scientific.computing.acf@{{ nginx_gateway_domain }}"

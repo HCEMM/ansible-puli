@@ -1,40 +1,4 @@
 ---
-# wwctl image build almalinux-9
-# wwctl overlay build
-- name: Get current time
-  ansible.builtin.command: date +%s
-  register: now_ts
-  changed_when: false
-
-- name: Get image modification time
-  ansible.builtin.shell: >
-    set -o pipefail
-    date -d "$(wwctl image list --long | grep almalinux-9 | awk '{print $(NF-5)" "$(NF-4)" "$(NF-3)')" +%s
-  register: image_mod_ts
-  changed_when: false
-
-- name: Calculate image age in minutes
-  ansible.builtin.set_fact:
-    image_age_minutes: "{{ (now_ts.stdout | int - image_mod_ts.stdout | int) // 60 }}"
-
-- name: Decide if image is stale
-  ansible.builtin.set_fact:
-    image_needs_rebuild: "{{ image_age_minutes | int > finalize_provision_image_max_age }}"
-
-- name: Build image if stale
-  ansible.builtin.command: wwctl image build almalinux-9
-  changed_when: image_needs_rebuild
-  when:
-    - image_needs_rebuild
-    - ( inventory_hostname in groups['sms'] )
-
-- name: Build overlays if image was rebuilt
-  ansible.builtin.command: wwctl overlay build
-  changed_when: image_needs_rebuild
-  when:
-    - image_needs_rebuild
-    - ( inventory_hostname in groups['sms'] )
-
 # for ((i=0; i<$num_computes; i++)) ; do
 #   wwctl node add --image=almalinux-9 --profile=nodes --netname=default \
 #   --ipaddr=${c_ip[$i]} --hwaddr=${c_mac[$i]} ${c_name[i]}
@@ -100,23 +64,22 @@
   register: node_status
   changed_when: false
 
-- name: Get nodes needing reset
+- name: Find nodes that are missing or stale
   ansible.builtin.set_fact:
     nodes_to_reset: >-
       {{
         node_status.stdout_lines
         | select('match', '^scc-')
-        | map('regex_search', '^(\\S+).*?(\\d+)$')
-        | selectattr('1', 'defined')
-        | selectattr('1', 'int')
-        | selectattr('1', 'int', '>', finalize_provision_node_lastseen_threshold)
-        | map('first')
+        | map('split')
+        | selectattr('3', 'defined')
+        | selectattr('3', 'in', ['--'] + (range(finalize_provision_node_lastseen_threshold, 1000000) | map('string') | list))
+        | map(attribute=0)
         | list
       }}
 
 - name: Reset non-available nodes
   ansible.builtin.command: >
-    ipmitool -E -I lanplus -H {{ hostvars[item].bmc_ip }}
+    ipmitool -E -I lanplus -H {{ (compute_nodes | selectattr('c_name', 'equalto', item) | first).c_bmc }}
     -U {{ bmc_username }} -P {{ bmc_password }} chassis power reset
   loop: "{{ nodes_to_reset }}"
   loop_control:
@@ -125,4 +88,3 @@
   when:
     - nodes_to_reset | length > 0
     - ( inventory_hostname in groups['sms'] )
-    - env == 'production'

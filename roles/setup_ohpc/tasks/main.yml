@@ -5,24 +5,18 @@
     name: http://repos.openhpc.community/OpenHPC/3/EL_9/x86_64/ohpc-release-3-1.el9.x86_64.rpm
     state: present
     disable_gpg_check: true     # started complaining couldn't find the GPG key, it was fine before. If found, we can make a task with `ansible.builtin.rpm_key`
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # dnf -y install dnf-plugins-core
 - name: Install dnf plugins
   ansible.builtin.dnf:
     name: dnf-plugins-core
     state: present
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # dnf -y config-manager --set-enabled crb
 - name: Ensure the crb repository is enabled
   community.general.dnf_config_manager:
     name: crb
     state: enabled
-  when:
-    ( inventory_hostname in groups['sms'] )
 
 # dnf -y install ohpc-base
 # dnf -y install warewulf-ohpc hwloc-ohpc
@@ -34,5 +28,24 @@
       - hwloc-ohpc
       - ohpc-slurm-server
     state: present
+
+# dnf -y install ohpc-autotools
+# dnf -y install EasyBuild-ohpc
+# dnf -y install spack-ohpc
+# dnf -y install gnu14-compilers-ohpc
+# dnf -y install openmpi5-pmix-gnu14-ohpc mpich-ofi-gnu14-ohpc
+# dnf -y install lmod-defaults-gnu14-openmpi5-ohpc
+- name: Install base HPC packages
+  ansible.builtin.dnf:
+    name: "{{ setup_ohpc_packages }}"
+    state: present
+
+# dnf -y install hwloc-ohpc
+# dnf -y install valgrind-ohpc
+# dnf -y install ohpc-gnu14-perf-tools
+- name: Install HPC performance packages
+  ansible.builtin.dnf:
+    name: "{{ setup_ohpc_performance_packages }}"
+    state: present
   when:
-    ( inventory_hostname in groups['sms'] )
+    - setup_ohpc_install_performance_packages

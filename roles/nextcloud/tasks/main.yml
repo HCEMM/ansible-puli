@@ -1,0 +1,49 @@
+---
+- name: Install Docker and nfs-utils
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - libxcrypt-compat    # required by docker-compose
+      - nfs-utils
+    state: present
+
+# curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+- name: Install docker-compose
+  ansible.builtin.get_url:
+    url: "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)"
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Create mountpoint directory for NextCloud data
+  ansible.builtin.file:
+    path: /srv/fcbi
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Create NFS mount from TrueNAS
+  ansible.posix.mount:
+    path: /srv/fcbi
+    src: 10.0.150.147:/mnt/MirrorHDD/fcbi/
+    fstype: nfs
+    state: present
+    opts: defaults,_netdev 0 0
+    boot: true
+
+- name: Deploy docker-compose yaml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/nextcloud/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+# docker-compose up -d
+- name: Start NextCloud container       # This was not tested with Ansible, never used this role, but looks cool
+  community.docker.docker_compose:
+    project_src: /opt/nextcloud
+    state: present
+    restarted: true

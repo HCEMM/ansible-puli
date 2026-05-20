@@ -1,0 +1,5 @@
+# Managed by Ansible - don't edit manually!
+# /etc/security/limits.conf
+
+* soft cpu {{ login_nodes_runtime_limits.cpu_time_soft }}
+* hard cpu {{ login_nodes_runtime_limits.cpu_time_hard }}
