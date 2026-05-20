@@ -10,7 +10,7 @@
           - firewalld
           - httpd
           - policycoreutils-python-utils
-          - nfs-utils   #backup mount
+          - nfs-utils   # backup mount
         state: present
 
     - name: Ensure firewalld is enabled and running
@@ -253,7 +253,7 @@
         owner: root
         group: root
         mode: '0755'
-  
+
 - name: Deploy Checkmk local checks for Kerberos DNS monitoring
   when:
     - inventory_hostname in groups['monitoring']
@@ -306,7 +306,7 @@
   when:
     - inventory_hostname in groups['monitoring']
     - not checkmk_puli_ssh_key_stat.stat.exists
-    
+
 - name: Deploy Checkmk local check for PULI SSH login monitoring
   when:
     - inventory_hostname in groups['monitoring']
