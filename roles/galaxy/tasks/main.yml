@@ -42,13 +42,13 @@
     state: true
     persistent: true
 
-# /srv/galaxy 10.0.150.211(rw,sync,no_subtree_check,no_root_squash) in /etc/exports
-- name: Mount /mnt/galaxy
-  ansible.posix.mount:
-    path: /mnt/galaxy
-    src: "10.0.150.211:{{ galaxy_base_dir }}"
-    fstype: nfs
-    state: mounted
+# # /srv/galaxy 10.0.150.209(rw,sync,no_subtree_check,no_root_squash) in /etc/exports
+# - name: Mount /mnt/galaxy
+#   ansible.posix.mount:
+#     path: /mnt/galaxy
+#     src: "10.0.150.209:{{ galaxy_base_dir }}"
+#     fstype: nfs
+#     state: mounted
 
 # # Setup postgresql
 # # Install the repository RPM:
