@@ -37,38 +37,37 @@
 
     # Install libssh2 from source
     - name: Download libssh2 source
-      ansible.builtin.command:
-        cmd: >
-          wget -O /usr/local/src/libssh2-{{ libssh2_version }}.tar.gz
-          https://www.libssh2.org/download/libssh2-{{ libssh2_version }}.tar.gz
-      args:
-        creates: "/usr/local/src/libssh2-{{ libssh2_version }}.tar.gz"
+      ansible.builtin.get_url:
+        url: "https://www.libssh2.org/download/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
+        dest: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
+        force: false
+        mode: "0644"
 
     - name: Extract libssh2 source
       ansible.builtin.unarchive:
-        src: "/usr/local/src/libssh2-{{ libssh2_version }}.tar.gz"
+        src: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}.tar.gz"
         dest: /usr/local/src/
         remote_src: true
-        creates: "/usr/local/src/libssh2-{{ libssh2_version }}"
+        creates: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
 
     - name: Configure libssh2
       ansible.builtin.command:
         cmd: ./configure
-        chdir: "/usr/local/src/libssh2-{{ libssh2_version }}"
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
       args:
-        creates: "/usr/local/src/libssh2-{{ libssh2_version }}/Makefile"
+        creates: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}/Makefile"
 
     - name: Build libssh2
       ansible.builtin.command:
         cmd: "make -j{{ ansible_processor_vcpus | default(2) }}"
-        chdir: "/usr/local/src/libssh2-{{ libssh2_version }}"
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
       args:
-        creates: /usr/local/src/libssh2-{{ libssh2_version }}/src/.libs/libssh2.so
+        creates: /usr/local/src/libssh2-{{ guacamole_libssh2_version }}/src/.libs/libssh2.so
 
     - name: Install libssh2
       ansible.builtin.command:
         cmd: make install
-        chdir: "/usr/local/src/libssh2-{{ libssh2_version }}"
+        chdir: "/usr/local/src/libssh2-{{ guacamole_libssh2_version }}"
       args:
         creates: /usr/local/lib/libssh2.so
 
@@ -78,10 +77,11 @@
 
     # Install guacamole-server from source
     - name: Download guacamole-server source
-      ansible.builtin.command:
-        cmd: >
-          wget -O /usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz
-          https://downloads.apache.org/guacamole/{{ guacamole_version }}/source/guacamole-server-{{ guacamole_version }}.tar.gz
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/source/guacamole-server-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
       args:
         creates: "/usr/local/src/guacamole-server-{{ guacamole_version }}.tar.gz"
 
@@ -96,18 +96,20 @@
       ansible.builtin.command:
         cmd: make clean
         chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
-      ignore_errors: true
+      # ignore_errors: true
       changed_when: false
 
     - name: Configure guacamole-server
       ansible.builtin.command:
         cmd: ./configure --with-systemd-dir=/etc/systemd/system
         chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      changed_when: true
 
     - name: Build guacamole-server
       ansible.builtin.command:
         cmd: "make -j{{ ansible_processor_vcpus | default(2) }}"
         chdir: "/usr/local/src/guacamole-server-{{ guacamole_version }}"
+      changed_when: true
 
     - name: Install guacamole-server
       ansible.builtin.command:
@@ -116,30 +118,32 @@
       notify:
         - Reload systemd
         - Restart guacd
+      changed_when: true
 
     - name: Run ldconfig
       ansible.builtin.command: ldconfig
       changed_when: false
 
-    # Install Apache Tomcat 9 
+    # Install Apache Tomcat 9
     - name: Download Apache Tomcat 9 tarball
-      ansible.builtin.command:
-        cmd: >
-          wget -O /usr/local/src/apache-tomcat-{{ tomcat_version }}.tar.gz
-          https://downloads.apache.org/tomcat/tomcat-9/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/tomcat/tomcat-9/v{{ guacamole_tomcat_version }}/bin/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+        dest: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
+        force: false
+        mode: "0644"
       args:
-        creates: "/usr/local/src/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        creates: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
 
     - name: Extract Apache Tomcat 9
       ansible.builtin.unarchive:
-        src: "/usr/local/src/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        src: "/usr/local/src/apache-tomcat-{{ guacamole_tomcat_version }}.tar.gz"
         dest: /opt/
         remote_src: true
-        creates: "/opt/apache-tomcat-{{ tomcat_version }}"
+        creates: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
 
     - name: Fix Tomcat ownership
       ansible.builtin.file:
-        path: "/opt/apache-tomcat-{{ tomcat_version }}"
+        path: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
         state: directory
         recurse: true
         owner: tomcat
@@ -147,7 +151,7 @@
 
     - name: Symlink Tomcat current directory
       ansible.builtin.file:
-        src: "/opt/apache-tomcat-{{ tomcat_version }}"
+        src: "/opt/apache-tomcat-{{ guacamole_tomcat_version }}"
         dest: /opt/tomcat
         state: link
         force: true
@@ -251,12 +255,11 @@
         login_password: "{{ guacamole_db_root_password | default(omit) }}"
 
     - name: Download JDBC auth archive
-      ansible.builtin.command:
-        cmd: >
-          wget -O /usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz
-          https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz
-      args:
-        creates: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
 
     - name: Extract JDBC auth archive
       ansible.builtin.unarchive:
@@ -276,6 +279,7 @@
 
     - name: Import Guacamole schema
       ansible.builtin.shell: |
+        set -o pipefail
         cat /usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}/mysql/schema/*.sql | \
         mysql -u root {% if guacamole_db_root_password is defined %}-p'{{ guacamole_db_root_password }}'{% endif %} {{ guacamole_db_name }}
       when: guac_schema_check.query_result[0] | length == 0
@@ -295,21 +299,19 @@
 
     # Deploy Guacamole web application and extensions
     - name: Download Guacamole WAR
-      ansible.builtin.command:
-        cmd: >
-          wget -O /opt/tomcat/webapps/guacamole.war
-          https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-{{ guacamole_version }}.war
-      args:
-        creates: /opt/tomcat/webapps/guacamole.war
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-{{ guacamole_version }}.war"
+        dest: "/opt/tomcat/webapps/guacamole.war"
+        force: false
+        mode: "0644"
       notify: Restart Tomcat
 
     - name: Download LDAP auth archive
-      ansible.builtin.command:
-        cmd: >
-          wget -O /usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz
-          https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz
-      args:
-        creates: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+      ansible.builtin.get_url:
+        url: "https://downloads.apache.org/guacamole/{{ guacamole_version }}/binary/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+        dest: "/usr/local/src/guacamole-auth-ldap-{{ guacamole_version }}.tar.gz"
+        force: false
+        mode: "0644"
 
     # LDAP and JDBC configuration
     - name: Extract LDAP auth archive
@@ -340,12 +342,12 @@
       notify: Restart Tomcat
 
     - name: Download MySQL Connector/J RPM
-      ansible.builtin.command:
-        cmd: >
-          wget -O /tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm
-          https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-9.6.0-1.el9.noarch.rpm
-      args:
-        creates: /tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm
+      ansible.builtin.get_url:
+        url: "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-9.6.0-1.el9.noarch.rpm"
+        dest: "/tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm"
+        force: false
+        mode: "0644"
+      creates: /tmp/mysql-connector-j-9.6.0-1.el9.noarch.rpm
 
     - name: Install MySQL Connector/J RPM
       ansible.builtin.dnf:
@@ -395,7 +397,7 @@
         state: enabled
         immediate: true
 
-# Deploy HAProxy configuration 
+# Deploy HAProxy configuration
 - name: Deploy HAProxy Guacamole config
   ansible.builtin.template:
     src: guacamole.cfg.j2
