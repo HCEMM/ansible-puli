@@ -1,0 +1,79 @@
+---
+# dnf install -y dnf-automatic dnf-utils
+- name: Install dnf-automatic and dnf-utils
+  ansible.builtin.dnf:
+    name:
+      - dnf-automatic
+      - dnf-utils
+    state: present
+
+# sed -i 's/^upgrade_type.*/upgrade_type = security/' /etc/dnf/automatic.conf
+- name: Configure dnf-automatic upgrade type
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: commands
+    option: upgrade_type
+    value: "{{ dnf_automatic_upgrade_type }}"
+    no_extra_spaces: false
+    backup: true
+
+# sed -i 's/^download_updates.*/download_updates = no/' /etc/dnf/automatic.conf
+- name: Configure dnf-automatic download_updates
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: commands
+    option: download_updates
+    value: "{{ dnf_automatic_download_updates }}"
+    no_extra_spaces: false
+    backup: true
+
+# sed -i 's/^apply_updates.*/apply_updates = no/' /etc/dnf/automatic.conf
+- name: Configure dnf-automatic apply_updates
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: commands
+    option: apply_updates
+    value: "{{ dnf_automatic_apply_updates }}"
+    no_extra_spaces: false
+    backup: true
+
+# sed -i 's/^reboot.*/reboot = never/' /etc/dnf/automatic.conf
+- name: Configure dnf-automatic reboot policy
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: commands
+    option: reboot
+    value: "{{ dnf_automatic_reboot }}"
+    no_extra_spaces: false
+    backup: true
+
+# sed -i 's/^emit_via.*/emit_via = stdio/' /etc/dnf/automatic.conf
+- name: Configure dnf-automatic emitter
+  ansible.builtin.ini_file:
+    path: /etc/dnf/automatic.conf
+    section: emitters
+    option: emit_via
+    value: "{{ dnf_automatic_emit_via }}"
+    no_extra_spaces: false
+    backup: true
+
+# systemctl disable --now dnf-automatic.timer
+- name: Configure dnf-automatic timer
+  ansible.builtin.systemd:
+    name: dnf-automatic.timer
+    enabled: "{{ dnf_automatic_timer_enabled }}"
+    state: "{{ dnf_automatic_timer_state }}"
+  failed_when: false
+
+# grep -E '^\s*(upgrade_type|download_updates|apply_updates|reboot|emit_via)' /etc/dnf/automatic.conf
+- name: Check final dnf-automatic configuration
+  ansible.builtin.command: >
+    grep -E '^\s*(upgrade_type|download_updates|apply_updates|reboot|emit_via)'
+    /etc/dnf/automatic.conf
+  register: dnf_automatic_config_check
+  changed_when: false
+
+# echo "$dnf_automatic_config_check"
+- name: Print final dnf-automatic configuration
+  ansible.builtin.debug:
+    msg: "{{ dnf_automatic_config_check.stdout_lines }}"
