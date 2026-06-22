@@ -21,7 +21,7 @@
 #   loop: "{{ ldap_users }}"
 #   when: item.username is defined
 
-# # Set XFS quota for LDAP users on /home 
+# # Set XFS quota for LDAP users on /home
 # - name: Gather home directory UID for LDAP users
 #   ansible.builtin.stat:
 #     path: "/home/{{ item.username }}"

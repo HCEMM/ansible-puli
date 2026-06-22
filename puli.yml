@@ -23,14 +23,26 @@
   roles:
     - configure_shares
 
+- name: Setup DNS
+  tags: dns
+  hosts:
+    - ldap_server
+    - login_nodes
+    - slurmctld
+    - nginx
+    - galaxy_server
+  become: true
+  gather_facts: true
+  roles:
+    - dns
+
 - name: Setup LDAP server
   tags: ldap
   hosts:
     - ldap_server
     - login_nodes
     - sms
-    - slurmctld1
-    # - galaxy_server
+    - slurmctld
   any_errors_fatal: true
   become: true
   gather_facts: true
@@ -94,7 +106,7 @@
     - login_nodes
 
 - name: Setup HAProxy
-  tags: 
+  tags:
     - haproxy
   hosts:
     - sms
@@ -105,7 +117,7 @@
     - haproxy
 
 - name: Setup Fail2Ban
-  tags: 
+  tags:
     - fail2ban
     - maintenance
   hosts:
@@ -117,7 +129,7 @@
     - fail2ban
 
 - name: Setup Crowdsec
-  tags: 
+  tags:
     - crowdsec
   hosts:
     - sms
@@ -139,7 +151,7 @@
     - modules
 
 - name: Setup SSH proxy on SMS and sshd policy on login nodes
-  tags: haproxy 
+  tags: haproxy
   hosts:
     - sms
     - login_nodes

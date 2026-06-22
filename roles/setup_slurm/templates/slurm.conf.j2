@@ -88,4 +88,5 @@ NodeName=scc-gpu[01-02]-10g CPUs=96 Sockets=2 CoresPerSocket=24 ThreadsPerCore=2
 PartitionName=cpu Nodes=scc-cpu[02-11]-10g MaxTime=30-00:00:00 CpuBind=core DefMemPerCPU=5333 Default=YES
 PartitionName=highmem Nodes=scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=42777 AllowAccounts=highmem
 PartitionName=gpu Nodes=scc-gpu[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=gpu
+PartitionName=nogpu Nodes=scc-cpu[02-11]-10g,scc-mem[01-02]-10g MaxTime=10-00:00:00 CpuBind=core DefMemPerCPU=5333 AllowAccounts=nogpu
 NodeName=login[1-2] CPUs=4 RealMemory=6000 State=UNKNOWN

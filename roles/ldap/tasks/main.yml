@@ -61,13 +61,12 @@
       changed_when: false
 
     - name: Ensure IPA services are active
-      ansible.builtin.command: systemctl is-active "{{ item }}"
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
       loop:
         - ipa
         - named
-      register: svc_check
-      changed_when: false
-      failed_when: svc_check.rc != 0
 
     - name: Kinit admin to verify installation
       ansible.builtin.shell: |
@@ -267,7 +266,7 @@
         }}
       loop_control:
         label: "{{ item.0.username }} -> {{ item.1 }}"
-    
+
     # 2FA reconciliation script and cron job
     - name: Check that admin keytab exists for FreeIPA 2FA reconcile
       ansible.builtin.stat:
@@ -303,8 +302,8 @@
         group: root
         mode: "0644"
 
-#mkdir -p /home/username && chown UID:GID /home/username && chmod 700 /home/username
-#xfs_quota -x -c 'limit bsoft=19g bhard=20g UID' /home       
+# mkdir -p /home/username && chown UID:GID /home/username && chmod 700 /home/username
+# xfs_quota -x -c 'limit bsoft=19g bhard=20g UID' /home
 - name: Create home directories and apply XFS quota for newly created LDAP users
   when:
     - inventory_hostname in groups['sms']
@@ -334,7 +333,7 @@
       when:
         - item.username is defined
       register: ldap_home_stats
-    
+
     - name: Copy default bashrc if missing
       ansible.builtin.copy:
         src: /etc/skel/.bashrc
@@ -377,9 +376,9 @@
       changed_when: false
 
 # also add new users to sacct
-#sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
-#sacctmgr add user USERNAME account=group_name cluster=sccluster
-#sacctmgr add user $user account=gpu/highmem partition=gpu/highmem cluster=sccluster
+# sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
+# sacctmgr add user USERNAME account=group_name cluster=sccluster
+# sacctmgr add user $user account=gpu/highmem partition=gpu/highmem cluster=sccluster
 - name: Add newly created LDAP users to Slurm accounting
   when:
     - inventory_hostname == 'slurmctld1'
@@ -420,6 +419,7 @@
       when:
         - item.rc == 0
         - (item.stdout | trim) == ""
+      changed_when: true
 
     - name: Check whether LDAP user already exists in Slurm accounting
       ansible.builtin.command:
@@ -457,7 +457,8 @@
         - (item.item.groups | default([])) | length > 0
         - item.rc == 0
         - (item.stdout | trim) == ""
-    
+      changed_when: true
+
     - name: Check Slurm partition access (gpu/highmem) for new users
       ansible.builtin.command:
         argv:
@@ -496,6 +497,7 @@
         - "'gpu' in item.item.slurm_groups"
         - item.rc == 0
         - "'gpu' not in (item.stdout | lower)"
+      changed_when: true
 
     - name: Add user to HighMem partition if requested
       ansible.builtin.command:
@@ -516,6 +518,7 @@
         - "'highmem' in item.item.slurm_groups"
         - item.rc == 0
         - "'highmem' not in (item.stdout | lower)"
+      changed_when: true
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
@@ -607,6 +610,7 @@
         - not ipa_enrolled.stat.exists
         - not (ipa_client_mkhomedir | default(false))
       notify: Restart SSSD (and clear cache)
+      changed_when: "'Client is already configured' not in (ipa_client_join.stderr | default(''))"
 
     - name: Join node to FreeIPA (unattended, WITH mkhomedir)
       ansible.builtin.command:
@@ -627,16 +631,19 @@
         - not ipa_enrolled.stat.exists
         - (ipa_client_mkhomedir | default(false))
       notify: Restart SSSD (and clear cache)
+      changed_when: "'Client is already configured' not in (ipa_client_join.stderr | default(''))"
 
     - name: Ensure authselect uses sssd (NO mkhomedir)
       ansible.builtin.command: authselect select sssd --force
       when: not (ipa_client_mkhomedir | default(false))
       notify: Restart SSSD (and clear cache)
+      changed_when: true
 
     - name: Ensure authselect uses sssd (WITH mkhomedir)
       ansible.builtin.command: authselect select sssd with-mkhomedir --force
       when: (ipa_client_mkhomedir | default(false))
       notify: Restart SSSD (and clear cache)
+      changed_when: true
 
     - name: Re-check enrollment after ipa-client-install
       ansible.builtin.stat:
