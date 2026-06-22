@@ -31,4 +31,4 @@
     pdsh -w {{ compute_nodes | map(attribute='c_name') | join(',') }} "systemctl enable --now slurmd"
   when:
     - inventory_hostname in groups['sms']
-
+  changed_when: true

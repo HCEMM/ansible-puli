@@ -1,5 +1,5 @@
 guacamole_version: "1.6.0"
-libssh2_version: "1.11.1"
+guacamole_libssh2_version: "1.11.1"
 
 guacamole_db_name: "guacamole_db"
 guacamole_db_user: "guacamole_user"
@@ -9,8 +9,8 @@ guacamole_case_sensitivity: "disabled"
 guacamole_ban_max_invalid_attempts: 9999
 guacamole_ban_address_duration: 60
 
-guacd_host: "127.0.0.1"
-guacd_port: 4822
+guacamole_guacd_host: "127.0.0.1"
+guacamole_guacd_port: 4822
 
 guacamole_ldap_hostname: "{{ ldap_server_fqdn }}"
 guacamole_ldap_port: "{{ ldap_port }}"
@@ -20,9 +20,9 @@ guacamole_ldap_username_attribute: "{{ ldap_username_attribute }}"
 guacamole_ldap_search_bind_dn: "{{ ldap_search_bind_dn }}"
 guacamole_ldap_search_bind_password: "{{ ldap_admin_password_raw }}"
 
-xrdp_port: 3389
+guacamole_xrdp_port: 3389
 
-tomcat_version: "9.0.115"
+guacamole_tomcat_version: "9.0.115"
 guacamole_java_home: "/usr/lib/jvm/java-21-openjdk"
 
 guacamole_admin_users:
