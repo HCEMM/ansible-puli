@@ -1,0 +1,9 @@
+---
+# /etc/dnf/automatic.conf
+dnf_automatic_upgrade_type: security
+dnf_automatic_download_updates: "no"
+dnf_automatic_apply_updates: "no"
+dnf_automatic_reboot: never
+dnf_automatic_emit_via: stdio
+dnf_automatic_timer_enabled: false
+dnf_automatic_timer_state: stopped

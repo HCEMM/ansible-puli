@@ -179,3 +179,21 @@
   gather_facts: true
   roles:
     - galaxy
+
+- name: Configure dnf-automatic security update policy
+  tags:
+    - security_update
+  hosts:
+    - ldap_servers
+    - login_nodes
+    - nginx_gateway
+    - monitoring
+    - guacamole_server
+    - galaxy_server
+    - slurmctld
+    - slurmdbd
+    - sms
+  become: true
+  gather_facts: true
+  roles:
+    - dnf_automatic
