@@ -420,6 +420,8 @@
         - item.rc == 0
         - (item.stdout | trim) == ""
       changed_when: true
+      failed_when: false  # prevent failing when it already exist in the system
+      
 
     - name: Check whether LDAP user already exists in Slurm accounting
       ansible.builtin.command:

@@ -236,7 +236,7 @@
 
     # Install Guacamole database and extensions
     - name: Create Guacamole database
-      ansible.mysql.mysql_db:
+      community.mysql.mysql_db:
         name: "{{ guacamole_db_name }}"
         state: present
         login_unix_socket: /var/lib/mysql/mysql.sock
@@ -244,7 +244,7 @@
         login_password: "{{ guacamole_db_root_password | default(omit) }}"
 
     - name: Create Guacamole database user
-      ansible.mysql.mysql_user:
+      community.mysql.mysql_user:
         name: "{{ guacamole_db_user }}"
         password: "{{ guacamole_db_password }}"
         host: localhost
@@ -269,7 +269,7 @@
         creates: "/usr/local/src/guacamole-auth-jdbc-{{ guacamole_version }}"
 
     - name: Check whether Guacamole schema already exists
-      ansible.mysql.mysql_query:
+      community.mysql.mysql_query:
         login_unix_socket: /var/lib/mysql/mysql.sock
         login_user: root
         login_password: "{{ guacamole_db_root_password | default(omit) }}"
