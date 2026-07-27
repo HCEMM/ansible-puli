@@ -32,3 +32,9 @@
   when:
     - inventory_hostname in groups['sms']
   changed_when: true
+
+- name: Reload slurmctld service
+  ansible.builtin.systemd:
+    name: slurmctld
+    state: reloaded
+  when: inventory_hostname in groups['slurmctld']
