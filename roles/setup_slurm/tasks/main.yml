@@ -126,13 +126,17 @@
   notify: Enable and start slurmctld service
   when: inventory_hostname in groups['slurmctld']
 
-- name: Deploy epilog.sh
+- name: Deploy slurm scripts
   ansible.builtin.copy:
-    src: epilog.sh
-    dest: /etc/slurm/epilog.sh
+    src: "{{ item }}"
+    dest: "/etc/slurm/{{ item }}"
     mode: '0755'
     owner: slurm
     group: slurm
+  loop:
+    - epilog.sh
+    - job_submit.lua
+  notify: Reload slurmctld service
   when: inventory_hostname in groups['slurmctld']
 
 - name: Deploy node2bmc.tsv
