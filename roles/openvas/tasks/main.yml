@@ -1,0 +1,151 @@
+---
+- name: Verify Docker CLI is installed
+  ansible.builtin.command:
+    argv:
+      - docker
+      - --version
+  register: openvas_docker_version
+  changed_when: false
+  check_mode: false
+
+- name: Verify Docker Compose plugin is installed
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - version
+  register: openvas_compose_version
+  changed_when: false
+  check_mode: false
+
+- name: Display Docker versions
+  ansible.builtin.debug:
+    msg:
+      - "{{ openvas_docker_version.stdout }}"
+      - "{{ openvas_compose_version.stdout }}"
+
+- name: Verify Docker service is active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - docker
+  register: openvas_docker_service
+  changed_when: false
+  check_mode: false
+  failed_when:
+    - openvas_docker_service.rc != 0
+      or openvas_docker_service.stdout != "active"
+
+- name: Ensure OpenVAS project directory exists
+  ansible.builtin.file:
+    path: "{{ openvas_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ openvas_project_dir_mode }}"
+
+- name: Check existing OpenVAS Compose file
+  ansible.builtin.stat:
+    path: "{{ openvas_project_dir }}/{{ openvas_compose_filename }}"
+    checksum_algorithm: sha256
+  register: openvas_existing_compose
+
+- name: Require existing OpenVAS Compose installation
+  ansible.builtin.assert:
+    that:
+      - openvas_existing_compose.stat.exists | default(false)
+      - openvas_existing_compose.stat.isreg | default(false)
+    fail_msg: >-
+      Existing Compose file was not found at
+      {{ openvas_project_dir }}/{{ openvas_compose_filename }}.
+      This role currently adopts an existing OpenVAS installation
+      and does not perform a fresh installation.
+    success_msg: >-
+      Existing OpenVAS Compose file was found at
+      {{ openvas_project_dir }}/{{ openvas_compose_filename }}.
+
+- name: Install pinned OpenVAS Compose file
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: "{{ openvas_project_dir }}/{{ openvas_compose_filename }}"
+    owner: root
+    group: root
+    mode: "{{ openvas_compose_file_mode }}"
+    backup: true
+    validate: >-
+      docker compose
+      --project-name {{ openvas_compose_project_name }}
+      --file %s
+      config --quiet
+  register: openvas_compose_copy
+
+- name: Display Compose deployment result
+  ansible.builtin.debug:
+    msg:
+      - "Compose file changed: {{ openvas_compose_copy.changed }}"
+      - >-
+        Destination:
+        {{ openvas_project_dir }}/{{ openvas_compose_filename }}
+
+- name: Validate installed OpenVAS Compose configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ openvas_compose_project_name }}"
+      - --file
+      - "{{ openvas_project_dir }}/{{ openvas_compose_filename }}"
+      - config
+      - --quiet
+  changed_when: false
+  check_mode: false
+
+- name: Read running OpenVAS services
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ openvas_compose_project_name }}"
+      - --file
+      - "{{ openvas_project_dir }}/{{ openvas_compose_filename }}"
+      - ps
+      - --services
+      - --status
+      - running
+  register: openvas_running_services
+  changed_when: false
+  check_mode: false
+
+- name: Verify required OpenVAS services are running
+  ansible.builtin.assert:
+    that:
+      - item in openvas_running_services.stdout_lines
+    fail_msg: >-
+      Required OpenVAS service '{{ item }}' is not running.
+      Running services:
+      {{ openvas_running_services.stdout_lines | join(', ') }}
+    success_msg: >-
+      Required OpenVAS service '{{ item }}' is running.
+  loop: "{{ openvas_required_running_services }}"
+
+- name: Read complete OpenVAS Compose status
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ openvas_compose_project_name }}"
+      - --file
+      - "{{ openvas_project_dir }}/{{ openvas_compose_filename }}"
+      - ps
+      - -a
+  register: openvas_compose_status
+  changed_when: false
+  check_mode: false
+
+- name: Display OpenVAS Compose status
+  ansible.builtin.debug:
+    var: openvas_compose_status.stdout_lines

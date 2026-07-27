@@ -1,0 +1,18 @@
+---
+openvas_project_dir: /opt/greenbone
+openvas_compose_filename: docker-compose.yml
+openvas_compose_project_name: greenbone-community-edition
+
+openvas_project_dir_mode: "0755"
+openvas_compose_file_mode: "0644"
+
+openvas_required_running_services:
+  - redis-server
+  - pg-gvm
+  - gvmd
+  - gsad
+  - gsa
+  - ospd-openvas
+  - openvas
+  - openvasd
+  - nginx

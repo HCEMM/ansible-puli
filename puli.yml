@@ -195,6 +195,16 @@
   roles:
     - galaxy
 
+- name: Setup OpenVAS
+  tags:
+    - openvas
+  hosts:
+    - vulnscan_server
+  become: true
+  gather_facts: true
+  roles:
+    - openvas
+
 - name: Configure dnf-automatic security update policy
   tags:
     - security_update
