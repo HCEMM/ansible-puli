@@ -1,6 +1,5 @@
 configure_shares_storage_ip: 10.0.150.147
 configure_shares_storage_groups:
-  - cfdna_clustering
   - csensen
   - jsequeira
   - klamsa

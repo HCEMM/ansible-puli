@@ -22,10 +22,23 @@
 
 - name: Install Slurm client
   ansible.builtin.dnf:
-    name: ohpc-slurm-client
+    name:
+      - ohpc-slurm-client
+      - nhc-ohpc
     state: present
   when:
-    - inventory_hostname in groups['login_nodes']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
+
+# cat /etc/sysconfig/slurmd
+# SLURMD_OPTIONS="--conf-server slurmctld1"
+- name: Configure Slurm client to connect to Slurm server (configless)
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/slurmd
+    regexp: '^#?SLURMD_OPTIONS='
+    line: 'SLURMD_OPTIONS="--conf-server {{ setup_slurm_slurmctld }}"'
+    state: present
+  when:
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
 
 - name: Install Slurm server
   ansible.builtin.dnf:
@@ -76,7 +89,7 @@
     - /etc/slurm
     - /var/log/slurm
     - /var/spool/slurm
-  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd']
+  when: inventory_hostname in groups['slurmctld'] or inventory_hostname in groups['slurmdbd'] or inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
 
 # cp /etc/slurm/slurm.conf.ohpc /etc/slurm/slurm.conf
 # perl -pi -e "s/SlurmctldHost=\S+/SlurmctldHost=${sms_name}/" /etc/slurm/slurm.conf
@@ -172,4 +185,4 @@
     - 6818/tcp          # slurmdbd
     - 6819/tcp          # slurmd
     - 32768-60999/tcp   # slurmctld/slurmd communication
-  when: inventory_hostname in groups['login_nodes']
+  when: inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']

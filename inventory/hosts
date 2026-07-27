@@ -73,6 +73,8 @@ all:
         galaxy_server:
           hosts:
             galaxy1:
+          vars:
+            ansible_python_interpreter: /usr/bin/python3.11
 
         emma_server:
           hosts:

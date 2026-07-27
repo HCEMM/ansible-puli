@@ -25,6 +25,24 @@ server {
 
     access_log /var/log/nginx/{{ service.name }}.log;
 
+    proxy_intercept_errors on;
+
+    error_page 500 502 503 504 =503 /maintenance.html;
+
+    location = /maintenance.html {
+        root /var/www/errors;
+
+        ssi on;
+
+        set $service_name $host;
+
+        add_header Cache-Control "no-store";
+    }
+
+    location = /hcemm-logo.jpg {
+        alias /var/www/errors/hcemm-logo.jpg;
+    }
+
     # Security headers
     add_header X-Content-Type-Options "nosniff";
     add_header X-Frame-Options "DENY";

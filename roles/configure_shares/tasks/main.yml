@@ -13,11 +13,10 @@
     state: present
   notify: Enable and start cachefilesd
 
-- name: Create scratch mount points
+- name: Create scratch mount points     # if I set mode: '0755', it will fail with "PermissionError: [Errno 1] Operation not permitted: b'/scratch/jsequeira'"
   ansible.builtin.file:
     path: /scratch/{{ item }}
     state: directory
-    mode: '0755'
   loop: "{{ configure_shares_storage_groups }}"
 
 - name: Mount scratch shares
@@ -41,7 +40,7 @@
   loop:
     - /home
   when:
-    - inventory_hostname in groups['login_nodes']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
 
 - name: Mount opt from sms (read only)
   ansible.posix.mount:
@@ -57,7 +56,7 @@
     - /opt/ohpc
     - /opt/pub
   when:
-    - inventory_hostname in groups['login_nodes']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
 
 # connect /var/sppol/slurm on slurmctld1 to /var/spool/slurm on slurmctld2
 - name: Setup shared spool directory between slurmctld nodes

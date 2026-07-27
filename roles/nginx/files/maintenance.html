@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Service Unavailable</title>
+
+        <style>
+            :root{
+                --blue:#005B96;
+                --light:#F4F7FA;
+                --text:#2D3748;
+                --border:#D9E2EC;
+            }
+
+            *{
+                box-sizing:border-box;
+            }
+
+            body{
+                margin:0;
+                background:var(--light);
+                font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+                color:var(--text);
+            }
+
+            .wrapper{
+                max-width:720px;
+                margin:8vh auto;
+                padding:30px;
+            }
+
+            .card{
+                background:white;
+                border-radius:10px;
+                border-top:5px solid var(--blue);
+                padding:45px;
+                box-shadow:0 10px 30px rgba(0,0,0,.08);
+            }
+
+            .logo{
+                text-align:center;
+                margin-bottom:30px;
+            }
+
+            .logo img{
+                max-height:200px;
+            }
+
+            .badge{
+                display:inline-block;
+                background:#EEF5FB;
+                color:var(--blue);
+                border:1px solid #BFD7EA;
+                border-radius:30px;
+                padding:6px 15px;
+                font-size:.9rem;
+                font-weight:600;
+            }
+
+            h1{
+                margin-top:20px;
+                color:var(--blue);
+                font-size:2rem;
+            }
+
+            .service{
+                margin:25px 0;
+                padding:15px;
+                border-left:4px solid var(--blue);
+                background:#F8FBFD;
+                font-size:1.1rem;
+            }
+
+            .service strong{
+                color:var(--blue);
+            }
+
+            p{
+                line-height:1.7;
+            }
+
+            .footer{
+                margin-top:40px;
+                padding-top:20px;
+                border-top:1px solid var(--border);
+                color:#777;
+                font-size:.9rem;
+            }
+
+            .status{
+                margin-top:25px;
+                color:#888;
+                font-family:monospace;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <div class="card">
+                <div class="logo">
+                    <img src="/hcemm-logo.jpg" alt="HCEMM Logo">
+                </div>
+
+                <span class="badge">
+                    HCEMM Scientific Computing Advanced Core Facility
+                </span>
+
+                <h1>Service temporarily unavailable</h1>
+
+                <div class="service">
+                    Affected service:
+                <strong><!--#echo var="service_name" --></strong>
+                </div>
+
+                <p>
+                    The requested service is temporarily unavailable.
+                </p>
+
+                <p>
+                    This usually indicates scheduled maintenance or a temporary technical issue.
+                    Our team is working to restore normal operation as quickly as possible.
+                </p>
+
+                <p>
+                    Please try again later.
+                </p>
+
+                <div class="status">
+                    HTTP Status: 503 Service Unavailable
+                </div>
+
+                <p>
+                    For more information, you can <a href="mailto:scientific.computing.acf@hcemm.eu">send an email</a> to the Scientific Computing ACF.
+                </p>
+
+                <div class="footer">
+                    Hungarian Centre of Excellence for Molecular Medicine (HCEMM)
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -21,9 +21,12 @@ if ! rpm -q check-mk-agent; then
 fi
 
 HOSTNAME=$(hostname -s)
-SMALL_G=${HOSTNAME/G/g}
-BIG_G=$(echo "$HOSTNAME" | sed 's/\([0-9]\)g/\1G/')      # -10g to -10G for Checkmk compatibility
-hostnamectl set-hostname ${SMALL_G}.cluster.hcemm.eu     # -10g, the way slurm likes it
+SMALL_HOSTNAME=${HOSTNAME/G/g}                          # -10g, the way slurm likes it
+BIG_G=$(echo "$HOSTNAME" | sed 's/\([0-9]\)g/\1G/')     # -10g to -10G for Checkmk compatibility
+
+# Configure Slurm to use the short hostname dynamically
+echo "SLURMD_OPTIONS=--conf-server {{ slurmctld_vm_ip }} -N ${SMALL_G}" > /etc/sysconfig/slurmd
+hostnamectl set-hostname ${SMALL_G}.cluster.hcemm.eu
 
 # Register with Checkmk
 cmk-agent-ctl register \
