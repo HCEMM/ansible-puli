@@ -88,6 +88,10 @@ all:
           hosts:
             guacamole1:
 
+        vulnscan_server:
+          hosts:
+            vulnscan1:
+
     thinlinc_servers:
       children:
         sms:      # thinlinc_masters:      Eventually should change to thinlinc_masters
@@ -182,3 +186,7 @@ all:
     guacamole1:
       ansible_host: 10.0.150.212
       fqdn: guacamole.hcemm.eu
+
+    vulnscan1:
+      ansible_host: 10.0.150.215
+      fqdn: vulnscan.hcemm.eu
