@@ -421,7 +421,6 @@
         - (item.stdout | trim) == ""
       changed_when: true
       failed_when: false  # prevent failing when it already exist in the system
-      
 
     - name: Check whether LDAP user already exists in Slurm accounting
       ansible.builtin.command:
@@ -525,7 +524,7 @@
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
   when:
-    - inventory_hostname in groups['login_nodes']     # inventory_hostname in groups['sms'] and inventory_hostname in groups['galaxy_server']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']     # inventory_hostname in groups['sms']
   block:
     - name: Install FreeIPA client packages
       ansible.builtin.dnf:
@@ -681,6 +680,5 @@
     - name: Install google-authenticator PAM
       ansible.builtin.dnf:
         name:
-          - google-authenticator
           - qrencode
         state: present
