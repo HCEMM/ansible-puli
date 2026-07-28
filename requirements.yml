@@ -11,3 +11,7 @@ collections:
 
   - name: community.mysql
     version: ">=3.15"
+
+roles:
+  - name: galaxyproject.postgresql_objects
+  - name: galaxyproject.postgresql
