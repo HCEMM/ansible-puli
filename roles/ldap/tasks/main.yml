@@ -113,160 +113,6 @@
         label: "{{ item.name }}"
       changed_when: false
 
-        # ipa group-add groupname --gid="gidnumber"
-    - name: Create IPA groups (POSIX with fixed GID)
-      community.general.ipa_group:
-        ipa_host: "{{ ldap_server_fqdn }}"
-        ipa_user: "{{ ldap_admin_user | default('admin') }}"
-        ipa_pass: "{{ ldap_admin_password_raw }}"
-        cn: "{{ item.name }}"
-        gidnumber: "{{ item.gid | int }}"
-        nonposix: false
-        state: present
-      loop: "{{ ldap_groups }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Build group name -> gid map
-      ansible.builtin.set_fact:
-        ipa_group_gid_map: "{{ ipa_group_gid_map | default({}) | combine({item.name: (item.gid | int)}) }}"
-      loop: "{{ ldap_groups }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-        # ipa user-add username --first= --last= --email= --uid= --
-    - name: Check users existence (ipa user-show)
-      ansible.builtin.command: ipa user-show "{{ item.username }}"
-      register: ipa_user_show
-      changed_when: false
-      failed_when: false
-      loop: "{{ ldap_users }}"
-      loop_control:
-        label: "{{ item.username }}"
-
-    - name: Build list of new IPA users only
-      ansible.builtin.set_fact:
-        ipa_new_users: >-
-          {{
-            ipa_user_show.results
-            | selectattr('rc', 'ne', 0)
-            | map(attribute='item')
-            | list
-          }}
-
-    - name: Create IPA users
-      vars:
-        primary_group_name: "{{ item.groups[0] }}"
-      ansible.builtin.command:
-        argv:
-          - ipa
-          - user-add
-          - "{{ item.username }}"
-          - "--first={{ item.first }}"
-          - "--last={{ item.last }}"
-          - "--email={{ item.email }}"
-          - "--uid={{ item.uid | int }}"
-          - "--gidnumber={{ ipa_group_gid_map[primary_group_name] | int }}"
-          - "--homedir=/home/{{ item.username }}"
-          - "--shell=/bin/bash"
-          - "--noprivate"
-      register: ipa_user_add
-      changed_when: "'Added user' in (ipa_user_add.stdout | default(''))"
-      failed_when: >
-        ipa_user_add.rc != 0 and
-        ('already exists' not in (ipa_user_add.stderr | default('')))
-      loop: "{{ ipa_new_users }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.username is defined
-        - item.uid is defined
-        - item.first is defined
-        - item.last is defined
-        - item.email is defined
-        - (item.groups | default([])) | length > 0
-
-    - name: Set initial password only for newly created users with password
-      ansible.builtin.shell: |
-        set -euo pipefail
-        PASS="{{ item.password }}"
-        printf "%s\n%s\n" "$PASS" "$PASS" | ipa passwd "{{ item.username }}"
-      args:
-        executable: /bin/bash
-      changed_when: true
-      no_log: true
-      loop: "{{ ipa_new_users }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.password is defined
-        - item.password | length > 0
-
-    - name: Enforce SSH public key for IPA users
-      ansible.builtin.command:
-        argv:
-          - ipa
-          - user-mod
-          - "{{ item.username }}"
-          - "--sshpubkey={{ item.ssh_public_key }}"
-      register: ipa_user_ssh_key
-      changed_when: >
-        ipa_user_ssh_key.rc == 0 and
-        ('no modifications to be performed' not in (ipa_user_ssh_key.stderr | default('')))
-      failed_when: >
-        ipa_user_ssh_key.rc != 0 and
-        ('no modifications to be performed' not in (ipa_user_ssh_key.stderr | default('')))
-      loop: "{{ ldap_users }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.ssh_public_key is defined
-        - item.ssh_public_key | length > 0
-
-    - name: Enforce user authentication type only for newly created password users
-      ansible.builtin.command:
-        argv: >-
-          {{
-            ['ipa', 'user-mod', item.username]
-            + ldap_user_auth_type | map('regex_replace', '^(.*)$', '--user-auth-type=\1') | list
-          }}
-      register: ipa_user_auth
-      changed_when: >
-        ipa_user_auth.rc == 0 and
-        ('no modifications to be performed' not in (ipa_user_auth.stderr | default('')))
-      failed_when: false
-      loop: "{{ ipa_new_users }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - ldap_user_auth_type is defined
-        - item.password is defined
-        - item.password | length > 0
-
-    - name: Enforce group membership for all IPA users
-      ansible.builtin.command:
-        argv:
-          - ipa
-          - group-add-member
-          - "{{ item.1 }}"
-          - "--users={{ item.0.username }}"
-      register: ipa_group_member
-      changed_when: >
-        ipa_group_member.rc == 0 and
-        ('Number of members added 1' in (ipa_group_member.stdout | default('')))
-      failed_when: >
-        ipa_group_member.rc != 0 and
-        ('This entry is already a member' not in (ipa_group_member.stdout | default(''))) and
-        ('This entry is already a member' not in (ipa_group_member.stderr | default('')))
-      loop: >-
-        {{
-          (ldap_users | subelements('groups', skip_missing=True))
-          if inventory_hostname in groups['ldap_server']
-          else []
-        }}
-      loop_control:
-        label: "{{ item.0.username }} -> {{ item.1 }}"
-
     # 2FA reconciliation script and cron job
     - name: Check that admin keytab exists for FreeIPA 2FA reconcile
       ansible.builtin.stat:
@@ -290,6 +136,8 @@
       ansible.builtin.file:
         path: /var/log/freeipa-2fa-reconcile.log
         state: touch
+        access_time: preserve
+        modification_time: preserve
         owner: root
         group: root
         mode: "0600"
@@ -302,229 +150,156 @@
         group: root
         mode: "0644"
 
-# mkdir -p /home/username && chown UID:GID /home/username && chmod 700 /home/username
-# xfs_quota -x -c 'limit bsoft=19g bhard=20g UID' /home
-- name: Create home directories and apply XFS quota for newly created LDAP users
-  when:
-    - inventory_hostname in groups['sms']
-    - hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) | length > 0
-  block:
-    - name: Create home directories for newly created LDAP users
-      ansible.builtin.file:
-        path: "/home/{{ item.username }}"
-        state: directory
-        owner: "{{ item.uid | int }}"
-        group: "{{ hostvars[groups['ldap_server'][0]]['ipa_group_gid_map'][item.groups[0]] | int }}"
-        mode: '0700'
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.username is defined
-        - item.uid is defined
-        - (item.groups | default([])) | length > 0
-
-    - name: Gather home directory stats for newly created LDAP users
-      ansible.builtin.stat:
-        path: "/home/{{ item.username }}"
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.username is defined
-      register: ldap_home_stats
-
-    - name: Copy default bashrc if missing
-      ansible.builtin.copy:
-        src: /etc/skel/.bashrc
-        dest: "/home/{{ item.username }}/.bashrc"
-        owner: "{{ item.uid | int }}"
-        group: "{{ hostvars[groups['ldap_server'][0]]['ipa_group_gid_map'][item.groups[0]] | int }}"
-        mode: '0644'
-        remote_src: true
-        force: false
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      when:
-        - item.username is defined
-
-    - name: Verify expected UID and GID on home directory
-      ansible.builtin.assert:
-        that:
-          - item.stat.uid == (item.item.uid | int)
-          - item.stat.gid == (hostvars[groups['ldap_server'][0]]['ipa_group_gid_map'][item.item.groups[0]] | int)
-        fail_msg: "Ownership mismatch for /home/{{ item.item.username }}"
-        success_msg: "Ownership is correct for /home/{{ item.item.username }}"
-      loop: "{{ ldap_home_stats.results }}"
-      loop_control:
-        label: "{{ item.item.username }}"
-      when:
-        - item.stat is defined
-        - item.stat.exists
-        - item.item.uid is defined
-        - (item.item.groups | default([])) | length > 0
-
-    - name: Apply XFS quota by UID
-      ansible.builtin.command:
-        cmd: "xfs_quota -x -c 'limit bsoft=19g bhard=20g {{ item.stat.uid }}' /home"
-      loop: "{{ ldap_home_stats.results }}"
-      loop_control:
-        label: "{{ item.item.username }}"
-      when:
-        - item.stat is defined
-        - item.stat.exists
-        - item.stat.uid is defined
-      changed_when: false
-
 # also add new users to sacct
 # sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
 # sacctmgr add user USERNAME account=group_name cluster=sccluster
 # sacctmgr add user $user account=gpu/highmem partition=gpu/highmem cluster=sccluster
-- name: Add newly created LDAP users to Slurm accounting
-  when:
-    - inventory_hostname == 'slurmctld1'
-    - hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) | length > 0
-  block:
-    - name: Check whether Slurm account already exists
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - show
-          - account
-          - "{{ item.groups[0] }}"
-          - format=Account
-          - --noheader
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      loop_control:
-        label: "{{ item.username }} -> {{ item.groups[0] }}"
-      when:
-        - item.username is defined
-        - (item.groups | default([])) | length > 0
-      register: slurm_account_check
-      changed_when: false
-      failed_when: false
+# - name: Add newly created LDAP users to Slurm accounting
+#   when:
+#     - inventory_hostname == 'slurmctld1'
+#     - hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) | length > 0
+#   block:
+#     - name: Check whether Slurm account already exists
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - show
+#           - account
+#           - "{{ item.groups[0] }}"
+#           - format=Account
+#           - --noheader
+#       loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
+#       loop_control:
+#         label: "{{ item.username }} -> {{ item.groups[0] }}"
+#       when:
+#         - item.username is defined
+#         - (item.groups | default([])) | length > 0
+#       register: slurm_account_check
+#       changed_when: false
+#       failed_when: false
 
-    - name: Create Slurm account if it does not exist
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - -i
-          - add
-          - account
-          - "{{ item.item.groups[0] }}"
-          - "Description=[PI] {{ item.item.groups[0] }}"
-          - "Organization=HCEMM"
-      loop: "{{ slurm_account_check.results }}"
-      loop_control:
-        label: "{{ item.item.username }} -> {{ item.item.groups[0] }}"
-      when:
-        - item.rc == 0
-        - (item.stdout | trim) == ""
-      changed_when: true
-      failed_when: false  # prevent failing when it already exist in the system
+#     - name: Create Slurm account if it does not exist
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - -i
+#           - add
+#           - account
+#           - "{{ item.item.groups[0] }}"
+#           - "Description=[PI] {{ item.item.groups[0] }}"
+#           - "Organization=HCEMM"
+#       loop: "{{ slurm_account_check.results }}"
+#       loop_control:
+#         label: "{{ item.item.username }} -> {{ item.item.groups[0] }}"
+#       when:
+#         - item.rc == 0
+#         - (item.stdout | trim) == ""
+#       changed_when: true
+#       failed_when: false  # prevent failing when it already exist in the system
 
-    - name: Check whether LDAP user already exists in Slurm accounting
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - show
-          - user
-          - "{{ item.username }}"
-          - format=User
-          - --noheader
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.username is defined
-      register: sacct_existing_users
-      changed_when: false
-      failed_when: false
+#     - name: Check whether LDAP user already exists in Slurm accounting
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - show
+#           - user
+#           - "{{ item.username }}"
+#           - format=User
+#           - --noheader
+#       loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
+#       loop_control:
+#         label: "{{ item.username }}"
+#       when:
+#         - item.username is defined
+#       register: sacct_existing_users
+#       changed_when: false
+#       failed_when: false
 
-    - name: Add LDAP user to sacct
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - -i
-          - add
-          - user
-          - "{{ item.item.username }}"
-          - "account={{ item.item.groups[0] }}"
-          - "cluster=sccluster"
-      loop: "{{ sacct_existing_users.results }}"
-      loop_control:
-        label: "{{ item.item.username }}"
-      when:
-        - item.item.username is defined
-        - (item.item.groups | default([])) | length > 0
-        - item.rc == 0
-        - (item.stdout | trim) == ""
-      changed_when: true
+#     - name: Add LDAP user to sacct
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - -i
+#           - add
+#           - user
+#           - "{{ item.item.username }}"
+#           - "account={{ item.item.groups[0] }}"
+#           - "cluster=sccluster"
+#       loop: "{{ sacct_existing_users.results }}"
+#       loop_control:
+#         label: "{{ item.item.username }}"
+#       when:
+#         - item.item.username is defined
+#         - (item.item.groups | default([])) | length > 0
+#         - item.rc == 0
+#         - (item.stdout | trim) == ""
+#       changed_when: true
 
-    - name: Check Slurm partition access (gpu/highmem) for new users
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - show
-          - assoc
-          - user={{ item.username }}
-          - format=Account,Partition
-          - --noheader
-      loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
-      loop_control:
-        label: "{{ item.username }}"
-      when:
-        - item.username is defined
-        - (item.slurm_groups | default([])) | length > 0
-      register: slurm_partition_check
-      changed_when: false
-      failed_when: false
+#     - name: Check Slurm partition access (gpu/highmem) for new users
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - show
+#           - assoc
+#           - user={{ item.username }}
+#           - format=Account,Partition
+#           - --noheader
+#       loop: "{{ hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) }}"
+#       loop_control:
+#         label: "{{ item.username }}"
+#       when:
+#         - item.username is defined
+#         - (item.slurm_groups | default([])) | length > 0
+#       register: slurm_partition_check
+#       changed_when: false
+#       failed_when: false
 
-    - name: Add user to GPU partition if requested
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - -i
-          - add
-          - user
-          - "{{ item.item.username }}"
-          - account=gpu
-          - partition=gpu
-          - cluster=sccluster
-      loop: "{{ slurm_partition_check.results }}"
-      loop_control:
-        label: "{{ item.item.username }} -> gpu"
-      when:
-        - item.item.slurm_groups is defined
-        - "'gpu' in item.item.slurm_groups"
-        - item.rc == 0
-        - "'gpu' not in (item.stdout | lower)"
-      changed_when: true
+#     - name: Add user to GPU partition if requested
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - -i
+#           - add
+#           - user
+#           - "{{ item.item.username }}"
+#           - account=gpu
+#           - partition=gpu
+#           - cluster=sccluster
+#       loop: "{{ slurm_partition_check.results }}"
+#       loop_control:
+#         label: "{{ item.item.username }} -> gpu"
+#       when:
+#         - item.item.slurm_groups is defined
+#         - "'gpu' in item.item.slurm_groups"
+#         - item.rc == 0
+#         - "'gpu' not in (item.stdout | lower)"
+#       changed_when: true
 
-    - name: Add user to HighMem partition if requested
-      ansible.builtin.command:
-        argv:
-          - sacctmgr
-          - -i
-          - add
-          - user
-          - "{{ item.item.username }}"
-          - account=highmem
-          - partition=highmem
-          - cluster=sccluster
-      loop: "{{ slurm_partition_check.results }}"
-      loop_control:
-        label: "{{ item.item.username }} -> highmem"
-      when:
-        - item.item.slurm_groups is defined
-        - "'highmem' in item.item.slurm_groups"
-        - item.rc == 0
-        - "'highmem' not in (item.stdout | lower)"
-      changed_when: true
+#     - name: Add user to HighMem partition if requested
+#       ansible.builtin.command:
+#         argv:
+#           - sacctmgr
+#           - -i
+#           - add
+#           - user
+#           - "{{ item.item.username }}"
+#           - account=highmem
+#           - partition=highmem
+#           - cluster=sccluster
+#       loop: "{{ slurm_partition_check.results }}"
+#       loop_control:
+#         label: "{{ item.item.username }} -> highmem"
+#       when:
+#         - item.item.slurm_groups is defined
+#         - "'highmem' in item.item.slurm_groups"
+#         - item.rc == 0
+#         - "'highmem' not in (item.stdout | lower)"
+#       changed_when: true
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
 - name: Configure FreeIPA client on login/galaxy nodes
   when:
-    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']     # inventory_hostname in groups['sms']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server'] 
   block:
     - name: Install FreeIPA client packages
       ansible.builtin.dnf:
@@ -670,12 +445,6 @@
       args:
         executable: /bin/bash
       changed_when: false
-
-    - name: Validate lookup works (sample user)
-      ansible.builtin.command: "getent passwd {{ ldap_users[0].username }}"
-      register: getent_user
-      changed_when: false
-      failed_when: getent_user.rc != 0
 
     - name: Install google-authenticator PAM
       ansible.builtin.dnf:

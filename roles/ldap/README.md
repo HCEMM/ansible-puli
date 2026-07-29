@@ -73,18 +73,6 @@ getent group groupname
 
 ssh -vvv username@login1
 
-## Add New User
-
-1. Add the user details to:
-   `ansible-puli/group_vars/ldap.yml`
-
-2. Ensure that `galaxy_server` is removed from the **Setup LDAP server** play in `puli.yml` if it is not needed.
-
-3. Run the LDAP provisioning playbook:
-
-   ```bash
-   ansible-playbook puli.yml --tags ldap
-
 # 2FA Enforcement
 
 A centralized TOTP-based 2FA enforcement mechanism is implemented using FreeIPA as the authority and login nodes as enforcement points.

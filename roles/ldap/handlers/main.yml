@@ -10,35 +10,6 @@
     executable: /bin/bash
   changed_when: true
 
-# # mkdir home dirs in ldap role when users are created for freeipa
-# - name: Create home directories for LDAP user
-#   ansible.builtin.file:
-#     path: "/home/{{ item.username }}"
-#     state: directory
-#     owner: "{{ item.username }}"
-#     group: "{{ item.groups | first }}"
-#     mode: '0700'
-#   loop: "{{ ldap_users }}"
-#   when: item.username is defined
-
-# # Set XFS quota for LDAP users on /home
-# - name: Gather home directory UID for LDAP users
-#   ansible.builtin.stat:
-#     path: "/home/{{ item.username }}"
-#   loop: "{{ ldap_users }}"
-#   when: item.username is defined
-#   register: ldap_home_stats
-
-# - name: Apply XFS quota by UID
-#   ansible.builtin.command:
-#     cmd: "xfs_quota -x -c 'limit bsoft=19g bhard=20g {{ item.stat.uid }}' /home"
-#   loop: "{{ ldap_home_stats.results }}"
-#   when:
-#     - item.stat is defined
-#     - item.stat.exists
-#     - item.stat.uid is defined
-#   changed_when: false
-
 # # also add new users to sacct
 # #sacctmgr add account group_name Description="[PI] group" Organization="HCEMM"
 # #sacctmgr add user USERNAME account=group_name cluster=sccluster
