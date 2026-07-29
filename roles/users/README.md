@@ -52,3 +52,14 @@
 | Remove an account | `sacctmgr delete account grp_jsequeira` |
 
 ---
+
+## Add New User
+
+1. Add the user details to:
+   `ansible-puli/group_vars/ldap.yml`
+
+2. Run the LDAP provisioning playbook:
+
+   `ansible-playbook puli.yml --tags users`
+
+---

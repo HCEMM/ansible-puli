@@ -1,0 +1,8 @@
+---
+# Authentication types assigned to newly created FreeIPA users.
+#
+# "otp" already assumes password + OTP, but both values are kept here
+# to preserve the current FreeIPA user configuration.
+ldap_user_auth_type:
+  - password
+  - otp

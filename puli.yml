@@ -41,14 +41,25 @@
   hosts:
     - ldap_server
     - login_nodes
-    - sms
-    - slurmctld
+    # - sms
+    # - slurmctld
     - galaxy_server
   any_errors_fatal: true
   become: true
   gather_facts: true
   roles:
     - ldap
+
+- name: Setup LDAP users
+  tags: users
+  hosts:
+    - ldap_server
+    - sms
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  roles:
+    - users
 
 - name: Build main server
   tags: main_server
