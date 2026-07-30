@@ -51,15 +51,20 @@
     - ldap
 
 - name: Setup LDAP users
-  tags: users
   hosts:
     - ldap_server
     - sms
+
+  tags:
+    - users
+    - ldap_user
+
   any_errors_fatal: true
   become: true
   gather_facts: true
+
   roles:
-    - users
+    - role: users
 
 - name: Build main server
   tags: main_server
