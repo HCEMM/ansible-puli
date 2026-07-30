@@ -1,0 +1,453 @@
+---
+- name: FreeIPA users and groups configuration
+  when:
+    - inventory_hostname in groups['ldap_server']
+  block:
+    # test -f /etc/ipa/default.conf
+    - name: Verify that FreeIPA server is configured
+      ansible.builtin.stat:
+        path: /etc/ipa/default.conf
+      register: freeipa_server_config_stat
+
+    - name: Fail if FreeIPA server is not configured
+      ansible.builtin.fail:
+        msg: >-
+          FreeIPA is not configured on {{ inventory_hostname }}.
+          Run the LDAP role before running the users role.
+      when:
+        - not freeipa_server_config_stat.stat.exists
+
+    - name: Validate required FreeIPA user variables
+      ansible.builtin.assert:
+        that:
+          - ldap_server_fqdn is defined
+          - ldap_server_fqdn | length > 0
+          - ldap_admin_password_raw is defined
+          - ldap_admin_password_raw | length > 0
+          - ldap_groups is defined
+          - ldap_groups is iterable
+          - ldap_users is defined
+          - ldap_users is iterable
+        fail_msg: >-
+          One or more required variables are missing.
+          The following variables must be defined:
+          ldap_server_fqdn, ldap_admin_password_raw,
+          ldap_groups and ldap_users.
+      no_log: true
+
+    - name: Validate IPA group definitions
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.name | length > 0
+          - item.gid is defined
+          - item.gid | int > 0
+        # Slurm account organization: Enable these checks after organization is added to every ldap_groups entry.
+        # - item.organization is defined
+        # - item.organization | string | trim | length > 0
+        fail_msg: >-
+          Invalid IPA group definition:
+          {{ item | to_nice_yaml }}
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name | default('undefined group') }}"
+
+    - name: Build group name -> gid map
+      ansible.builtin.set_fact:
+        ipa_group_gid_map: >-
+          {{
+            ipa_group_gid_map | default({})
+            | combine({item.name: (item.gid | int)})
+          }}
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Validate user definitions
+      ansible.builtin.assert:
+        that:
+          - item.username is defined
+          - item.username | string | trim | length > 0
+          - item.uid is defined
+          - item.uid | int > 0
+          - item.first is defined
+          - item.first | string | trim | length > 0
+          - item.last is defined
+          - item.last | string | trim | length > 0
+          - item.email is defined
+          - item.email | string | trim | length > 0
+          - item.groups is defined
+          - item.groups is sequence
+          - item.groups is not string
+          - item.groups | length > 0
+          - item.groups[0] in ipa_group_gid_map
+        fail_msg: >-
+          Invalid user definition for
+          {{ item.username | default('undefined user') }}.
+          username, uid, first, last, email and a valid primary group
+          must be defined.
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username | default('undefined user') }}"
+
+    # KRB5CCNAME=/tmp/krb5cc_ansible_users printf '%s' 'ADMIN_PASSWORD' | kinit admin && KRB5CCNAME=/tmp/krb5cc_ansible_users klist -s
+    - name: Kinit admin for FreeIPA user management
+      ansible.builtin.shell: |
+        set -euo pipefail
+
+        printf '%s' "{{ ldap_admin_password_raw }}" |
+          kinit "{{ ldap_admin_user | default('admin') }}"
+
+        klist -s
+      args:
+        executable: /bin/bash
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      changed_when: false
+      no_log: true
+
+    # ipa group-show GROUPNAME
+    - name: Check whether IPA groups already exist
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - group-show
+          - "{{ item.name }}"
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      register: ipa_group_show_results
+      changed_when: false
+      failed_when:
+        - ipa_group_show_results.rc != 0
+        - ipa_group_show_results.rc != 2
+      loop: "{{ ldap_groups }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # ipa group-add GROUPNAME --gid=GID
+    - name: Create missing IPA groups with fixed POSIX GIDs
+      community.general.ipa_group:
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: "{{ ldap_admin_user | default('admin') }}"
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+        cn: "{{ item.item.name }}"
+        gidnumber: "{{ item.item.gid | int }}"
+        nonposix: false
+        state: present
+      loop: "{{ ipa_group_show_results.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.rc == 2
+      no_log: true
+
+    # ipa user-show USERNAME
+    - name: Check whether IPA users already exist
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-show
+          - "{{ item.username }}"
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      register: ipa_user_show
+      changed_when: false
+      failed_when:
+        - ipa_user_show.rc != 0
+        - ipa_user_show.rc != 2
+      loop: "{{ ldap_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+
+    - name: Build list of new IPA users only
+      ansible.builtin.set_fact:
+        ipa_new_users: >-
+          {{
+            ipa_user_show.results
+            | selectattr('rc', 'eq', 2)
+            | map(attribute='item')
+            | list
+          }}
+
+    - name: Show new IPA users
+      ansible.builtin.debug:
+        msg: >-
+          New IPA users:
+          {{
+            ipa_new_users
+            | map(attribute='username')
+            | list
+          }}
+
+    # ipa user-add USERNAME --first=FIRSTNAME --last=LASTNAME --email=EMAIL --uid=UID --gidnumber=GID --homedir=/home/USERNAME --shell=/bin/bash --noprivate
+    - name: Create missing IPA users
+      vars:
+        primary_group_name: "{{ item.groups[0] }}"
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - user-add
+          - "{{ item.username }}"
+          - "--first={{ item.first }}"
+          - "--last={{ item.last }}"
+          - "--email={{ item.email }}"
+          - "--uid={{ item.uid | int }}"
+          - "--gidnumber={{ ipa_group_gid_map[primary_group_name] | int }}"
+          - "--homedir=/home/{{ item.username }}"
+          - "--shell={{ item.shell | default('/bin/bash') }}"
+          - "--noprivate"
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      register: ipa_user_add
+      changed_when: ipa_user_add.rc == 0
+      failed_when:
+        - ipa_user_add.rc != 0
+        - "'already exists' not in (ipa_user_add.stderr | default(''))"
+      loop: "{{ ipa_new_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+
+    # printf '%s\n%s\n' 'PASSWORD' 'PASSWORD' | ipa passwd USERNAME
+    - name: Set initial password only for newly created users with password
+      ansible.builtin.shell: |
+        set -euo pipefail
+
+        printf '%s\n%s\n' "$IPA_INITIAL_PASSWORD" "$IPA_INITIAL_PASSWORD" |
+          ipa passwd "{{ item.username }}"
+      args:
+        executable: /bin/bash
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+        IPA_INITIAL_PASSWORD: "{{ item.password }}"
+      changed_when: true
+      no_log: true
+      loop: "{{ ipa_new_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - item.password is defined
+        - item.password | string | length > 0
+
+    # ipa user-mod USERNAME --user-auth-type=password --user-auth-type=otp
+    - name: Set password and OTP authentication for newly created users
+      ansible.builtin.command:
+        argv: >-
+          {{
+            ['ipa', 'user-mod', item.username]
+            +
+            (
+              ldap_user_auth_type
+              | map(
+                  'regex_replace',
+                  '^',
+                  '--user-auth-type='
+                )
+              | list
+            )
+          }}
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      register: ipa_user_auth
+      changed_when:
+        - ipa_user_auth.rc == 0
+        - >-
+          'no modifications to be performed'
+          not in (ipa_user_auth.stderr | default(''))
+      failed_when:
+        - ipa_user_auth.rc != 0
+        - >-
+          'no modifications to be performed'
+          not in (ipa_user_auth.stderr | default(''))
+      loop: "{{ ipa_new_users | default([]) }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - ldap_user_auth_type is defined
+        - ldap_user_auth_type is sequence
+        - ldap_user_auth_type is not string
+        - ldap_user_auth_type | length > 0
+        - item.password is defined
+        - item.password | string | length > 0
+
+    # ipa group-add-member GROUPNAME --users=USERNAME
+    - name: Add newly created IPA users to their groups
+      ansible.builtin.command:
+        argv:
+          - ipa
+          - group-add-member
+          - "{{ item.1 }}"
+          - "--users={{ item.0.username }}"
+      environment:
+        KRB5CCNAME: /tmp/krb5cc_ansible_users
+      register: ipa_group_member
+      changed_when:
+        - ipa_group_member.rc == 0
+        - >-
+          'Number of members added 1'
+          in (ipa_group_member.stdout | default(''))
+      failed_when:
+        - ipa_group_member.rc != 0
+        - >-
+          'This entry is already a member'
+          not in (ipa_group_member.stdout | default(''))
+        - >-
+          'This entry is already a member'
+          not in (ipa_group_member.stderr | default(''))
+      with_subelements:
+        - "{{ ipa_new_users | default([]) }}"
+        - groups
+        - skip_missing: true
+      loop_control:
+        label: "{{ item.0.username }} -> {{ item.1 }}"
+
+  always:
+    # kdestroy -c /tmp/krb5cc_ansible_users
+    - name: Destroy FreeIPA user management Kerberos ticket
+      ansible.builtin.command:
+        argv:
+          - kdestroy
+          - "-c"
+          - /tmp/krb5cc_ansible_users
+      changed_when: false
+      failed_when: false
+
+# mkdir -p /home/username && chown UID:GID /home/username && chmod 700 /home/username
+# xfs_quota -x -c 'limit bsoft=19g bhard=20g UID' /home
+- name: Create home directories and apply XFS quota for newly created LDAP users
+  when:
+    - inventory_hostname in groups['sms']
+    - hostvars[groups['ldap_server'][0]]['ipa_new_users'] | default([]) | length > 0
+  vars:
+    ldap_primary_server: "{{ groups['ldap_server'][0] }}"
+    ipa_new_users_from_server: >-
+      {{
+        hostvars[ldap_primary_server]['ipa_new_users']
+        | default([])
+      }}
+    ipa_group_gid_map_from_server: >-
+      {{
+        hostvars[ldap_primary_server]['ipa_group_gid_map']
+        | default({})
+      }}
+  block:
+    - name: Create home directories for newly created LDAP users
+      ansible.builtin.file:
+        path: "/home/{{ item.username }}"
+        state: directory
+        owner: "{{ item.uid | int }}"
+        group: >-
+          {{
+            ipa_group_gid_map_from_server[item.groups[0]]
+            | int
+          }}
+        mode: "0700"
+      loop: "{{ ipa_new_users_from_server }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - item.username is defined
+        - item.username | string | trim | length > 0
+        - item.uid is defined
+        - item.uid | int > 0
+        - item.groups is defined
+        - item.groups is sequence
+        - item.groups is not string
+        - item.groups | length > 0
+        - item.groups[0] in ipa_group_gid_map_from_server
+
+    - name: Copy default bashrc if missing
+      ansible.builtin.copy:
+        src: /etc/skel/.bashrc
+        dest: "/home/{{ item.username }}/.bashrc"
+        owner: "{{ item.uid | int }}"
+        group: >-
+          {{
+            ipa_group_gid_map_from_server[item.groups[0]]
+            | int
+          }}
+        mode: "0644"
+        remote_src: true
+        force: false
+      loop: "{{ ipa_new_users_from_server }}"
+      loop_control:
+        label: "{{ item.username }}"
+      when:
+        - item.username is defined
+        - item.username | string | trim | length > 0
+        - item.uid is defined
+        - item.uid | int > 0
+        - item.groups is defined
+        - item.groups is sequence
+        - item.groups is not string
+        - item.groups | length > 0
+        - item.groups[0] in ipa_group_gid_map_from_server
+
+    - name: Gather home directory stats for newly created LDAP users
+      ansible.builtin.stat:
+        path: "/home/{{ item.username }}"
+      loop: "{{ ipa_new_users_from_server }}"
+      loop_control:
+        label: "{{ item.username }}"
+      register: ldap_home_stats
+      when:
+        - item.username is defined
+        - item.username | string | trim | length > 0
+
+    - name: Verify expected UID and GID on home directories
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+          - item.stat.uid == (item.item.uid | int)
+          - >-
+            item.stat.gid ==
+            (
+              ipa_group_gid_map_from_server[item.item.groups[0]]
+              | int
+            )
+        fail_msg: >-
+          Ownership mismatch for /home/{{ item.item.username }}.
+          Expected UID:GID
+          {{ item.item.uid | int }}:
+          {{
+            ipa_group_gid_map_from_server[item.item.groups[0]]
+            | int
+          }},
+          found
+          {{ item.stat.uid | default('unknown') }}:
+          {{ item.stat.gid | default('unknown') }}.
+        success_msg: >-
+          Ownership is correct for /home/{{ item.item.username }}.
+      loop: "{{ ldap_home_stats.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.username | default('undefined user') }}"
+      when:
+        - not (item.skipped | default(false))
+        - item.stat is defined
+        - item.item.uid is defined
+        - item.item.groups is defined
+        - item.item.groups is sequence
+        - item.item.groups is not string
+        - item.item.groups | length > 0
+        - item.item.groups[0] in ipa_group_gid_map_from_server
+
+    - name: Apply XFS quota by UID
+      ansible.builtin.command:
+        argv:
+          - xfs_quota
+          - -x
+          - -c
+          - >-
+            limit bsoft=19g bhard=20g
+            {{ item.stat.uid }}
+          - /home
+      loop: "{{ ldap_home_stats.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.username | default('undefined user') }}"
+      when:
+        - not (item.skipped | default(false))
+        - item.stat is defined
+        - item.stat.exists | default(false)
+        - item.stat.isdir | default(false)
+        - item.stat.uid is defined
+      changed_when: false
+
