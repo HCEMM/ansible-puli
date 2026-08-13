@@ -15,3 +15,4 @@ collections:
 roles:
   - name: galaxyproject.postgresql_objects
   - name: galaxyproject.postgresql
+  - name: galaxyproject.galaxy

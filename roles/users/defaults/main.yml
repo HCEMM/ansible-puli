@@ -1,0 +1,8 @@
+users_partitions: >-
+  {{
+      ['cpu']
+      +
+      ('gpu' in item.slurm_groups | ternary(['gpu'],[]))
+      +
+      ('highmem' in item.slurm_groups | ternary(['highmem'],[]))
+  }}

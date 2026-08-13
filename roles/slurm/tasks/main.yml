@@ -35,7 +35,7 @@
   ansible.builtin.lineinfile:
     path: /etc/sysconfig/slurmd
     regexp: '^#?SLURMD_OPTIONS='
-    line: 'SLURMD_OPTIONS="--conf-server {{ setup_slurm_slurmctld }}"'
+    line: 'SLURMD_OPTIONS="--conf-server {{ slurm_slurmctld }}"'
     state: present
   when:
     - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']

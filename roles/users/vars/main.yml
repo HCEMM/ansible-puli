@@ -1,0 +1,20 @@
+users_institutions:
+  HCEMM:
+    account: hcemm
+    description: Hungarian Centre of Excellence for Molecular Medicine
+    fairshare: 500
+
+  BRC:
+    account: brc
+    description: Biological Research Centre
+    fairshare: 500
+
+  SU:
+    account: su
+    description: University of Szeged
+    fairshare: 500
+
+  USz:
+    account: usz
+    description: Semmelweis University
+    fairshare: 500

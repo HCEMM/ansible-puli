@@ -105,6 +105,7 @@ all:
         sms:
         galaxy_server:
         nginx:    # just for the DNS
+        slurmctld:
 
   hosts:
     scc-cpu01-10G:

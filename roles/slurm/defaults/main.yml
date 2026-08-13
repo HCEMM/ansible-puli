@@ -1,0 +1,7 @@
+slurm_accounting_storage_user: slurm
+slurm_storage_pass: password
+slurm_cluster_name: sccluster
+slurm_slurm_user: slurm
+slurm_slurmctld: slurmctld1
+slurm_slurmctld_backup: slurmctld2
+slurm_slurmdbd: slurmdbd1

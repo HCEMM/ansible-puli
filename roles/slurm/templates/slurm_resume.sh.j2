@@ -43,7 +43,7 @@ for NODE in $NODES; do
 
     # Remove the downtime in Checkmk for this host, if it exists, since we're powering it on now
     BIG_G=$(echo "$NODE" | sed 's/\([0-9]\)g/\1G/')      # -10g to -10G for Checkmk compatibility
-    curl -s -X POST   "http://{{ checkmk_site }}/monitoring/check_mk/api/1.0/domain-types/downtime/actions/delete/invoke" \
+    if ! curl -s -X POST   "https://{{ checkmk_site }}/monitoring/check_mk/api/1.0/domain-types/downtime/actions/delete/invoke" \
     -H "Authorization: Bearer {{ checkmk_username }} {{ checkmk_password }}" \
     -H "Accept: application/json" \
     -H "Content-Type: application/json" \
@@ -52,7 +52,9 @@ for NODE in $NODES; do
     "host_name": "'"${BIG_G}"'"
     }'
 
-    echo "Downtime removed for $BIG_G" >> "$LOG"
+    echo "Downtime removed for $BIG_G" >> "$LOG" 2>&1; then
+        echo "Failed to remove downtime" >>"$LOG"
+    fi
 
 done
 
