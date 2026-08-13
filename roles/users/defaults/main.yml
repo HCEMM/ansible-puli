@@ -6,3 +6,6 @@ users_partitions: >-
       +
       ('highmem' in item.slurm_groups | ternary(['highmem'],[]))
   }}
+
+ldap_user_auth_type:
+  - otp
