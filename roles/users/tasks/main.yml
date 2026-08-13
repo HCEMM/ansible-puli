@@ -47,3 +47,10 @@
     - item.0.username is defined
     - item.0.groups | select('match','^grp_') | first is defined
     - item.0.username not in slurm_users.stdout_lines
+
+- name: Manage LDAP and FreeIPA users
+  ansible.builtin.import_tasks: ldap_user.yml
+  when: manage_ldap_users | default(true) | bool
+  tags:
+    - users
+    - ldap_user
