@@ -94,7 +94,18 @@
   become: true
   gather_facts: true
   roles:
-    - setup_slurm
+    - slurm
+
+- name: Setup Users
+  tags: users
+  hosts:
+    - ldap_server
+    - slurmctld
+    - sms           # to create home dirs for users
+  become: true
+  gather_facts: true
+  roles:
+    - users
 
 - name: Setup Login nodes
   tags:
