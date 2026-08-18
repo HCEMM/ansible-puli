@@ -12,7 +12,7 @@ all:
             ansible_connection: local
             ansible_become: true
 
-        computes:
+        computes:     # currently not used for anything, computes management is done through warewulf and slurm
           hosts:
             scc-cpu02-10G:
             scc-cpu03-10G:
@@ -56,16 +56,6 @@ all:
             login1:
             login2:
 
-        thinlinc_masters:
-          hosts:
-            thinlinc1:
-            thinlinc2:
-
-        thinlinc_agents:
-          hosts:
-            login1:
-            login2:
-
         monitoring:
           hosts:
             checkmk1:
@@ -74,7 +64,7 @@ all:
           hosts:
             galaxy1:
           vars:
-            ansible_python_interpreter: /usr/bin/python3.11
+            ansible_python_interpreter: /usr/bin/python3.11     # as opposed to the default python 3.9 from AlmaLinux 9
 
         emma_server:
           hosts:
@@ -91,11 +81,6 @@ all:
         vulnscan_server:
           hosts:
             vulnscan1:
-
-    thinlinc_servers:
-      children:
-        sms:      # thinlinc_masters:      Eventually should change to thinlinc_masters
-        thinlinc_agents:
     
     ldap:         # mostly to get the group_vars/ldap.yml
       children:
@@ -160,13 +145,6 @@ all:
     login2:
       ansible_host: 10.0.150.205
       fqdn: login2.hcemm.eu
-
-    thinlinc1:
-      ansible_host: 10.0.150.206
-      fqdn: thinlinc1.hcemm.eu
-    thinlinc2:
-      ansible_host: 10.0.150.207
-      fqdn: thinlinc2.hcemm.eu
 
     checkmk1:
       ansible_host: 10.0.150.208
