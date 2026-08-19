@@ -1,56 +1,14 @@
 ---
-# Create the institutions accounts
-- name: Get Slurm accounts
-  ansible.builtin.command: sacctmgr --parsable2 show account format=Account
-  register: slurm_accounts
-  changed_when: false
-
-- name: Create institution accounts
-  ansible.builtin.command: >
-    sacctmgr -i add account
-    {{ item.value.account }}
-    Description="{{ item.value.description }}"
-    Organization={{ item.key }}
-  loop: "{{ users_institutions | dict2items }}"
-  changed_when: true
-  failed_when: false      # if it already exists, it will fail, and we have 2 slurmctld nodes, so it will fail on the 2nd
-  when: item.value.account not in slurm_accounts.stdout_lines
-
-- name: Create research group accounts
-  ansible.builtin.command: >
-    sacctmgr -i add account
-    {{ item.name }}
-    Parent={{ users_institutions[item.organization].account }}
-    Organization={{ item.organization }}
-    Description="{{ item.description }}"
-  loop: "{{ ldap_groups }}"
-  changed_when: true
-  when:
-    - item.name is match("^grp_")     # skips groups like wheel or libvirt
-    - item.name not in slurm_accounts.stdout_lines
-
-- name: Get users in Slurm
-  ansible.builtin.command: sacctmgr --parsable2 show user format=User
-  register: slurm_users
-  changed_when: false
-
-- name: Create user associations
-  ansible.builtin.command: >
-      sacctmgr -i add user
-      user={{ item.0.username }}
-      account={{ item.0.groups | select('match','^grp_') | first }}
-      cluster=sccluster
-      partition={{ item.1 }}
-  loop: "{{ ldap_users | subelements('slurm_partitions') }}"
-  changed_when: true
-  when:
-    - item.0.username is defined
-    - item.0.groups | select('match','^grp_') | first is defined
-    - item.0.username not in slurm_users.stdout_lines
-
-- name: Manage LDAP and FreeIPA users
+- name: Manage LDAP users
   ansible.builtin.import_tasks: ldap_user.yml
   when: manage_ldap_users | default(true) | bool
   tags:
     - users
     - ldap_user
+
+- name: Manage Slurm users
+  ansible.builtin.import_tasks: slurm_user.yml
+  when: manage_slurm_users | default(true) | bool
+  tags:
+    - users
+    - slurm_user
