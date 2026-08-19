@@ -54,17 +54,18 @@
   hosts:
     - ldap_server
     - sms
-
   tags:
     - users
     - ldap_user
-
   any_errors_fatal: true
   become: true
   gather_facts: true
 
-  roles:
-    - role: users
+  tasks:
+    - name: Manage LDAP and FreeIPA users
+      ansible.builtin.import_role:
+        name: users
+        tasks_from: ldap_user
 
 - name: Build main server
   tags: main_server
@@ -112,16 +113,21 @@
   roles:
     - slurm
 
-- name: Setup Users
-  tags: users
+- name: Setup Slurm users
   hosts:
-    - ldap_server
-    - slurmctld
-    - sms           # to create home dirs for users
+    - slurmctld1
+  tags:
+    - users
+    - slurm_user
+  any_errors_fatal: true
   become: true
   gather_facts: true
-  roles:
-    - users
+
+  tasks:
+    - name: Manage Slurm accounts and user associations
+      ansible.builtin.import_role:
+        name: users
+        tasks_from: slurm_user
 
 - name: Setup Login nodes
   tags:
@@ -249,3 +255,13 @@
   gather_facts: true
   roles:
     - security_update
+
+# - name: Configure DoctorLLM
+#   tags:
+#     - doctorllm
+#   hosts: 
+#     - doctorllm_server
+#     - ldap_server
+#   become: true
+#   roles:
+#     - doctorllm
