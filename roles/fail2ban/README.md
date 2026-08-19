@@ -11,3 +11,9 @@ do
   fail2ban-client status $JAIL
 done
 ```
+
+### Get bans for a specific jail
+
+```bash
+grep "\[nginx-bad-request\] Ban" /var/log/fail2ban.log     # substitute jail name for [nginx-bad-request], ofc
+```
