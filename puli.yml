@@ -256,12 +256,12 @@
   roles:
     - security_update
 
-# - name: Configure DoctorLLM
-#   tags:
-#     - doctorllm
-#   hosts: 
-#     - doctorllm_server
-#     - ldap_server
-#   become: true
-#   roles:
-#     - doctorllm
+- name: Configure DoctorLLM
+  tags:
+    - doctorllm
+  hosts:
+    - doctorllm_server
+    - ldap_server
+  become: true
+  roles:
+    - doctorllm

@@ -8,6 +8,11 @@ upstream {{ service.name }} {
 {% for backend in service.backends %}
     server {{ backend }};
 {% endfor %}
+
+{% if service.keepalive is defined %}
+    # DoctorLLM: keep upstream connections alive
+    keepalive {{ service.keepalive }};
+{% endif %}
 }
 
 server {
@@ -23,6 +28,12 @@ server {
     ssl_certificate /etc/letsencrypt/live/{{ service.server_name }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ service.server_name }}/privkey.pem;
 
+{% if service.client_max_body_size is defined %}
+    # DoctorLLM: allow larger request bodies
+    client_max_body_size {{ service.client_max_body_size }};
+{% endif %}
+
+{% if service.name != "doctorllm" %}
     access_log /var/log/nginx/{{ service.name }}.log;
 
     proxy_intercept_errors on;
@@ -42,6 +53,7 @@ server {
     location = /hcemm-logo.jpg {
         alias /var/www/errors/hcemm-logo.jpg;
     }
+{% endif %}
 
     # Security headers
     add_header X-Content-Type-Options "nosniff";
@@ -78,9 +90,42 @@ server {
 
     location / {
         proxy_pass http://{{ service.name }};
+
+{% if service.websocket | default(false) %}
+        # DoctorLLM: Open WebUI WebSocket support
+        proxy_http_version 1.1;
+{% endif %}
+
         proxy_set_header Host              $host;
+
+{% if service.websocket | default(false) %}
+        proxy_set_header X-Real-IP         $remote_addr;
+{% endif %}
+
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
+{% if service.websocket | default(false) %}
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+{% endif %}
+
+{% if service.proxy_connect_timeout is defined %}
+        proxy_connect_timeout {{ service.proxy_connect_timeout }};
+{% endif %}
+
+{% if service.proxy_send_timeout is defined %}
+        proxy_send_timeout {{ service.proxy_send_timeout }};
+{% endif %}
+
+{% if service.proxy_read_timeout is defined %}
+        proxy_read_timeout {{ service.proxy_read_timeout }};
+{% endif %}
+
+{% if service.proxy_buffering is defined %}
+        proxy_buffering {{ service.proxy_buffering }};
+{% endif %}
+
         proxy_redirect off;
     }
     
@@ -96,3 +141,9 @@ server {
 }
 
 {% endfor %}
+
+# DoctorLLM WebSocket support
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}

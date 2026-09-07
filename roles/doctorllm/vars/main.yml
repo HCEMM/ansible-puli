@@ -1,0 +1,104 @@
+---
+# DoctorLLM application server
+doctorllm_config_dir: /etc/doctorllm
+doctorllm_data_dir: /var/lib/doctorllm
+doctorllm_openwebui_data_dir: /var/lib/doctorllm/open-webui
+doctorllm_certs_dir: /opt/doctorllm/certs
+
+# Open WebUI
+doctorllm_openwebui_image: ghcr.io/open-webui/open-webui:main
+doctorllm_webui_name: DoctorLLM
+
+# vLLM backend
+doctorllm_vllm_inventory_host: "scc-gpu01-10G"
+doctorllm_vllm_node: "scc-gpu01-10g"
+
+doctorllm_vllm_port: 8000
+doctorllm_openai_api_base_url: >-
+  http://{{ hostvars[doctorllm_vllm_inventory_host].ansible_host }}:{{ doctorllm_vllm_port }}/v1
+
+# FreeIPA LDAP
+doctorllm_ldap_bind_user: doctorllm-bind
+doctorllm_ldap_app_dn: >-
+  uid={{ doctorllm_ldap_bind_user }},cn=sysaccounts,cn=etc,{{ ldap_base_dn }}
+doctorllm_access_group: grp_doctorllm
+doctorllm_access_group_description: "Users allowed to access DoctorLLM"
+
+# DoctorLLM operational FreeIPA identity
+doctorllm_service_user: doctorllm
+
+# Shared DoctorLLM NFS storage
+doctorllm_nfs_source: "10.0.150.147:/mnt/MirrorHDD/doctorllm"
+doctorllm_nfs_mount: /doctorllm
+doctorllm_nfs_opts: "defaults,_netdev,nofail,hard"
+
+# Shared storage layout
+doctorllm_shared_directories:
+  - apps
+  - cache
+  - config
+  - jobs
+  - logs
+  - models
+  - tmp
+
+# vLLM runtime
+doctorllm_uv_version: "0.12.1"
+doctorllm_python_version: "3.12.13"
+doctorllm_vllm_version: "0.26.0"
+
+doctorllm_uv_bin: "{{ doctorllm_nfs_mount }}/apps/uv/uv"
+doctorllm_python_root: "{{ doctorllm_nfs_mount }}/apps/python"
+
+doctorllm_vllm_root: "{{ doctorllm_nfs_mount }}/apps/vllm"
+doctorllm_vllm_environment_name: "vllm-poc-py312"
+doctorllm_vllm_environment: "{{ doctorllm_vllm_root }}/environments/{{ doctorllm_vllm_environment_name }}"
+doctorllm_vllm_current: "{{ doctorllm_vllm_root }}/current"
+
+doctorllm_vllm_requirements: "{{ doctorllm_nfs_mount }}/config/vllm-requirements.txt"
+
+doctorllm_python_executable: >-
+  {{ doctorllm_python_root }}/cpython-{{ doctorllm_python_version }}-linux-x86_64-gnu/bin/python3.12
+
+doctorllm_vllm_python: "{{ doctorllm_vllm_environment }}/bin/python"
+doctorllm_vllm_executable: "{{ doctorllm_vllm_environment }}/bin/vllm"
+
+# Model
+doctorllm_model_repo: "Qwen/Qwen3-14B"
+doctorllm_model_name: "Qwen3-14B"
+doctorllm_model_path: "{{ doctorllm_nfs_mount }}/models/{{ doctorllm_model_name }}"
+
+# Model lifecycle
+doctorllm_model_download_job_name: "download-qwen3-14b"
+
+# Runtime environment
+doctorllm_runtime_home: "{{ doctorllm_nfs_mount }}/tmp/doctorllm-home"
+doctorllm_uv_cache_dir: "{{ doctorllm_nfs_mount }}/cache/uv"
+
+# bootstrap
+doctorllm_runtime_partition: "cpu"
+doctorllm_runtime_qos: "normal"
+
+doctorllm_model_download_job: >-
+  {{ doctorllm_nfs_mount }}/jobs/download-qwen3-14b.sbatch
+
+# vLLM Slurm service
+doctorllm_vllm_job_name: "doctorllm-qwen3"
+doctorllm_vllm_job_file: "{{ doctorllm_nfs_mount }}/jobs/serve-qwen3-14b.sbatch"
+doctorllm_slurm_account: "grp_hcemm"
+doctorllm_slurm_qos: "normal"
+doctorllm_slurm_partition: "gpu"
+doctorllm_slurm_download_partition: "cpu"
+doctorllm_slurm_download_qos: "normal"
+
+doctorllm_vllm_api_key_file: "{{ doctorllm_nfs_mount }}/config/vllm-api-key"
+
+doctorllm_vllm_served_model_name: "qwen3-14b"
+doctorllm_vllm_max_model_len: 16384
+doctorllm_vllm_gpu_memory_utilization: "0.90"
+
+doctorllm_vllm_gres: "gpu:1"
+doctorllm_vllm_time: "10-00:00:00"
+
+doctorllm_validate_backend: false
+

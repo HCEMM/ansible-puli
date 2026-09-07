@@ -1,0 +1,223 @@
+---
+- name: Configure DoctorLLM FreeIPA objects
+  when:
+    - inventory_hostname in groups['ldap_server']
+  block:
+
+    - name: Ensure DoctorLLM LDAP bind account exists
+      community.general.ldap_entry:
+        dn: "{{ doctorllm_ldap_app_dn }}"
+        objectClass:
+          - account
+          - simpleSecurityObject
+          - top
+        attributes:
+          uid: "{{ doctorllm_ldap_bind_user }}"
+          userPassword: "{{ doctorllm_ldap_app_password }}"
+        state: present
+        server_uri: "ldaps://{{ ldap_server_fqdn }}:{{ ldap_tls_port }}"
+        bind_dn: "{{ ldap_search_bind_dn }}"
+        bind_pw: "{{ ldap_admin_password_raw }}"
+        validate_certs: true
+      no_log: true
+
+    - name: Ensure DoctorLLM access group exists
+      community.general.ipa_group:
+        name: "{{ doctorllm_access_group }}"
+        description: "{{ doctorllm_access_group_description }}"
+        nonposix: true
+        state: present
+        ipa_host: "{{ ldap_server_fqdn }}"
+        ipa_user: "{{ ldap_admin_user }}"
+        ipa_pass: "{{ ldap_admin_password_raw }}"
+        validate_certs: true
+      no_log: true
+
+- name: Configure DoctorLLM application server
+  when:
+    - inventory_hostname in groups['doctorllm_server']
+  block:
+
+    - name: Install DoctorLLM base packages
+      ansible.builtin.dnf:
+        name:
+          - ca-certificates
+          - curl
+          - dnf-plugins-core
+          - git
+          - jq
+          - bind-utils
+        state: present
+
+    - name: Install Docker repository
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install Docker packages
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Verify Docker installation
+      ansible.builtin.command:
+        cmd: docker --version
+      changed_when: false
+      when:
+        - not ansible_check_mode
+
+    - name: Verify Docker Compose installation
+      ansible.builtin.command:
+        cmd: docker compose version
+      changed_when: false
+      when:
+        - not ansible_check_mode
+
+    - name: Create DoctorLLM configuration directory
+      ansible.builtin.file:
+        path: "{{ doctorllm_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Create DoctorLLM data directory
+      ansible.builtin.file:
+        path: "{{ doctorllm_data_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Create Open WebUI data directory
+      ansible.builtin.file:
+        path: "{{ doctorllm_openwebui_data_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create DoctorLLM certificates directory
+      ansible.builtin.file:
+        path: "{{ doctorllm_certs_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Read FreeIPA CA certificate
+      ansible.builtin.slurp:
+        src: /etc/ipa/ca.crt
+      delegate_to: "{{ groups['ldap_server'][0] }}"
+      register: doctorllm_freeipa_ca
+
+    - name: Install FreeIPA CA certificate
+      ansible.builtin.copy:
+        content: "{{ doctorllm_freeipa_ca.content | b64decode }}"
+        dest: "{{ doctorllm_certs_dir }}/freeipa-ca.crt"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Validate Open WebUI configuration variables
+      ansible.builtin.assert:
+        that:
+          - doctorllm_openai_api_base_url is defined
+          - doctorllm_vllm_api_key is defined
+          - doctorllm_webui_name is defined
+          - ldap_server_fqdn is defined
+          - ldap_tls_port is defined
+          - doctorllm_ldap_app_dn is defined
+          - doctorllm_ldap_app_password is defined
+          - ldap_user_base_dn is defined
+          - ldap_username_attribute is defined
+          - ldap_mail_attribute is defined
+        quiet: true
+
+    - name: Deploy Open WebUI environment file
+      ansible.builtin.template:
+        src: open-webui.env.j2
+        dest: "{{ doctorllm_config_dir }}/open-webui.env"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+      diff: false
+
+    - name: Deploy Open WebUI Docker Compose configuration
+      ansible.builtin.template:
+        src: compose.yml.j2
+        dest: "{{ doctorllm_config_dir }}/compose.yml"
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Check DoctorLLM vLLM backend from Open WebUI server
+      ansible.builtin.uri:
+        url: "{{ doctorllm_openai_api_base_url }}/models"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ doctorllm_vllm_api_key }}"
+        status_code: 200
+        return_content: true
+      register: doctorllm_backend_health
+      changed_when: false
+      check_mode: false
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - doctorllm_validate_backend | bool
+
+    - name: Validate DoctorLLM backend model from Open WebUI server
+      ansible.builtin.assert:
+        that:
+          - doctorllm_backend_health.json is defined
+          - doctorllm_backend_health.json.data is defined
+          - doctorllm_vllm_served_model_name in
+            (doctorllm_backend_health.json.data | map(attribute='id') | list)
+        fail_msg: >-
+          DoctorLLM vLLM backend is reachable from {{ inventory_hostname }},
+          but expected model {{ doctorllm_vllm_served_model_name }}
+          is not available.
+        success_msg: >-
+          DoctorLLM vLLM backend is reachable from {{ inventory_hostname }}
+          and {{ doctorllm_vllm_served_model_name }} is available.
+      when:
+        - not ansible_check_mode
+        - doctorllm_validate_backend | bool
+
+    - name: Ensure Open WebUI is running
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ doctorllm_config_dir }}/compose.yml up -d"
+      register: doctorllm_openwebui_compose_up
+      changed_when: >-
+        'Started' in doctorllm_openwebui_compose_up.stdout
+        or 'Created' in doctorllm_openwebui_compose_up.stdout
+        or 'Recreated' in doctorllm_openwebui_compose_up.stdout
+      when:
+        - not ansible_check_mode
+
+    - name: Wait for Open WebUI to become available
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:{{ doctorllm_openwebui_port }}/"
+        status_code: 200
+      register: doctorllm_openwebui_health
+      retries: 30
+      delay: 5
+      until: doctorllm_openwebui_health.status == 200
+      when:
+        - not ansible_check_mode
