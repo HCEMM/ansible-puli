@@ -1,0 +1,236 @@
+#!/bin/bash
+
+# ============================================================
+# DoctorLLM runtime bootstrap
+# Managed by Ansible.
+#
+# CURRENT POLICY:
+# This job is NOT submitted automatically by Ansible.
+# Submit it manually as the FreeIPA user "doctorllm".
+#
+# This job only prepares the DoctorLLM application runtime
+# on the shared /doctorllm storage.
+# ============================================================
+
+#SBATCH --job-name=doctorllm-bootstrap
+#SBATCH --account={{ doctorllm_slurm_account }}
+#SBATCH --partition={{ doctorllm_runtime_partition }}
+#SBATCH --qos={{ doctorllm_runtime_qos }}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=01:00:00
+#SBATCH --output={{ doctorllm_nfs_mount }}/logs/doctorllm-bootstrap-%j.out
+#SBATCH --error={{ doctorllm_nfs_mount }}/logs/doctorllm-bootstrap-%j.err
+
+set -euo pipefail
+
+echo "============================================================"
+echo "DoctorLLM runtime bootstrap"
+echo "Host: $(hostname)"
+echo "User: $(id)"
+echo "Job ID: ${SLURM_JOB_ID:-unknown}"
+echo "Started: $(date)"
+echo "============================================================"
+
+# ------------------------------------------------------------
+# Runtime environment
+# ------------------------------------------------------------
+
+export HOME="{{ doctorllm_runtime_home }}"
+export UV_CACHE_DIR="{{ doctorllm_uv_cache_dir }}"
+export UV_PYTHON_INSTALL_DIR="{{ doctorllm_python_root }}"
+
+UV_BIN="{{ doctorllm_uv_bin }}"
+PYTHON_BIN="{{ doctorllm_python_executable }}"
+VLLM_ENV="{{ doctorllm_vllm_environment }}"
+VLLM_PYTHON="{{ doctorllm_vllm_python }}"
+VLLM_EXECUTABLE="{{ doctorllm_vllm_executable }}"
+REQUIREMENTS="{{ doctorllm_vllm_requirements }}"
+
+# ------------------------------------------------------------
+# Shared-storage directories
+# ------------------------------------------------------------
+
+echo
+echo "Preparing DoctorLLM directories..."
+
+mkdir -p \
+    "{{ doctorllm_runtime_home }}" \
+    "{{ doctorllm_uv_cache_dir }}" \
+    "{{ doctorllm_python_root }}" \
+    "{{ doctorllm_vllm_root }}" \
+    "{{ doctorllm_nfs_mount }}/logs" \
+    "{{ doctorllm_nfs_mount }}/tmp"
+
+# ------------------------------------------------------------
+# uv
+# ------------------------------------------------------------
+
+echo
+echo "Checking uv..."
+
+if [[ ! -x "${UV_BIN}" ]]; then
+    echo "uv not found. Installing uv {{ doctorllm_uv_version }}..."
+
+    UV_INSTALLER="/tmp/doctorllm-uv-{{ doctorllm_uv_version }}-${SLURM_JOB_ID}.sh"
+
+    curl -fsSL \
+        "https://astral.sh/uv/{{ doctorllm_uv_version }}/install.sh" \
+        -o "${UV_INSTALLER}"
+
+    chmod 0700 "${UV_INSTALLER}"
+
+    UV_UNMANAGED_INSTALL="{{ doctorllm_nfs_mount }}/apps/uv" \
+        sh "${UV_INSTALLER}"
+
+    rm -f "${UV_INSTALLER}"
+else
+    echo "uv already exists at ${UV_BIN}"
+fi
+
+echo
+echo "uv version:"
+"${UV_BIN}" --version
+
+if ! "${UV_BIN}" --version | grep -Fq "{{ doctorllm_uv_version }}"; then
+    echo "ERROR: unexpected uv version."
+    echo "Expected: {{ doctorllm_uv_version }}"
+    exit 1
+fi
+
+# ------------------------------------------------------------
+# Python
+# ------------------------------------------------------------
+
+echo
+echo "Checking Python {{ doctorllm_python_version }}..."
+
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+    echo "Installing Python {{ doctorllm_python_version }}..."
+
+    "${UV_BIN}" python install \
+        "{{ doctorllm_python_version }}" \
+        --install-dir "{{ doctorllm_python_root }}"
+else
+    echo "Python runtime already exists at ${PYTHON_BIN}"
+fi
+
+echo
+echo "Python version:"
+"${PYTHON_BIN}" --version
+
+if ! "${PYTHON_BIN}" --version 2>&1 | grep -Fq "{{ doctorllm_python_version }}"; then
+    echo "ERROR: unexpected Python version."
+    echo "Expected: {{ doctorllm_python_version }}"
+    exit 1
+fi
+
+# ------------------------------------------------------------
+# vLLM virtual environment
+# ------------------------------------------------------------
+
+echo
+echo "Checking vLLM virtual environment..."
+
+if [[ ! -x "${VLLM_PYTHON}" ]]; then
+    echo "Creating vLLM environment at ${VLLM_ENV}..."
+
+    "${UV_BIN}" venv \
+        "${VLLM_ENV}" \
+        --python "${PYTHON_BIN}" \
+        --seed
+else
+    echo "vLLM environment already exists."
+fi
+
+# ------------------------------------------------------------
+# Pinned vLLM packages
+# ------------------------------------------------------------
+
+if [[ ! -f "${REQUIREMENTS}" ]]; then
+    echo "ERROR: vLLM requirements file does not exist:"
+    echo "  ${REQUIREMENTS}"
+    exit 1
+fi
+
+echo
+echo "Checking vLLM installation..."
+
+if [[ ! -x "${VLLM_EXECUTABLE}" ]]; then
+    echo "Installing pinned vLLM environment..."
+
+    "${UV_BIN}" pip sync \
+        "${REQUIREMENTS}" \
+        --python "${VLLM_PYTHON}"
+else
+    echo "vLLM executable already exists at ${VLLM_EXECUTABLE}"
+fi
+
+# ------------------------------------------------------------
+# Validate vLLM
+# ------------------------------------------------------------
+
+echo
+echo "Installed vLLM version:"
+
+INSTALLED_VLLM_VERSION="$(
+    "${VLLM_PYTHON}" \
+        -c 'import importlib.metadata as m; print(m.version("vllm"))'
+)"
+
+echo "${INSTALLED_VLLM_VERSION}"
+
+if [[ "${INSTALLED_VLLM_VERSION}" != "{{ doctorllm_vllm_version }}" ]]; then
+    echo "ERROR: unexpected vLLM version."
+    echo "Expected: {{ doctorllm_vllm_version }}"
+    echo "Actual:   ${INSTALLED_VLLM_VERSION}"
+    exit 1
+fi
+
+# ------------------------------------------------------------
+# Current environment link
+# ------------------------------------------------------------
+
+echo
+echo "Configuring current vLLM environment link..."
+
+if [[ -L "{{ doctorllm_vllm_current }}" ]]; then
+    CURRENT_TARGET="$(readlink -f "{{ doctorllm_vllm_current }}")"
+    EXPECTED_TARGET="$(readlink -f "${VLLM_ENV}")"
+
+    if [[ "${CURRENT_TARGET}" != "${EXPECTED_TARGET}" ]]; then
+        echo "ERROR: {{ doctorllm_vllm_current }} points to:"
+        echo "  ${CURRENT_TARGET}"
+        echo "Expected:"
+        echo "  ${EXPECTED_TARGET}"
+        exit 1
+    fi
+elif [[ -e "{{ doctorllm_vllm_current }}" ]]; then
+    echo "ERROR: {{ doctorllm_vllm_current }} exists but is not a symlink."
+    exit 1
+else
+    ln -s \
+        "${VLLM_ENV}" \
+        "{{ doctorllm_vllm_current }}"
+fi
+
+echo
+echo "============================================================"
+echo "DoctorLLM runtime bootstrap completed successfully."
+echo
+echo "uv:"
+"${UV_BIN}" --version
+
+echo
+echo "Python:"
+"${PYTHON_BIN}" --version
+
+echo
+echo "vLLM:"
+echo "${INSTALLED_VLLM_VERSION}"
+
+echo
+echo "Finished: $(date)"
+echo "============================================================"

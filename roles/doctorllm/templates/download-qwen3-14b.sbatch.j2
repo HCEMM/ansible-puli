@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# ============================================================
+# Managed by the DoctorLLM Ansible role.
+#
+# CURRENT POLICY:
+# This job is NOT submitted automatically by Ansible.
+# Submit it manually as the FreeIPA user "doctorllm".
+#
+# Automatic lifecycle management may be added later if the
+# DoctorLLM GPU allocation model changes.
+# ============================================================
+
+#SBATCH --job-name={{ doctorllm_model_download_job_name }}
+#SBATCH --account={{ doctorllm_slurm_account }}
+#SBATCH --qos={{ doctorllm_slurm_download_qos }}
+#SBATCH --partition={{ doctorllm_slurm_download_partition }}
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8G
+#SBATCH --time=02:00:00
+#SBATCH --output={{ doctorllm_nfs_mount }}/logs/download-qwen3-14b-%j.out
+#SBATCH --error={{ doctorllm_nfs_mount }}/logs/download-qwen3-14b-%j.err
+
+set -euo pipefail
+
+export HOME=/doctorllm/tmp
+export HF_HOME=/doctorllm/cache/huggingface
+export HUGGINGFACE_HUB_CACHE=/doctorllm/cache/huggingface/hub
+export VLLM_ENV=/doctorllm/apps/vllm/current
+export MODEL_DIR=/doctorllm/models/Qwen3-14B
+
+mkdir -p "$MODEL_DIR"
+
+"$VLLM_ENV/bin/python" - <<'PY'
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="Qwen/Qwen3-14B",
+    local_dir="/doctorllm/models/Qwen3-14B",
+    local_dir_use_symlinks=False,
+)
+PY

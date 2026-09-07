@@ -81,7 +81,11 @@ all:
         vulnscan_server:
           hosts:
             vulnscan1:
-    
+
+        doctorllm_server:
+          hosts:
+            doctorllm1:
+
     ldap:         # mostly to get the group_vars/ldap.yml
       children:
         ldap_server:
@@ -91,6 +95,7 @@ all:
         galaxy_server:
         nginx:    # just for the DNS
         slurmctld:
+        doctorllm_server:
 
   hosts:
     scc-cpu01-10G:
@@ -169,3 +174,7 @@ all:
     vulnscan1:
       ansible_host: 10.0.150.215
       fqdn: vulnscan.hcemm.eu
+
+    doctorllm1:
+      ansible_host: 10.0.150.214
+      fqdn: doctorllm.hcemm.eu
