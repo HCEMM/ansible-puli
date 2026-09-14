@@ -22,7 +22,7 @@ ansible-playbook \
 Login to the cluster as doctorllm user:
 
 ```bash
-sbatch ~/serve-qwen3-14b.sbatch
+sbatch sbatch /doctorllm/jobs/serve-qwen3-14b.sbatch
 ```
 
 ## Useful commands on `doctorllm1`:
