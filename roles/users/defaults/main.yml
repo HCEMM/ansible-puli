@@ -2,9 +2,9 @@ users_partitions: >-
   {{
       ['cpu']
       +
-      ('gpu' in item.slurm_groups | ternary(['gpu'],[]))
+      ('gpu' in item.slurm_partitions | ternary(['gpu'],[]))
       +
-      ('highmem' in item.slurm_groups | ternary(['highmem'],[]))
+      ('highmem' in item.slurm_partitions | ternary(['highmem'],[]))
   }}
 
 ldap_user_auth_type:
