@@ -249,7 +249,7 @@
 #         label: "{{ item.username }}"
 #       when:
 #         - item.username is defined
-#         - (item.slurm_groups | default([])) | length > 0
+#         - (item.slurm_partitions | default([])) | length > 0
 #       register: slurm_partition_check
 #       changed_when: false
 #       failed_when: false
@@ -269,8 +269,8 @@
 #       loop_control:
 #         label: "{{ item.item.username }} -> gpu"
 #       when:
-#         - item.item.slurm_groups is defined
-#         - "'gpu' in item.item.slurm_groups"
+#         - item.item.slurm_partitions is defined
+#         - "'gpu' in item.item.slurm_partitions"
 #         - item.rc == 0
 #         - "'gpu' not in (item.stdout | lower)"
 #       changed_when: true
@@ -290,8 +290,8 @@
 #       loop_control:
 #         label: "{{ item.item.username }} -> highmem"
 #       when:
-#         - item.item.slurm_groups is defined
-#         - "'highmem' in item.item.slurm_groups"
+#         - item.item.slurm_partitions is defined
+#         - "'highmem' in item.item.slurm_partitions"
 #         - item.rc == 0
 #         - "'highmem' not in (item.stdout | lower)"
 #       changed_when: true

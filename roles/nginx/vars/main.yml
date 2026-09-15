@@ -13,7 +13,20 @@ nginx_gateway_services:
     backends:
       - "10.0.150.210:8000"
 
+  # DoctorLLM / Open WebUI
   - name: "doctorllm"
     server_name: "doctorllm.{{ nginx_gateway_domain }}"
+
     backends:
-      - "10.0.150.143:8000"
+      - "{{ hostvars[groups['doctorllm_server'][0]].ansible_host }}:{{ doctorllm_openwebui_port }}"
+
+    keepalive: 64
+    websocket: true
+
+    client_max_body_size: "100M"
+
+    proxy_connect_timeout: "60s"
+    proxy_send_timeout: "3600s"
+    proxy_read_timeout: "3600s"
+
+    proxy_buffering: "off"

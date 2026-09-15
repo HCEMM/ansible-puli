@@ -1,0 +1,15 @@
+services:
+  open-webui:
+    image: {{ doctorllm_openwebui_image }}
+    container_name: open-webui
+    restart: unless-stopped
+
+    ports:
+      - "{{ ansible_host }}:{{ doctorllm_openwebui_port }}:8080"
+
+    env_file:
+      - {{ doctorllm_config_dir }}/open-webui.env
+
+    volumes:
+      - {{ doctorllm_openwebui_data_dir }}:/app/backend/data:Z
+      - {{ doctorllm_certs_dir }}/freeipa-ca.crt:/etc/ssl/certs/freeipa-ca.crt:ro,Z

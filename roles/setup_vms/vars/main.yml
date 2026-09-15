@@ -77,3 +77,15 @@ setup_vms_vm_list:
     disk_size: 30G
     ip: '10.0.150.212'
     mac: '52:54:00:aa:bb:13'
+  vulnscan1:
+    memory: 16384
+    vcpus: 4
+    disk_size: 190G
+    ip: '10.0.150.215'
+    mac: '52:54:00:aa:bb:15'
+  doctorllm1:
+    memory: 8192
+    vcpus: 2
+    disk_size: 80G
+    ip: '10.0.150.214'
+    mac: '52:54:00:aa:bb:14'
