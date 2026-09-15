@@ -11,6 +11,7 @@ galaxy_user: galaxy
 galaxy_privsep_user: gxpriv
 galaxy_group: galaxy
 galaxy_server_dir: "{{ galaxy_root }}/server"
+galaxy_hcemm_logo_url: https://www.hcemm.eu/wp-content/uploads/2020/01/HCEMM_Logo_Slogan_TM_RGB.png
 
 galaxy_tus_upload_store: /data/tus
 galaxy_tusd_port: 1080
@@ -58,3 +59,5 @@ galaxy_config:
       - Joao.Sequeira@hcemm.eu
       - Alessandra.Vittorini@hcemm.eu
     welcome_url: /static/welcome.html
+    auth_config_file: auth_conf.xml
+    themes_config_file: themes_conf.yml

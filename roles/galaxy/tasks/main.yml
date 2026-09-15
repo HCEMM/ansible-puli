@@ -29,6 +29,7 @@
       - apptainer
       - unzip
       - tar
+      - slurm-devel-ohpc
     state: present
 
 - name: Install virtualenv
@@ -59,14 +60,14 @@
     state: true
     persistent: true
 
-- name: Mount /srv/galaxy
-  ansible.posix.mount:
-    src: "{{ storage_ip }}:/mnt/MirrorHDD/galaxy"
-    path: "/srv/galaxy"
-    opts: rw,hard,noatime,fsc,nconnect=8
-    boot: true
-    state: mounted
-    fstype: nfs
+# - name: Mount /srv/galaxy
+#   ansible.posix.mount:
+#     src: "{{ storage_ip }}:/mnt/MirrorHDD/galaxy"
+#     path: "/srv/galaxy"
+#     opts: rw,hard,noatime,fsc,nconnect=8
+#     boot: true
+#     state: mounted
+#     fstype: nfs
 
 - name: Include PostgreSQL role
   ansible.builtin.include_role:
@@ -87,6 +88,17 @@
     postgresql_objects_databases:
       - name: galaxy
         owner: galaxy
+
+- name: Template config files
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ galaxy_root }}/config/{{ item }}"
+    owner: "{{ galaxy_privsep_user }}"
+    group: "{{ galaxy_group }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop:
+    - auth_conf.xml
+    - themes.yml
 
 - name: Include Galaxy role
   ansible.builtin.include_role:
