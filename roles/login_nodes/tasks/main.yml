@@ -247,15 +247,20 @@
     name: qrencode
     state: present
 
-- name: Check admin keytab exists on login node
+- name: Check admin keytab
   ansible.builtin.stat:
     path: /root/admin.keytab
-  register: login_node_admin_keytab_stat
+  register: admin_keytab
 
-- name: Fail if admin keytab is missing on login node
-  ansible.builtin.fail:
-    msg: "/root/admin.keytab is required on login nodes for 2FA enforcement."
-  when: not login_node_admin_keytab_stat.stat.exists
+- name: Deploy FreeIPA admin keytab
+  ansible.builtin.copy:
+    src: root/admin.keytab
+    dest: /root/admin.keytab
+    owner: root
+    group: root
+    mode: "0600"
+    decrypt: true
+  when: not admin_keytab.stat.exists
 
 - name: Deploy 2fa-setup script
   ansible.builtin.copy:
