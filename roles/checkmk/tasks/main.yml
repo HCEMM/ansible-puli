@@ -136,16 +136,14 @@
     - name: Print Checkmk URL and login hint
       ansible.builtin.debug:
         msg:
-          - "Checkmk URL: http://{{ checkmk_server_ip }}/{{ checkmk_site }}"
+          - "Checkmk URL: https://{{ checkmk_server_fqdn }}/{{ checkmk_site }}"
           - "User: {{ checkmk_admin_user }}"
           - "Password: stored in vars/vault (not printed)"
 
 # Note: Agent registration
 - name: Install and register Checkmk agent
   when:
-    - inventory_hostname in groups['hosts']
-    - inventory_hostname not in groups['thinlinc1']
-    - inventory_hostname not in groups['thinlinc2']
+    - inventory_hostname in groups['checkmk_monitoring']
   block:
     - name: Set effective hostname for Checkmk registration
       ansible.builtin.set_fact:
@@ -157,6 +155,10 @@
           }}
       changed_when: false
 
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+      when: ansible_facts.os_family == "RedHat"
+
     - name: Open agent port 6556/tcp with firewalld (if available)
       ansible.posix.firewalld:
         zone: public
@@ -164,7 +166,10 @@
         permanent: true
         state: enabled
         immediate: true
-      when: ansible_facts.os_family == "RedHat"
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - "'firewalld.service' in ansible_facts.services"
+        - ansible_facts.services['firewalld.service'].state == "running"
 
     # UFW (Ubuntu default)
     - name: Allow 6556/tcp in UFW (Ubuntu/Debian, if ufw exists)
@@ -173,6 +178,44 @@
       register: ufw_allow
       changed_when: "'Rule added' in (ufw_allow.stdout | default('')) or 'Rules updated' in (ufw_allow.stdout | default(''))"
       failed_when: false
+
+    - name: Install HCEMM FreeIPA CA certificate
+      ansible.builtin.copy:
+        src: cluster-hcemm-ipa-ca.crt
+        dest: /etc/pki/ca-trust/source/anchors/cluster-hcemm-ipa-ca.crt
+        owner: root
+        group: root
+        mode: "0644"
+      register: checkmk_ca_cert
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Update system CA trust
+      ansible.builtin.command: update-ca-trust
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - checkmk_ca_cert.changed
+
+    - name: Ensure CA certificates package is installed
+      ansible.builtin.apt:
+        name: ca-certificates
+        state: present
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Install HCEMM FreeIPA CA certificate on Debian/Ubuntu
+      ansible.builtin.copy:
+        src: cluster-hcemm-ipa-ca.crt
+        dest: /usr/local/share/ca-certificates/cluster-hcemm-ipa-ca.crt
+        owner: root
+        group: root
+        mode: "0644"
+      register: checkmk_ca_cert_debian
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Update system CA trust on Debian/Ubuntu
+      ansible.builtin.command: update-ca-certificates
+      when:
+        - ansible_facts.os_family == "Debian"
+        - checkmk_ca_cert_debian.changed
 
     # RHEL/Alma path (RPM)
     - name: Install Checkmk agent on RHEL/Alma (RPM)

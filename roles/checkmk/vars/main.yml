@@ -24,17 +24,17 @@ checkmk_firewall_ports:
 
 # Agent packages (RHEL/Alma)
 checkmk_agent_rpm_filename: "check-mk-agent-{{ checkmk_version }}-1.noarch.rpm"
-checkmk_agent_rpm_url: "http://{{ checkmk_server_ip }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_rpm_filename }}"
+checkmk_agent_rpm_url: "https://{{ checkmk_server_fqdn }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_rpm_filename }}"
 checkmk_agent_rpm_dest: "/tmp/{{ checkmk_agent_rpm_filename }}"
 
 # Agent packages (Ubuntu)
 checkmk_agent_deb_filename: "check-mk-agent_{{ checkmk_version }}-1_all.deb"
-checkmk_agent_deb_url: "http://{{ checkmk_server_ip }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_deb_filename }}"
+checkmk_agent_deb_url: "https://{{ checkmk_server_fqdn }}/{{ checkmk_site }}/check_mk/agents/{{ checkmk_agent_deb_filename }}"
 checkmk_agent_deb_dest: "/tmp/{{ checkmk_agent_deb_filename }}"
 
 # Agent registration
 checkmk_register: true
-checkmk_register_server: "{{ checkmk_server_ip }}"
+checkmk_register_server: "{{ checkmk_server_fqdn }}"
 checkmk_register_site: "{{ checkmk_site }}"
 checkmk_register_user: "{{ checkmk_admin_user }}"
 checkmk_register_password_raw: "{{ checkmk_admin_password_raw }}"
