@@ -247,11 +247,6 @@
     name: qrencode
     state: present
 
-- name: Check admin keytab
-  ansible.builtin.stat:
-    path: /root/admin.keytab
-  register: admin_keytab
-
 - name: Deploy FreeIPA admin keytab
   ansible.builtin.copy:
     src: root/admin.keytab
@@ -260,7 +255,7 @@
     group: root
     mode: "0600"
     decrypt: true
-  when: not admin_keytab.stat.exists
+  diff: false
 
 - name: Deploy 2fa-setup script
   ansible.builtin.copy:
