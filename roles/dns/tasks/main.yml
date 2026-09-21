@@ -1,5 +1,6 @@
 ---
-# Configure ipv4 dns and search to 10.0.150.203 and cluster.hcemm.eu with nmcli for connection enp1s0
+# nmcli conn mod enp1s0 ipv4.dns 10.0.150.203
+# nmcli conn mod enp1s0 ipv4.dns-search cluster.hcemm.eu
 - name: Configure DNS and search domains with nmcli
   community.general.nmcli:
     conn_name: enp1s0

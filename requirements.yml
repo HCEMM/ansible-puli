@@ -16,3 +16,5 @@ roles:
   - name: galaxyproject.postgresql_objects
   - name: galaxyproject.postgresql
   - name: galaxyproject.galaxy
+  - name: galaxyproject.tusd
+  - name: galaxyproject.gxadmin   # used in Galaxy's cleanup and monitoring

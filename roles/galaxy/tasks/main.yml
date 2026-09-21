@@ -1,13 +1,9 @@
 ---
-- name: Install Python 3.11
-  ansible.builtin.dnf:
-    name:
-      - python3.11
-      - python3.11-pip
-      - python3.11-devel
-      - python3.11-setuptools
-      - python3.11-wheel
-    state: present
+# TODO - before the role can be run, python3.11 must be manually installed. I don't know how to circunvent this, while putting the interpreter on hosts.
+# Only alternative, I guess, is to specify the interpreter on every task, or in a block. But that sucks
+# dnf install -y python3.11 python3.11-pip python3.11-devel python3.11-setuptools python3.11-wheel
+# Also need to setup the fqdn, another thing to think about... probably should be included in the setup_vms
+# hostnamectl set-hostname galaxy1.cluster.hcemm.eu
 
 - name: Install dependencies for Galaxy
   ansible.builtin.dnf:
@@ -18,7 +14,7 @@
       # - virtualenv        # python3-venv - this one is set on the next tasks
       - python3-setuptools
       - python3-devel     # python3-dev
-      - python3-psycopg2
+      # - python3-psycopg2   # is always installing for python3.9, so we install psycopg2-binary with pip3.11 instead
       - gcc
       - acl
       - gnutls-utils      # gnutls-bin
@@ -30,12 +26,16 @@
       - unzip
       - tar
       - slurm-devel-ohpc
+      - tmpwatch
     state: present
 
-- name: Install virtualenv
+- name: Install missing dependencies on the pip environment
   ansible.builtin.pip:
-    name: virtualenv
-    executable: pip3
+    name:
+      - virtualenv
+      - psycopg2-binary
+      - ldap3
+    executable: pip3.11
 
 - name: Symbolic link for virtualenv
   ansible.builtin.file:
@@ -49,6 +49,8 @@
     permanent: true
     state: enabled
     immediate: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   loop:
     - 8080
     - 1080
@@ -59,6 +61,8 @@
     name: httpd_can_network_connect
     state: true
     persistent: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
 
 # - name: Mount /srv/galaxy
 #   ansible.posix.mount:
@@ -69,39 +73,105 @@
 #     state: mounted
 #     fstype: nfs
 
-- name: Include PostgreSQL role
-  ansible.builtin.include_role:
-    name: galaxyproject.postgresql
-    apply:
-      become: true
+# - name: Include PostgreSQL role
+#   ansible.builtin.include_role:
+#     name: galaxyproject.postgresql
+#     apply:
+#       become: true
 
-- name: Include PostgreSQL objects role
-  ansible.builtin.include_role:
-    name: galaxyproject.postgresql_objects
-    apply:
-      become: true
-      become_user: postgres
-  vars:
-    postgresql_objects_users:
-      - name: galaxy
-        password: null
-    postgresql_objects_databases:
-      - name: galaxy
-        owner: galaxy
-
-- name: Template config files
-  ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: "{{ galaxy_root }}/config/{{ item }}"
-    owner: "{{ galaxy_privsep_user }}"
-    group: "{{ galaxy_group }}"
-    mode: "{{ item.mode | default('0644') }}"
-  loop:
-    - auth_conf.xml
-    - themes.yml
+# - name: Include PostgreSQL objects role
+#   ansible.builtin.include_role:
+#     name: galaxyproject.postgresql_objects
+#     apply:
+#       become: true
+#       become_user: postgres
+#   vars:
+#     postgresql_objects_users:
+#       - name: galaxy
+#         password: null
+#     postgresql_objects_databases:
+#       - name: galaxy
+#         owner: galaxy
 
 - name: Include Galaxy role
   ansible.builtin.include_role:
     name: galaxyproject.galaxy
     apply:
       become: true
+
+- name: Include gxadmin role
+  ansible.builtin.include_role:
+    name: galaxyproject.gxadmin
+    apply:
+      become: true
+
+# Whenever gxadmin runs, it will create logs in /tmp/gxadmin
+- name: Setup gxadmin cleanup task
+  ansible.builtin.cron:
+    name: "Cleanup Old User Data"
+    user: "{{ galaxy_user }}"
+    minute: "0"
+    hour: "0"
+    job: "SHELL=/bin/bash source {{ galaxy_venv_dir }}/bin/activate && GALAXY_LOG_DIR=/tmp/gxadmin/ GALAXY_ROOT={{ galaxy_root }}/server GALAXY_CONFIG_FILE={{ galaxy_config_file }} /usr/local/bin/gxadmin galaxy cleanup 60"
+
+- name: Setup backup cron job
+  ansible.builtin.cron:
+    name: "Backup User Data"
+    minute: "0"
+    hour: "5,2"
+    job: "rsync -avr {{ galaxy_data_dir }} galaxy@{{ storage_ip }}:/backups/$(date -I)/"
+
+- name: Include tusd role
+  ansible.builtin.include_role:
+    name: galaxyproject.tusd
+
+#
+# The tasks here after came from debugging the Galaxy role. They are either missing pieces of the role, or we don't know what we are doing.
+#
+
+# semanage fcontext -a -t bin_t '/srv/galaxy/venv/bin(/.*)?'
+# restorecon -Rv /srv/galaxy/venv/bin
+- name: Ensure venv bin/ has bin_t SELinux context
+  community.general.sefcontext:
+    target: '/srv/galaxy/venv/bin(/.*)?'
+    setype: bin_t
+    state: present
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  notify: Restorecon venv bin
+
+# loginctl enable-linger galaxy
+- name: Enable systemd lingering for galaxy user
+  ansible.builtin.command: loginctl enable-linger galaxy
+  args:
+    creates: /var/lib/systemd/linger/galaxy
+
+# usermod -aG systemd-journal galaxy
+- name: Add galaxy user to systemd-journal group
+  ansible.builtin.user:
+    name: galaxy
+    groups: systemd-journal
+    append: true
+
+# TODO - Confirm later if these next tasks are needed, I don't think galaxy ever needs access to systemd, only to journalctl
+# - name: Get galaxy user's UID
+#   ansible.builtin.command: id -u galaxy
+#   register: galaxy_uid
+#   changed_when: false
+
+# - name: Create galaxy.service drop-in directory
+#   ansible.builtin.file:
+#     path: /etc/systemd/system/galaxy.service.d
+#     state: directory
+#     mode: '0755'
+
+# - name: Set XDG_RUNTIME_DIR override for galaxy.service
+#   ansible.builtin.copy:
+#     dest: /etc/systemd/system/galaxy.service.d/override.conf
+#     content: |
+#       [Service]
+#       Environment=XDG_RUNTIME_DIR=/run/user/{{ galaxy_uid.stdout }}
+#     mode: '0644'
+#   notify: Reload systemd and restart galaxy
+
+

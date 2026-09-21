@@ -1,10 +1,8 @@
-## This role is not working
-
 ### Troubleshoot
 
 If getting pesky errors in `galaxyproject.galaxy : Update Galaxy to specified ref` - especially git stuff - remove `/srv/galaxy/server`, and rerun the tasks.
 
-### Create PostGreSQL user and database
+#### Create PostGreSQL user and database
 
 ```
 sudo -u postgres psql
@@ -12,7 +10,7 @@ CREATE ROLE galaxy WITH LOGIN PASSWORD 'galaxy';
 ALTER ROLE galaxy CREATEDB;
 ```
 
-### Galaxy user cannot exist in LDAP
+#### Galaxy user cannot exist in LDAP
 
 Otherwise, we get the error
 ```
@@ -23,3 +21,4 @@ fatal: [galaxy1]: FAILED! => changed=false
   name: galaxy
   rc: 6
 ```
+

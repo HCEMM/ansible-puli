@@ -135,6 +135,7 @@
     - maintenance
   hosts:
     - login_nodes
+    - galaxy_server
   become: true
   gather_facts: true
   roles:

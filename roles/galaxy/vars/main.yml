@@ -1,25 +1,36 @@
+# https://github.com/galaxyproject/ansible-galaxy#best-practice
+galaxy_ip: 10.0.150.209
+galaxy_port: 8080
 galaxy_config_style: yaml
 galaxy_layout: root-dir
 galaxy_root: /srv/galaxy
-galaxy_commit_id: release_23.0
+galaxy_commit_id: release_26.1
+# galaxy_client_use_prebuilt: true     # to wonder if this would be helpful
 galaxy_separate_privileges: true
 galaxy_force_checkout: true
 galaxy_create_user: true
 galaxy_manage_paths: true
 galaxy_manage_systemd: true
+galaxy_manage_cleanup: true         # configure PostgreSQL and Galaxy cleanup tasks
 galaxy_user: galaxy
 galaxy_privsep_user: gxpriv
 galaxy_group: galaxy
 galaxy_server_dir: "{{ galaxy_root }}/server"
 galaxy_hcemm_logo_url: https://www.hcemm.eu/wp-content/uploads/2020/01/HCEMM_Logo_Slogan_TM_RGB.png
+galaxy_venv_dir: "{{ galaxy_root }}/venv"
+galaxy_data_dir: /mnt/galaxy/data
+galaxy_config_dir: "{{ galaxy_root }}/config"
+galaxy_config_file: "{{ galaxy_config_dir }}/galaxy.yml"    # this might be some default in the role, but who knows, let's be explicit
 
-galaxy_tus_upload_store: /data/tus
+# TUS
+galaxy_tus_upload_store: "{{ galaxy_data_dir }}/tus_uploads"
 galaxy_tusd_port: 1080
-# galaxy_tus_upload_store: /mnt/galaxy/tus_uploads
-# galaxy_base_dir: /home/{{ galaxy_user }}/galaxy
-# galaxy_tus_exec_dir: /home/{{ galaxy_user }}/bin/tusd
-# galaxy_config_dir: "{{ galaxy_base_dir }}/config"
 
+# PostgreSQL Backups
+postgresql_backup_dir: "{{ galaxy_data_dir }}/backups"
+postgresql_backup_local_dir: "{{ '~postgres' | expanduser }}/backups"
+
+# https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/galaxy.yml.sample
 galaxy_config:
   gravity:
     process_manager: systemd
@@ -46,6 +57,11 @@ galaxy_config:
       pool: threads
       memory_limit: 2
       loglevel: DEBUG
+    tusd:
+      enable: true
+      tusd_path: /usr/local/sbin/tusd
+      host: 0.0.0.0
+      upload_dir: "{{ galaxy_tus_upload_store }}"
     handlers:
       handler:
         processes: 2
@@ -54,6 +70,8 @@ galaxy_config:
           - workflow-schedulers
   galaxy:
     database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
+    data_dir: "{{ galaxy_data_dir }}"
+    galaxy_infrastructure_url: "http://{{ galaxy_ip }}:{{ galaxy_port }}"
     static_enabled: true
     admin_users:
       - Joao.Sequeira@hcemm.eu
@@ -61,3 +79,21 @@ galaxy_config:
     welcome_url: /static/welcome.html
     auth_config_file: auth_conf.xml
     themes_config_file: themes_conf.yml
+    tus_upload_store: "{{ galaxy_tus_upload_store }}"
+  job_config:
+    handling:
+      assign_with: db-skip-locked
+
+galaxy_extra_dirs:
+  - "{{ galaxy_data_dir }}"
+
+# Templates and files to be copied to the Galaxy server. No need for ansible.builtin.template or ansible.builtin.copy tasks, the Galaxy role handles that for us.
+# https://training.galaxyproject.org/training-material/topics/admin/tutorials/ansible-galaxy/tutorial.html#managing-configuration
+galaxy_config_files:
+  - src: files/welcome.html
+    dest: "{{ galaxy_root }}/server/static/welcome.html"
+galaxy_config_templates:
+  - src: templates/auth_conf.xml.j2
+    dest: "{{ galaxy_config_dir }}/auth_conf.xml"
+  - src: templates/themes.yml.j2
+    dest: "{{ galaxy_config_dir }}/themes.yml"

@@ -142,10 +142,6 @@
 
 # Note: Agent registration
 - name: Install and register Checkmk agent
-  when:
-    - inventory_hostname in groups['hosts']
-    - inventory_hostname not in groups['thinlinc1']
-    - inventory_hostname not in groups['thinlinc2']
   block:
     - name: Set effective hostname for Checkmk registration
       ansible.builtin.set_fact:

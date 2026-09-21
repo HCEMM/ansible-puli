@@ -3,3 +3,8 @@
   ansible.builtin.systemd:
     name: galaxyctl
     state: restarted
+
+# restorecon -Rv /srv/galaxy/venv/bin
+- name: Restorecon venv bin
+  ansible.builtin.command: restorecon -Rv /srv/galaxy/venv/bin
+  changed_when: true
