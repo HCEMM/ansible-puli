@@ -198,13 +198,7 @@
 
 - name: Setup Checkmk
   tags: checkmk
-  hosts:
-    - monitoring
-    - hosts
-    - ldap_servers
-    - login_nodes
-    - slurmctld
-    - galaxy_server
+  hosts: checkmk_monitoring
   become: true
   gather_facts: true
   roles:

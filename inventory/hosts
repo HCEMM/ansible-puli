@@ -86,6 +86,21 @@ all:
           hosts:
             doctorllm1:
 
+    checkmk_monitoring:
+      children:
+        sms:
+        slurmctld:
+        slurmdbd:
+        ldap_server:
+        login_nodes:
+        monitoring:
+        galaxy_server:
+        emma_server:
+        nginx_gateway:
+        guacamole_server:
+        vulnscan_server:
+        doctorllm_server:
+
     ldap:         # mostly to get the group_vars/ldap.yml
       children:
         ldap_server:
