@@ -35,6 +35,38 @@ cvmfs_role: client
 galaxy_cvmfs_repos_enabled: config-repo
 cvmfs_quota_limit: 500                    # https://training.galaxyproject.org/training-material/topics/admin/tutorials/cvmfs/tutorial.html#tip-what-is-a-good-size-for-this
 
+galaxy_job_config:
+  runners:
+    local_runner:
+      load: galaxy.jobs.runners.local:LocalJobRunner
+      workers: 4
+  handling:
+    assign: ['db-skip-locked']
+  execution:
+    default: singularity
+    environments:
+      local_env:
+        runner: local_runner
+        tmp_dir: true
+      singularity:
+        runner: local_runner
+        singularity_enabled: true
+        # Enabling access to the reference data on CVMFS in the container
+        singularity_volumes: $defaults,/cvmfs/data.galaxyproject.org:ro
+        env:
+          # Ensuring a consistent collation environment is good for reproducibility.
+          - name: LC_ALL
+            value: C
+          # The cache directory holds the docker containers that get converted
+          - name: APPTAINER_CACHEDIR
+            value: /tmp/singularity
+          # Apptainer uses a temporary directory to build the squashfs filesystem
+          - name: APPTAINER_TMPDIR
+            value: /tmp
+  tools:
+    - class: local # these special tools that aren't parameterized for remote execution - expression tools, upload, etc
+      environment: local_env
+
 # https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/galaxy.yml.sample
 galaxy_config:
   gravity:
@@ -93,9 +125,8 @@ galaxy_config:
     tool_data_table_config_path:
       - /cvmfs/data.galaxyproject.org/byhand/location/tool_data_table_conf.xml
       - /cvmfs/data.galaxyproject.org/managed/location/tool_data_table_conf.xml
-  job_config:
-    handling:
-      assign_with: db-skip-locked
+    dependency_resolvers_config_file: "{{ galaxy_config_dir }}/dependency_resolvers_conf.xml"
+    container_resolvers_config_file: "{{ galaxy_config_dir }}/container_resolvers_conf.yml"
 
 galaxy_extra_dirs:
   - "{{ galaxy_data_dir }}"
@@ -110,3 +141,7 @@ galaxy_config_templates:
     dest: "{{ galaxy_config_dir }}/auth_conf.xml"
   - src: templates/themes.yml.j2
     dest: "{{ galaxy_config_dir }}/themes.yml"
+  - src: templates/container_resolvers_conf.yml.j2
+    dest: "{{ galaxy_config.galaxy.container_resolvers_config_file }}"
+  - src: templates/dependency_resolvers_conf.xml.j2
+    dest: "{{ galaxy_config.galaxy.dependency_resolvers_config_file }}"

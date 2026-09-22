@@ -22,7 +22,6 @@
       - policycoreutils-python-utils      # for semanage
       - nfs-utils
       - golang                            # to build tusd
-      - apptainer
       - unzip
       - tar
       - slurm-devel-ohpc
@@ -93,6 +92,14 @@
       - name: galaxy
         owner: galaxy
 
+- name: Include tusd role
+  ansible.builtin.include_role:
+    name: galaxyproject.tusd
+
+- name: Include Apptainer role
+  ansible.builtin.include_role:
+    name: usegalaxy_eu.apptainer
+
 - name: Include Galaxy role
   ansible.builtin.include_role:
     name: galaxyproject.galaxy
@@ -120,10 +127,6 @@
     minute: "0"
     hour: "5,2"
     job: "rsync -avr {{ galaxy_data_dir }} galaxy@{{ storage_ip }}:/backups/$(date -I)/"
-
-- name: Include tusd role
-  ansible.builtin.include_role:
-    name: galaxyproject.tusd
 
 - name: Include CVMFS role
   ansible.builtin.include_role:
