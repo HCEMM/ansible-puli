@@ -17,4 +17,5 @@ roles:
   - name: galaxyproject.postgresql
   - name: galaxyproject.galaxy
   - name: galaxyproject.tusd
-  - name: galaxyproject.gxadmin   # used in Galaxy's cleanup and monitoring
+  - name: galaxyproject.gxadmin               # used in Galaxy's cleanup and monitoring
+  - name: galaxyproject.cvmfs                 # https://training.galaxyproject.org/training-material/topics/admin/tutorials/cvmfs/tutorial.html

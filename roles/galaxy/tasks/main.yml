@@ -73,25 +73,25 @@
 #     state: mounted
 #     fstype: nfs
 
-# - name: Include PostgreSQL role
-#   ansible.builtin.include_role:
-#     name: galaxyproject.postgresql
-#     apply:
-#       become: true
+- name: Include PostgreSQL role
+  ansible.builtin.include_role:
+    name: galaxyproject.postgresql
+    apply:
+      become: true
 
-# - name: Include PostgreSQL objects role
-#   ansible.builtin.include_role:
-#     name: galaxyproject.postgresql_objects
-#     apply:
-#       become: true
-#       become_user: postgres
-#   vars:
-#     postgresql_objects_users:
-#       - name: galaxy
-#         password: null
-#     postgresql_objects_databases:
-#       - name: galaxy
-#         owner: galaxy
+- name: Include PostgreSQL objects role
+  ansible.builtin.include_role:
+    name: galaxyproject.postgresql_objects
+    apply:
+      become: true
+      become_user: postgres
+  vars:
+    postgresql_objects_users:
+      - name: galaxy
+        password: null
+    postgresql_objects_databases:
+      - name: galaxy
+        owner: galaxy
 
 - name: Include Galaxy role
   ansible.builtin.include_role:
@@ -125,9 +125,11 @@
   ansible.builtin.include_role:
     name: galaxyproject.tusd
 
-#
+- name: Include CVMFS role
+  ansible.builtin.include_role:
+    name: galaxyproject.cvmfs
+
 # The tasks here after came from debugging the Galaxy role. They are either missing pieces of the role, or we don't know what we are doing.
-#
 
 # semanage fcontext -a -t bin_t '/srv/galaxy/venv/bin(/.*)?'
 # restorecon -Rv /srv/galaxy/venv/bin
@@ -147,11 +149,11 @@
     creates: /var/lib/systemd/linger/galaxy
 
 # usermod -aG systemd-journal galaxy
-- name: Add galaxy user to systemd-journal group
-  ansible.builtin.user:
-    name: galaxy
-    groups: systemd-journal
-    append: true
+# - name: Add galaxy user to systemd-journal group
+#   ansible.builtin.user:
+#     name: galaxy
+#     groups: systemd-journal
+#     append: true
 
 # TODO - Confirm later if these next tasks are needed, I don't think galaxy ever needs access to systemd, only to journalctl
 # - name: Get galaxy user's UID

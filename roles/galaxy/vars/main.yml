@@ -30,6 +30,11 @@ galaxy_tusd_port: 1080
 postgresql_backup_dir: "{{ galaxy_data_dir }}/backups"
 postgresql_backup_local_dir: "{{ '~postgres' | expanduser }}/backups"
 
+# CVMFS vars
+cvmfs_role: client
+galaxy_cvmfs_repos_enabled: config-repo
+cvmfs_quota_limit: 500                    # https://training.galaxyproject.org/training-material/topics/admin/tutorials/cvmfs/tutorial.html#tip-what-is-a-good-size-for-this
+
 # https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/galaxy.yml.sample
 galaxy_config:
   gravity:
@@ -69,6 +74,11 @@ galaxy_config:
           - job-handlers
           - workflow-schedulers
   galaxy:
+    brand: HCEMM
+    logo_src: "{{ galaxy_hcemm_logo_url }}"
+    # TODO - complete these URLs with the actual ones for HCEMM
+    # support_url: "https://example.org/support"
+    # terms_url: "https://example.org/terms-of-service"
     database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
     data_dir: "{{ galaxy_data_dir }}"
     galaxy_infrastructure_url: "http://{{ galaxy_ip }}:{{ galaxy_port }}"
@@ -78,8 +88,11 @@ galaxy_config:
       - Alessandra.Vittorini@hcemm.eu
     welcome_url: /static/welcome.html
     auth_config_file: auth_conf.xml
-    themes_config_file: themes_conf.yml
     tus_upload_store: "{{ galaxy_tus_upload_store }}"
+    # CVMFS
+    tool_data_table_config_path:
+      - /cvmfs/data.galaxyproject.org/byhand/location/tool_data_table_conf.xml
+      - /cvmfs/data.galaxyproject.org/managed/location/tool_data_table_conf.xml
   job_config:
     handling:
       assign_with: db-skip-locked
