@@ -106,7 +106,7 @@ galaxy_config:
           - job-handlers
           - workflow-schedulers
   galaxy:
-    brand: HCEMM
+    brand: Hungarian Center of Excellence for Molecular Medicine
     logo_src: "{{ galaxy_hcemm_logo_url }}"
     # TODO - complete these URLs with the actual ones for HCEMM
     # support_url: "https://example.org/support"
@@ -123,10 +123,41 @@ galaxy_config:
     tus_upload_store: "{{ galaxy_tus_upload_store }}"
     # CVMFS
     tool_data_table_config_path:
+      - /srv/galaxy/server/config/tool_data_table_conf.xml.sample
+      - /srv/galaxy/var/config/shed_tool_data_table_conf.xml
       - /cvmfs/data.galaxyproject.org/byhand/location/tool_data_table_conf.xml
       - /cvmfs/data.galaxyproject.org/managed/location/tool_data_table_conf.xml
     dependency_resolvers_config_file: "{{ galaxy_config_dir }}/dependency_resolvers_conf.xml"
     container_resolvers_config_file: "{{ galaxy_config_dir }}/container_resolvers_conf.yml"
+    job_config: "{{ galaxy_job_config }}"
+    # SQL Performance
+    slow_query_log_threshold: 5
+    enable_per_request_sql_debugging: true
+    # # File serving Performance
+    # nginx_x_accel_redirect_base: /_x_accel_redirect
+    # Automation / Ease of Use / User-facing features
+    watch_job_rules: 'auto'
+    allow_path_paste: true
+    enable_quotas: true
+    allow_user_deletion: true
+    show_welcome_with_login: true
+    expose_user_name: true
+    expose_dataset_path: true
+    expose_potentially_sensitive_job_metrics: true
+    # NFS workarounds
+    retry_job_output_collection: 3
+    # Debugging
+    cleanup_job: onsuccess
+    allow_user_impersonation: true
+    # Tool security
+    outputs_to_working_directory: true
+    new_user_dataset_access_role_default_private: true # Make datasets private by default
+    # SMTP
+    smtp_server: "{{ smtp_server }}"
+    smtp_username: "{{ smtp_username }}"
+    smtp_password: "{{ smtp_password }}"
+    error_email_to: "Joao.Sequeira@hcemm.eu"
+    email_from: "HCEMM Galaxy <galaxy@hcemm.eu>"
 
 galaxy_extra_dirs:
   - "{{ galaxy_data_dir }}"
