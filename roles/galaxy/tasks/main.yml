@@ -105,6 +105,8 @@
     name: galaxyproject.galaxy
     apply:
       become: true
+  tags:
+    - want_to_run
 
 - name: Include gxadmin role
   ansible.builtin.include_role:
@@ -179,4 +181,8 @@
 #     mode: '0644'
 #   notify: Reload systemd and restart galaxy
 
-
+- name: Clone libraries-training-repo
+  ansible.builtin.git:
+    repo: 'https://github.com/usegalaxy-eu/libraries-training-repo'
+    dest: /libraries/
+    version: c778383
