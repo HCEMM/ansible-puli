@@ -105,8 +105,6 @@
     name: galaxyproject.galaxy
     apply:
       become: true
-  tags:
-    - want_to_run
 
 - name: Include gxadmin role
   ansible.builtin.include_role:
@@ -186,3 +184,7 @@
     repo: 'https://github.com/usegalaxy-eu/libraries-training-repo'
     dest: /libraries/
     version: c778383
+
+- name: Include TPV auto lint role
+  ansible.builtin.include_role:
+    name: usegalaxy_eu.tpv_auto_lint

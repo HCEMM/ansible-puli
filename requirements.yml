@@ -20,3 +20,4 @@ roles:
   - name: galaxyproject.gxadmin               # used in Galaxy's cleanup and monitoring
   - name: galaxyproject.cvmfs                 # https://training.galaxyproject.org/training-material/topics/admin/tutorials/cvmfs/tutorial.html
   - name: usegalaxy_eu.apptainer
+  - name: usegalaxy_eu.tpv_auto_lint          # https://training.galaxyproject.org/training-material/topics/admin/tutorials/job-destinations/tutorial.html#safeguard-tpv-linting

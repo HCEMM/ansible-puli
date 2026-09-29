@@ -74,6 +74,7 @@
     - krb5-workstation
     - bind-utils
     - polkit
+    - ftp
   when:
     - inventory_hostname in groups['sms']
   # notify:  -> not valid in include_tasks    # TODO: maybe not necessary to trigger these handlers for every package, but only when this whole playbook is run
