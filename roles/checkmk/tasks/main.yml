@@ -281,7 +281,6 @@
         - checkmk_register | bool
         - cmk_agent_status.rc != 0 or ('Registered' not in (cmk_agent_status.stdout | default('')))
       changed_when: true
-      no_log: true
 
 - name: Deploy Checkmk local checks for KDC port monitoring
   when:

@@ -1,5 +1,5 @@
 - name: Create VM if it doesn't exist
-  when: "vm_name not in existing_vms.list_vms"
+  when: vm_name not in existing_vms.list_vms
   block:
     - name: Create qcow2 disk
       ansible.builtin.command: >

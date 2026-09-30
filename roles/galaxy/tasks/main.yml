@@ -106,6 +106,26 @@
     apply:
       become: true
 
+- name: Include Docker role
+  ansible.builtin.include_role:
+    name: geerlingguy.docker
+
+- name: Copy RabbitMQ SSL certificates to the Galaxy server
+  ansible.builtin.copy:
+    src: "files/ssl_rabbitmq/{{ item }}"
+    dest: "/etc/ssl/rabbitmq/{{ item }}"
+    owner: 999
+    group: 999
+    mode: '0644'
+  loop:
+    - ca.crt
+    - rabbitmq.crt
+    - rabbitmq.key
+
+- name: Include RabbitMQ role
+  ansible.builtin.include_role:
+    name: usegalaxy_eu.rabbitmqserver
+
 - name: Include gxadmin role
   ansible.builtin.include_role:
     name: galaxyproject.gxadmin

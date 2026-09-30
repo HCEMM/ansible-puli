@@ -21,3 +21,6 @@ roles:
   - name: galaxyproject.cvmfs                 # https://training.galaxyproject.org/training-material/topics/admin/tutorials/cvmfs/tutorial.html
   - name: usegalaxy_eu.apptainer
   - name: usegalaxy_eu.tpv_auto_lint          # https://training.galaxyproject.org/training-material/topics/admin/tutorials/job-destinations/tutorial.html#safeguard-tpv-linting
+  - name: geerlingguy.docker                  # Docker for RabbitMQ
+  - name: usegalaxy_eu.rabbitmqserver         # RabbitMQ for Pulsar
+  - name: galaxyproject.pulsar                # Pulsar for Galaxy

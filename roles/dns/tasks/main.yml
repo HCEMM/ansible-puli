@@ -9,3 +9,5 @@
       - "{{ ldap_vm_ip }}"
     dns4_search:
       - "{{ ldap_domain }}"
+  notify:
+    - Restart NetworkManager

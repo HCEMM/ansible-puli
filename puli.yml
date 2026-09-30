@@ -17,7 +17,8 @@
     - login1
     - login_nodes
     - galaxy_server
-    #- emma_server
+    # - emma_server
+    - pulsar_server
   become: true
   gather_facts: true
   roles:
@@ -31,6 +32,7 @@
     - slurmctld
     - nginx
     - galaxy_server
+    - pulsar_server
   become: true
   gather_facts: true
   roles:
@@ -44,6 +46,7 @@
     # - sms
     # - slurmctld
     - galaxy_server
+    - pulsar_server
   any_errors_fatal: true
   become: true
   gather_facts: true
@@ -107,7 +110,7 @@
     - slurmctld
     - slurmdbd
     - login_nodes
-    - galaxy_server
+    - pulsar_server
   become: true
   gather_facts: true
   roles:
@@ -181,6 +184,7 @@
   hosts:
     - sms
     - login_nodes
+    - pulsar_server
   become: true
   gather_facts: true
   roles:
