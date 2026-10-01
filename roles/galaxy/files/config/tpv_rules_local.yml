@@ -25,6 +25,14 @@ tools:
         cores: int(job.get_param_values(app)['__job_resource']['cores'])
         params:
           walltime: "{int(job.get_param_values(app)['__job_resource']['time'])}"
+  .*/bwa/.*:
+    scheduling:
+      require:
+        - pulsar
+  .*/bwa_mem/.*:
+    scheduling:
+      require:
+        - pulsar
 
 destinations:
   local_env:
@@ -58,3 +66,18 @@ destinations:
     max_mem: 8
     params:
       native_specification: --nodes=1 --ntasks=1 --cpus-per-task={cores} --mem={round(mem*1024)} --time={entity.params['walltime']}:00:00
+  pulsar:
+    runner: pulsar_runner
+    params:
+      default_file_action: remote_transfer
+      dependency_resolution: remote
+      # TODO: change these to shared variables with the pulsar
+      jobs_directory: /mnt/pulsar/var/staging
+      persistence_directory: /mnt/pulsar/var/persisted_data
+      remote_metadata: false
+      rewrite_parameters: true
+      transport: curl
+      outputs_to_working_directory: false
+    scheduling:
+      require:
+        - pulsar

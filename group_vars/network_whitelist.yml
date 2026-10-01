@@ -1,4 +1,3 @@
-# group_vars/all/network_whitelist.yml
 hcemm_network_whitelist:
   reason: "HCEMM trusted networks"
   ip:

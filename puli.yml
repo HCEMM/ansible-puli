@@ -219,9 +219,19 @@
   roles:
     - guacamole
 
+- name: Setup Pulsar
+  tags: pulsar
+  hosts:
+    - pulsar_server
+  become: true
+  gather_facts: true
+  roles:
+    - pulsar
+
 - name: Setup Galaxy
   tags: galaxy
-  hosts: galaxy_server
+  hosts:
+    - galaxy_server
   become: true
   gather_facts: true
   roles:

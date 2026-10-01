@@ -1,0 +1,3 @@
+- name: Restorecon venv bin
+  ansible.builtin.command: restorecon -Rv /mnt/pulsar/venv/bin
+  changed_when: false

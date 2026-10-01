@@ -1,0 +1,41 @@
+---
+- name: Install Pulsar dependencies
+  ansible.builtin.dnf:
+    name:
+      - "@Development Tools"    # build-essential
+      - python3-devel           # python3-dev
+      - libcurl-devel           # libcurl4-openssl-dev
+      - openssl-devel           # libssl-dev
+      - virtualenv
+      # - python3-venv
+    state: present
+    update_cache: true
+
+- name: Install missing dependencies on the pip environment
+  ansible.builtin.pip:
+    name:
+      - virtualenv
+    executable: pip3.11
+
+- name: Symbolic link for virtualenv
+  ansible.builtin.file:
+    src: /usr/local/bin/virtualenv
+    dest: /usr/local/sbin/virtualenv
+    state: link
+
+# - name: Include CVMFS role
+#   ansible.builtin.include_role:
+#     name: galaxyproject.cvmfs
+
+- name: Ensure venv bin/ has bin_t SELinux context
+  community.general.sefcontext:
+    target: '/mnt/pulsar/venv/bin(/.*)?'
+    setype: bin_t
+    state: present
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  notify: Restorecon venv bin
+
+- name: Include Pulsar role
+  ansible.builtin.include_role:
+    name: galaxyproject.pulsar

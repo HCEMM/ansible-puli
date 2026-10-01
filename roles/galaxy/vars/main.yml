@@ -1,6 +1,7 @@
 # https://github.com/galaxyproject/ansible-galaxy#best-practice
 galaxy_ip: 10.0.150.209
 galaxy_port: 8080
+galaxy_url: https://galaxy.hcemm.eu
 galaxy_config_style: yaml
 galaxy_layout: root-dir
 galaxy_root: /srv/galaxy
@@ -15,6 +16,7 @@ galaxy_manage_cleanup: true         # configure PostgreSQL and Galaxy cleanup ta
 galaxy_user: galaxy
 galaxy_privsep_user: gxpriv
 galaxy_group: galaxy
+__galaxy_user_group: "{{ galaxy_group }}"   # for some reason, TPV needs this
 galaxy_server_dir: "{{ galaxy_root }}/server"
 galaxy_hcemm_logo_url: https://www.hcemm.eu/wp-content/uploads/2020/01/HCEMM_Logo_Slogan_TM_RGB.png
 galaxy_venv_dir: "{{ galaxy_root }}/venv"
@@ -46,6 +48,16 @@ galaxy_job_config:
     local_runner:
       load: galaxy.jobs.runners.local:LocalJobRunner
       workers: 4
+    pulsar_runner:
+      load: galaxy.jobs.runners.pulsar:PulsarMQJobRunner
+      amqp_url: "pyamqp://pulsar_au:{{ vault_rabbitmq_password_vhost }}@localhost:5671/{{ rabbitmq_vhosts[0] }}?ssl=1"
+      amqp_acknowledge: true
+      amqp_ack_republish_time: 1200
+      amqp_consumer_timeout: 2
+      amqp_publish_retry: true
+      amqp_publish_retry_max_retries: 60
+      galaxy_url: "{{ galaxy_url }}"
+      manager: _default_
   handling:
     assign: ['db-skip-locked']
   execution:

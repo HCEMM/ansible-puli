@@ -1,3 +1,7 @@
+# Should be put on secrets.yml
+vault_rabbitmq_password_vhost: "{{ checkmk_password }}"
+vault_rabbitmq_admin_password: "{{ root_password_raw }}"
+
 # Install pip docker package for ansible
 pip_install_packages:
   - name: docker
@@ -41,7 +45,3 @@ rabbitmq_users:
   - user: pulsar_au
     password: "{{ vault_rabbitmq_password_vhost }}"
     vhost: /pulsar/pulsar_au
-
-# Should be put on secrets.yml
-vault_rabbitmq_password_vhost: "{{ checkmk_password }}"
-vault_rabbitmq_admin_password: "{{ root_password_raw }}"
