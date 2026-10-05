@@ -1,13 +1,15 @@
 ---
 # for ((i=0; i<$num_computes; i++)) ; do
-#   wwctl node add --image=almalinux-9 --profile=nodes --netname=default \
-#   --ipaddr=${c_ip[$i]} --hwaddr=${c_mac[$i]} ${c_name[i]}
+#   wwctl node add --image=${image[$i]} --profile=nodes ${c_name[$i]}
 # done
 - name: Get current node list
   ansible.builtin.command: wwctl node list
   register: wwctl_node_list
   changed_when: false
+  check_mode: false
 
+# Prevent duplicate nodes caused by 10g/10G hostname case differences.
+# Existing nodes are accepted; new nodes use the standardized 10G naming.
 - name: Initialize extracted node names list
   ansible.builtin.set_fact:
     extracted_node_names: []
@@ -18,19 +20,57 @@
   loop: "{{ wwctl_node_list.stdout_lines }}"
   when: item is search('^scc-')  # skip headers
 
+- name: Normalize existing node names for comparison
+  ansible.builtin.set_fact:
+    extracted_node_names_lower: "{{ extracted_node_names | map('lower') | list }}"
+
+# Map lowercase node names to their actual Warewulf names.
+# Existing nodes keep their current name; new nodes use the standardized 10G name.
+- name: Initialize existing node name map
+  ansible.builtin.set_fact:
+    existing_node_name_map: {}
+
+- name: Initialize compute node map
+  ansible.builtin.set_fact:
+    compute_node_map: {}
+
+- name: Build compute node map
+  ansible.builtin.set_fact:
+    compute_node_map: >-
+      {{
+        compute_node_map
+        | combine({ (item.c_name | lower): item })
+      }}
+  loop: "{{ compute_nodes }}"
+
+- name: Build existing node name map
+  ansible.builtin.set_fact:
+    existing_node_name_map: >-
+      {{
+        existing_node_name_map
+        | combine({ (item | lower): item })
+      }}
+  loop: "{{ extracted_node_names }}"
+
+- name: Initialize nodes to add list
+  ansible.builtin.set_fact:
+    nodes_to_add_filtered: []
+
 - name: Filter nodes that are not yet present
   ansible.builtin.set_fact:
-    nodes_to_add_filtered: >-
-      {{ compute_nodes | rejectattr('c_name', 'in', extracted_node_names) | list }}
+    nodes_to_add_filtered: "{{ nodes_to_add_filtered + [item] }}"
+  loop: "{{ compute_nodes }}"
+  loop_control:
+    label: "{{ item.c_name }}"
+  when:
+    - (item.c_name | lower) not in extracted_node_names_lower
 
+# wwctl node add --image=${image} --profile=nodes ${c_name}
 - name: Add node if it does not exist
   ansible.builtin.command: >
     wwctl node add
-    --image=almalinux-9
+    --image={{ item.image }}
     --profile=nodes
-    --netname=default
-    --ipaddr={{ item.c_ip }}
-    --hwaddr={{ item.c_mac }}
     {{ item.c_name }}
   loop: "{{ nodes_to_add_filtered }}"
   loop_control:
@@ -40,9 +80,145 @@
   when:
     - inventory_hostname in groups['sms']
 
-- name: Trigger overlay/configure after node add
+# wwctl node list ${actual_node_name} -a
+- name: Get current node network configuration
+  ansible.builtin.command:
+    cmd: >-
+      wwctl node list
+      {{ existing_node_name_map.get(item.c_name | lower, item.c_name) }}
+      -a
+  loop: "{{ compute_nodes }}"
+  loop_control:
+    label: "{{ item.c_name }}"
+  register: current_node_configs
+  changed_when: false
+  check_mode: false
+  when:
+    - inventory_hostname in groups['sms']
+
+# Parse Warewulf network fields into a FIELD -> VALUE map.
+# This allows exact comparison of each network setting instead of
+# checking whether a value appears somewhere in the command output.
+- name: Initialize current node network fields
   ansible.builtin.set_fact:
-    overlay_needs_rebuild: nodes_to_add_filtered | length > 0
+    current_node_fields: {}
+
+- name: Build current node network fields
+  ansible.builtin.set_fact:
+    current_node_fields: >-
+      {%- set ns = namespace(fields={}) -%}
+      {%- for line in item.stdout_lines -%}
+        {%- if 'NetDevs[' in line or 'PrimaryNetDev' in line -%}
+          {%- set parts = line.split() -%}
+          {%- if parts | length >= 4 -%}
+            {%- set _ = ns.fields.update({parts[1]: parts[3]}) -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{
+        current_node_fields
+        | combine({
+            (item.item.c_name | lower): ns.fields
+          })
+      }}
+  loop: "{{ current_node_configs.results }}"
+  loop_control:
+    label: "{{ item.item.c_name }}"
+
+# wwctl node set -y ${c_name} --netname=bond0 --netdev=bond0 --type=Bond \
+#   --ipaddr=${c_ip} --netmask=${internal_netmask} --gateway=${ipv4_gateway} \
+#   --nettagadd=DNS=${bridge_dns} --nettagadd=miimon=${bond_miimon} \
+#   --nettagadd=mode=${bond_mode} --nettagadd=xmit_hash_policy=${bond_xmit_hash_policy}
+- name: Configure bond interface when required
+  ansible.builtin.command: >
+    wwctl node set -y
+    {{ existing_node_name_map.get(item.item.c_name | lower, item.item.c_name) }}
+    --netname={{ bond_name }}
+    --netdev={{ bond_name }}
+    --type=Bond
+    --ipaddr={{ item.item.c_ip }}
+    --netmask={{ internal_netmask }}
+    --gateway={{ ipv4_gateway }}
+    --nettagadd=DNS={{ bridge_dns }}
+    --nettagadd=miimon={{ bond_miimon }}
+    --nettagadd=mode={{ bond_mode }}
+    --nettagadd=xmit_hash_policy={{ bond_xmit_hash_policy }}
+  loop: "{{ current_node_configs.results }}"
+  loop_control:
+    label: "{{ item.item.c_name }}"
+  register: bond_config_result
+  when:
+    - inventory_hostname in groups['sms']
+    - >
+      current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Type', '') != 'Bond'
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Device', '') != bond_name
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Ipaddr', '') != item.item.c_ip
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Netmask', '') != internal_netmask
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Gateway', '') != ipv4_gateway
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[DNS]', '') != bridge_dns
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[miimon]', '') != (bond_miimon | string)
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[mode]', '') != bond_mode
+      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[xmit_hash_policy]', '') != bond_xmit_hash_policy
+
+# wwctl node set -y ${c_name} --netname=${nic} --netdev=${nic} \
+#   --hwaddr=${mac} --nettagadd=master=bond0
+# The first NIC also keeps the node IP/netmask used for provisioning/PXE.
+- name: Configure physical bond members when required
+  ansible.builtin.command: >
+    wwctl node set -y
+    {{ existing_node_name_map.get(item.0.c_name | lower, item.0.c_name) }}
+    --netname={{ item.1.name }}
+    --netdev={{ item.1.name }}
+    --hwaddr={{ item.1.mac }}
+    --nettagadd=master={{ bond_name }}
+    {% if item.1.name == item.0.bond_members[0].name %}
+    --ipaddr={{ item.0.c_ip }}
+    --netmask={{ internal_netmask }}
+    {% endif %}
+  loop: "{{ compute_nodes | subelements('bond_members') }}"
+  loop_control:
+    label: "{{ item.0.c_name }} -> {{ item.1.name }}"
+  register: physical_nic_config_result
+  when:
+    - inventory_hostname in groups['sms']
+    - >
+      current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Device', '') != item.1.name
+      or (current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Hwaddr', '') | lower) != (item.1.mac | lower)
+      or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Tags[master]', '') != bond_name
+      or (
+        item.1.name == item.0.bond_members[0].name
+        and (
+          current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Ipaddr', '') != item.0.c_ip
+          or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Netmask', '') != internal_netmask
+        )
+      )
+
+# wwctl node set -y ${c_name} --primarynet=${first_bond_member}
+- name: Configure primary network interface when required
+  ansible.builtin.command: >
+    wwctl node set -y
+    {{ existing_node_name_map.get(item.c_name | lower, item.c_name) }}
+    --primarynet={{ item.bond_members[0].name }}
+  loop: "{{ compute_nodes }}"
+  loop_control:
+    label: "{{ item.c_name }} -> {{ item.bond_members[0].name }}"
+  register: primary_net_config_result
+  when:
+    - inventory_hostname in groups['sms']
+    - current_node_fields.get(item.c_name | lower, {}).get('PrimaryNetDev', '') != item.bond_members[0].name
+
+- name: Trigger overlay/configure after node or network config change
+  ansible.builtin.set_fact:
+    overlay_needs_rebuild: >-
+      {{
+        (nodes_to_add_filtered | length > 0)
+        or
+        (bond_config_result is changed)
+        or
+        (physical_nic_config_result is changed)
+        or
+        (primary_net_config_result is changed)
+      }}
 
 # wwctl overlay build
 - name: Build overlays if node config changed
@@ -57,12 +233,14 @@
   when: overlay_needs_rebuild
 
 # for ((i=0; i<${num_computes}; i++)) ; do
-#   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} -P ${bmc_password} chassis power reset
+#   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} \
+#     -P ${bmc_password} chassis power reset
 # done
 - name: Get WW node status
   ansible.builtin.command: wwctl node status
   register: node_status
   changed_when: false
+  check_mode: false
 
 - name: Find nodes that are missing or stale
   ansible.builtin.set_fact:
@@ -72,19 +250,32 @@
         | select('match', '^scc-')
         | map('split')
         | selectattr('3', 'defined')
-        | selectattr('3', 'in', ['--'] + (range(finalize_provision_node_lastseen_threshold, 1000000) | map('string') | list))
+        | selectattr(
+            '3',
+            'in',
+            ['--']
+            + (
+                range(finalize_provision_node_lastseen_threshold, 1000000)
+                | map('string')
+                | list
+              )
+          )
         | map(attribute=0)
         | list
       }}
 
 - name: Reset non-available nodes
   ansible.builtin.command: >
-    ipmitool -E -I lanplus -H {{ (compute_nodes | selectattr('c_name', 'equalto', item) | first).c_bmc }}
-    -U {{ bmc_username }} -P {{ bmc_password }} chassis power reset
+    ipmitool -E -I lanplus
+    -H {{ compute_node_map[item | lower].c_bmc }}
+    -U {{ bmc_username }}
+    -P {{ bmc_password }}
+    chassis power reset
   loop: "{{ nodes_to_reset }}"
   loop_control:
     label: "{{ item }}"
   changed_when: nodes_to_reset | length > 0
   when:
     - nodes_to_reset | length > 0
-    - ( inventory_hostname in groups['sms'] )
+    - (item | lower) in compute_node_map
+    - inventory_hostname in groups['sms']

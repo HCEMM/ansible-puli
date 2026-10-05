@@ -1,0 +1,14 @@
+---
+# nmcli connection up bond0
+- name: Bring up LACP bond
+  community.general.nmcli:
+    conn_name: "{{ bond_name }}"
+    state: up
+  listen: Activate SMS network
+
+# nmcli connection up br0
+- name: Bring up bridge
+  community.general.nmcli:
+    conn_name: "{{ bridge_name }}"
+    state: up
+  listen: Activate SMS network
