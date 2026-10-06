@@ -1,4 +1,9 @@
 ---
+# TODO - before the role can be run, python3.11 must be manually installed. I don't know how to circunvent this, while putting the interpreter on hosts.
+# Only alternative, I guess, is to specify the interpreter on every task, or in a block. But that sucks
+# dnf install -y python3.11 python3.11-pip python3.11-devel python3.11-setuptools python3.11-wheel
+# Also need to setup the fqdn, another thing to think about... probably should be included in the setup_vms
+# hostnamectl set-hostname galaxy1.cluster.hcemm.eu
 - name: Install Pulsar dependencies
   ansible.builtin.dnf:
     name:
@@ -23,9 +28,12 @@
     dest: /usr/local/sbin/virtualenv
     state: link
 
-# - name: Include CVMFS role
-#   ansible.builtin.include_role:
-#     name: galaxyproject.cvmfs
+- name: Include CVMFS role
+  ansible.builtin.include_role:
+    name: galaxyproject.cvmfs
+  vars:
+    cvmfs_role: client
+    galaxy_cvmfs_repos_enabled: config-repo
 
 - name: Ensure venv bin/ has bin_t SELinux context
   community.general.sefcontext:
@@ -35,6 +43,46 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   notify: Restorecon venv bin
+
+- name: Fetch RabbitMQ certificates from galaxy1
+  ansible.builtin.fetch:
+    src: "/etc/ssl/rabbitmq/{{ item }}"
+    dest: /tmp/rabbitmq-certs/
+    flat: true
+  delegate_to: galaxy1
+  with_items:
+    - ca.crt
+    - rabbitmq.crt
+    - rabbitmq.key
+
+- name: Create RabbitMQ certs directory on pulsar1
+  ansible.builtin.file:
+    path: /etc/ssl/rabbitmq
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy RabbitMQ CA certificate to pulsar1
+  ansible.builtin.copy:
+    src: "/tmp/rabbitmq-certs/{{ item }}"
+    dest: "/etc/ssl/rabbitmq/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - ca.crt
+    - rabbitmq.crt
+    - rabbitmq.key
+
+- name: Install RabbitMQ CA into system trust
+  ansible.builtin.copy:
+    src: "/tmp/rabbitmq-certs/ca.crt"
+    dest: "/etc/pki/ca-trust/source/anchors/ca.crt"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Update CA trust
 
 - name: Include Pulsar role
   ansible.builtin.include_role:

@@ -71,7 +71,7 @@ destinations:
     params:
       default_file_action: remote_transfer
       dependency_resolution: remote
-      # TODO: change these to shared variables with the pulsar
+      # TODO: change these to shared variables with the pulsar role
       jobs_directory: /mnt/pulsar/var/staging
       persistence_directory: /mnt/pulsar/var/persisted_data
       remote_metadata: false

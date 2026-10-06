@@ -1,3 +1,7 @@
 - name: Restorecon venv bin
   ansible.builtin.command: restorecon -Rv /mnt/pulsar/venv/bin
   changed_when: false
+
+- name: Update CA trust
+  ansible.builtin.command: update-ca-trust extract
+  changed_when: true
