@@ -77,6 +77,12 @@ all:
         guacamole_server:
           hosts:
             guacamole1:
+        
+        pulsar_server:
+          hosts:
+            pulsar1:
+          vars:
+            ansible_python_interpreter: /usr/bin/python3.11     # as opposed to the default python 3.9 from AlmaLinux 9
 
         vulnscan_server:
           hosts:
@@ -100,6 +106,7 @@ all:
         guacamole_server:
         vulnscan_server:
         doctorllm_server:
+        pulsar_server:
 
     ldap:         # mostly to get the group_vars/ldap.yml
       children:
@@ -107,10 +114,11 @@ all:
         guacamole_server:
         login_nodes:
         sms:
-        galaxy_server:
         nginx:    # just for the DNS
         slurmctld:
         doctorllm_server:
+        galaxy_server:
+        pulsar_server:
 
   hosts:
     scc-cpu01-10G:
@@ -185,6 +193,10 @@ all:
     guacamole1:
       ansible_host: 10.0.150.212
       fqdn: guacamole.hcemm.eu
+
+    pulsar1:
+      ansible_host: 10.0.150.213
+      fqdn: pulsar1.cluster.hcemm.eu
 
     vulnscan1:
       ansible_host: 10.0.150.215

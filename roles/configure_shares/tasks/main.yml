@@ -40,7 +40,7 @@
   loop:
     - /home
   when:
-    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['pulsar_server']
 
 - name: Mount opt from sms (read only)
   ansible.posix.mount:
@@ -56,7 +56,7 @@
     - /opt/ohpc
     - /opt/pub
   when:
-    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server']
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['pulsar_server']
 
 # connect /var/sppol/slurm on slurmctld1 to /var/spool/slurm on slurmctld2
 - name: Setup shared spool directory between slurmctld nodes

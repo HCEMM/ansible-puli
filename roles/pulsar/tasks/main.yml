@@ -35,6 +35,16 @@
     cvmfs_role: client
     galaxy_cvmfs_repos_enabled: config-repo
 
+# drmaa installation
+# munge configuration
+
+- name: Fetch RabbitMQ certificates from galaxy1
+  ansible.builtin.fetch:
+    src: /etc/slurm/slurm.conf
+    dest: /etc/slurm/slurm.conf
+    flat: true
+  delegate_to: slurmctld1
+
 - name: Ensure venv bin/ has bin_t SELinux context
   community.general.sefcontext:
     target: '/mnt/pulsar/venv/bin(/.*)?'
@@ -87,3 +97,9 @@
 - name: Include Pulsar role
   ansible.builtin.include_role:
     name: galaxyproject.pulsar
+
+- name: Configure Pulsar DRMAA environment
+  ansible.builtin.lineinfile:
+    dest: "{{ pulsar_root }}/config/local_env.sh"
+    line: 'export DRMAA_LIBRARY_PATH=/opt/slurm-drmaa/lib/libdrmaa.so'
+  notify: Restart Pulsar

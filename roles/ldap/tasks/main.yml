@@ -297,9 +297,9 @@
 #       changed_when: true
 
 # dnf ipa-client-install --unattended --mkhomedir --server=freeipa.hcemm.eu --domain=hcemm.eu --realm=HCEMM.EU
-- name: Configure FreeIPA client on login/galaxy nodes
+- name: Configure FreeIPA client on login/pulsar nodes
   when:
-    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['galaxy_server'] 
+    - inventory_hostname in groups['login_nodes'] or inventory_hostname in groups['pulsar_server']
   block:
     - name: Install FreeIPA client packages
       ansible.builtin.dnf:

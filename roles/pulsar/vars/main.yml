@@ -11,15 +11,15 @@ pulsar_pycurl_ssl_library: openssl
 pulsar_systemd: true
 pulsar_systemd_runner: webless
 
-pulsar_create_user: true
-pulsar_user: {name: pulsar, shell: /bin/bash}
+pulsar_create_user: false                           # provided by LDAP
+# pulsar_user: {name: pulsar, shell: /bin/bash}     # LDAP
 
 pulsar_optional_dependencies:
   - pyOpenSSL
   # For remote transfers initiated on the Pulsar end rather than the Galaxy end
   - pycurl
   # drmaa required if connecting to an external DRM using it.
-  - drmaa
+  # - drmaa               # we are setting it up manually
   # kombu needed if using a message queue
   - kombu
   # psutil allows pulsar's local job runner to kill processes effictively.
@@ -51,10 +51,15 @@ pulsar_yaml_config:
   preprocess_action_interval_start: 2
   preprocess_action_interval_step: 10
   preprocess_action_interval_max: 300
+
   postprocess_action_max_retries: 30
   postprocess_action_interval_start: 2
   postprocess_action_interval_step: 10
   postprocess_action_interval_max: 300
+
+  managers:
+    _default_:
+      type: queued_drmaa
 
 # Pulsar should use the same job metrics plugins as Galaxy. This will automatically set `job_metrics_config_file` in
 # `pulsar_yaml_config` and create `{{ pulsar_config_dir }}/job_metrics_conf.yml`.
