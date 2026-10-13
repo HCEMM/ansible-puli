@@ -1,0 +1,150 @@
+---
+# For now, this playbook only concerns creating Galaxy users and their roles, so they can see their scratch data.
+# But it might be expanded in the future for whatever else is required after Galaxy goes up from its recipes.
+- name: Wait for Galaxy API
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/version"
+    method: GET
+    return_content: true
+    validate_certs: true
+  register: galaxy_api_ready
+  retries: 20
+  delay: 3
+  until: galaxy_api_ready.status == 200
+  changed_when: false
+
+- name: Build Galaxy research-group list from LDAP groups
+  ansible.builtin.set_fact:
+    galaxy_research_groups: >-
+      {{
+        ldap_groups
+        | selectattr('name', 'match', '^grp_')
+        | rejectattr('name', 'equalto', 'grp_hcemm')
+        | list
+      }}
+
+- name: Build Galaxy-capable LDAP user list
+  ansible.builtin.set_fact:
+    galaxy_ldap_users: >-
+      {{
+        ldap_users
+        | selectattr('email', 'defined')
+        | rejectattr('email', 'equalto', '')
+        | list
+      }}
+
+- name: Debug Galaxy research groups
+  ansible.builtin.debug:
+    msg: "{{ galaxy_research_groups | map(attribute='name') | list }}"
+
+- name: Debug Galaxy-capable LDAP users
+  ansible.builtin.debug:
+    msg: "{{ galaxy_ldap_users | map(attribute='username') | list }}"
+
+# curl -sS   -H "x-api-key: $GALAXY_ADMIN_API_KEY"   "https://galaxy.hcemm.eu/api/users"
+- name: Get existing Galaxy users
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/users"
+    method: GET
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    return_content: true
+  register: galaxy_users_before
+  changed_when: false
+
+# curl -sS -X POST \
+# -H "x-api-key: $GALAXY_ADMIN_API_KEY" \
+# -H "Content-Type: application/json" \
+# https://galaxy.hcemm.eu/api/users \
+# -d '{
+#   "email": "Someone@hcemm.eu",
+#   "username": "someone",
+#   "password": "RANDOM-UNUSABLE-PASSWORD"
+# }'
+- name: Pre-create missing LDAP users in Galaxy
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/users"
+    method: POST
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    body_format: json
+    body:
+      email: "{{ item.email }}"
+      username: "{{ item.username }}"
+      password: "{{ item.password | default('RANDOM-UNUSABLE-PASSWORD') }}"
+    status_code:
+      - 200
+      - 201
+  loop: "{{ galaxy_ldap_users }}"
+  loop_control:
+    label: "{{ item.username }}"
+  when: >
+    item.username not in
+    (galaxy_users_before.json | map(attribute='username') | list)
+  changed_when: true
+  no_log: true
+
+- name: Refresh Galaxy users
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/users"
+    method: GET
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    return_content: true
+  register: galaxy_users
+  changed_when: false
+
+# curl -sS   -H "x-api-key: $GALAXY_ADMIN_API_KEY"   "https://galaxy.hcemm.eu/api/roles"
+- name: Get existing Galaxy roles
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/roles"
+    method: GET
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    return_content: true
+  register: galaxy_roles_before
+  changed_when: false
+
+# curl -sS -X POST -H "x-api-key: $GALAXY_ADMIN_API_KEY" -H "Content-Type: application/json" https://galaxy.hcemm.eu/api/roles \
+#   -d '{
+#     "name": "jsequeira",
+#     "description": "Scientific Computing Advanced Core Facility",
+#     "user_ids": []
+#   }'
+- name: Create missing Galaxy research roles
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/roles"
+    method: POST
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    body_format: json
+    body:
+      name: "{{ item.name | regex_replace('^grp_', '') }}"
+      description: "LDAP research group {{ item.name }}"
+      user_ids: []
+    status_code:
+      - 200
+      - 201
+  loop: "{{ galaxy_research_groups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: >
+    (item.name | regex_replace('^grp_', '')) not in
+    (galaxy_roles_before.json | map(attribute='name') | list)
+
+- name: Refresh Galaxy roles
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/roles"
+    method: GET
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    return_content: true
+  register: galaxy_roles
+  changed_when: false
+
+- name: Synchronize LDAP research groups with Galaxy roles
+  ansible.builtin.include_tasks: galaxy_sync_role.yml
+  loop: "{{ galaxy_research_groups }}"
+  loop_control:
+    loop_var: ldap_group
+    label: "{{ ldap_group.name }}"

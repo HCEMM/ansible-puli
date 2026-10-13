@@ -4,7 +4,6 @@
 # dnf install -y python3.11 python3.11-pip python3.11-devel python3.11-setuptools python3.11-wheel
 # Also need to setup the fqdn, another thing to think about... probably should be included in the setup_vms
 # hostnamectl set-hostname galaxy1.cluster.hcemm.eu
-
 - name: Install dependencies for Galaxy
   ansible.builtin.dnf:
     name:
@@ -106,70 +105,70 @@
     apply:
       become: true
 
-- name: Include Docker role
-  ansible.builtin.include_role:
-    name: geerlingguy.docker
+# - name: Include Docker role
+#   ansible.builtin.include_role:
+#     name: geerlingguy.docker
 
-- name: Copy RabbitMQ SSL certificates to the Galaxy server
-  ansible.builtin.copy:
-    src: "files/ssl_rabbitmq/{{ item }}"
-    dest: "/etc/ssl/rabbitmq/{{ item }}"
-    owner: 999
-    group: 999
-    mode: '0644'
-  loop:
-    - ca.crt
-    - rabbitmq.crt
-    - rabbitmq.key
+# - name: Copy RabbitMQ SSL certificates to the Galaxy server
+#   ansible.builtin.copy:
+#     src: "files/ssl_rabbitmq/{{ item }}"
+#     dest: "/etc/ssl/rabbitmq/{{ item }}"
+#     owner: 999
+#     group: 999
+#     mode: '0644'
+#   loop:
+#     - ca.crt
+#     - rabbitmq.crt
+#     - rabbitmq.key
 
-- name: Include RabbitMQ role
-  ansible.builtin.include_role:
-    name: usegalaxy_eu.rabbitmqserver
+# - name: Include RabbitMQ role
+#   ansible.builtin.include_role:
+#     name: usegalaxy_eu.rabbitmqserver
 
-- name: Include gxadmin role
-  ansible.builtin.include_role:
-    name: galaxyproject.gxadmin
-    apply:
-      become: true
+# - name: Include gxadmin role
+#   ansible.builtin.include_role:
+#     name: galaxyproject.gxadmin
+#     apply:
+#       become: true
 
-# Whenever gxadmin runs, it will create logs in /tmp/gxadmin
-- name: Setup gxadmin cleanup task
-  ansible.builtin.cron:
-    name: "Cleanup Old User Data"
-    user: "{{ galaxy_user }}"
-    minute: "0"
-    hour: "0"
-    job: "SHELL=/bin/bash source {{ galaxy_venv_dir }}/bin/activate && GALAXY_LOG_DIR=/tmp/gxadmin/ GALAXY_ROOT={{ galaxy_root }}/server GALAXY_CONFIG_FILE={{ galaxy_config_file }} /usr/local/bin/gxadmin galaxy cleanup 60"
+# # Whenever gxadmin runs, it will create logs in /tmp/gxadmin
+# - name: Setup gxadmin cleanup task
+#   ansible.builtin.cron:
+#     name: "Cleanup Old User Data"
+#     user: "{{ galaxy_user }}"
+#     minute: "0"
+#     hour: "0"
+#     job: "SHELL=/bin/bash source {{ galaxy_venv_dir }}/bin/activate && GALAXY_LOG_DIR=/tmp/gxadmin/ GALAXY_ROOT={{ galaxy_root }}/server GALAXY_CONFIG_FILE={{ galaxy_config_file }} /usr/local/bin/gxadmin galaxy cleanup 60"
 
-- name: Setup backup cron job
-  ansible.builtin.cron:
-    name: "Backup User Data"
-    minute: "0"
-    hour: "5,2"
-    job: "rsync -avr {{ galaxy_data_dir }} galaxy@{{ storage_ip }}:/backups/$(date -I)/"
+# - name: Setup backup cron job
+#   ansible.builtin.cron:
+#     name: "Backup User Data"
+#     minute: "0"
+#     hour: "5,2"
+#     job: "rsync -avr {{ galaxy_data_dir }} galaxy@{{ storage_ip }}:/backups/$(date -I)/"
 
-- name: Include CVMFS role
-  ansible.builtin.include_role:
-    name: galaxyproject.cvmfs
+# - name: Include CVMFS role
+#   ansible.builtin.include_role:
+#     name: galaxyproject.cvmfs
 
-# The tasks here after came from debugging the Galaxy role. They are either missing pieces of the role, or we don't know what we are doing.
+# # The tasks here after came from debugging the Galaxy role. They are either missing pieces of the role, or we don't know what we are doing.
 
-# semanage fcontext -a -t bin_t '/srv/galaxy/venv/bin(/.*)?'
-# restorecon -Rv /srv/galaxy/venv/bin
-- name: Ensure venv bin/ has bin_t SELinux context
-  community.general.sefcontext:
-    target: '/srv/galaxy/venv/bin(/.*)?'
-    setype: bin_t
-    state: present
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
-  notify: Restorecon venv bin
+# # semanage fcontext -a -t bin_t '/srv/galaxy/venv/bin(/.*)?'
+# # restorecon -Rv /srv/galaxy/venv/bin
+# - name: Ensure venv bin/ has bin_t SELinux context
+#   community.general.sefcontext:
+#     target: '/srv/galaxy/venv/bin(/.*)?'
+#     setype: bin_t
+#     state: present
+#   vars:
+#     ansible_python_interpreter: /usr/bin/python3
+#   notify: Restorecon venv bin
 
-# loginctl enable-linger galaxy
-- name: Enable systemd lingering for galaxy user
-  ansible.builtin.command: loginctl enable-linger galaxy
-  args:
-    creates: /var/lib/systemd/linger/galaxy
+# # loginctl enable-linger galaxy
+# - name: Enable systemd lingering for galaxy user
+#   ansible.builtin.command: loginctl enable-linger galaxy
+#   args:
+#     creates: /var/lib/systemd/linger/galaxy
 
 # usermod -aG systemd-journal galaxy
 # - name: Add galaxy user to systemd-journal group
@@ -199,12 +198,15 @@
 #     mode: '0644'
 #   notify: Reload systemd and restart galaxy
 
-- name: Clone libraries-training-repo
-  ansible.builtin.git:
-    repo: 'https://github.com/usegalaxy-eu/libraries-training-repo'
-    dest: /libraries/
-    version: c778383
+# - name: Clone libraries-training-repo
+#   ansible.builtin.git:
+#     repo: 'https://github.com/usegalaxy-eu/libraries-training-repo'
+#     dest: /libraries/
+#     version: c778383
 
-- name: Include TPV auto lint role
-  ansible.builtin.include_role:
-    name: usegalaxy_eu.tpv_auto_lint
+# - name: Include TPV auto lint role
+#   ansible.builtin.include_role:
+#     name: usegalaxy_eu.tpv_auto_lint
+
+- name: Include galaxy_post_config tasks
+  ansible.builtin.include_tasks: galaxy_post_config.yml

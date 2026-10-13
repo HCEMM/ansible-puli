@@ -1,0 +1,9 @@
+# https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/config/sample/file_sources_conf.yml.sample
+# TODO - think about including zenovo, or some cloud used by our researchers
+- type: posix
+  id: "scratch_jsequeira"
+  label: "HPC Scratch - João Sequeira"
+  root: "/scratch/jsequeira"
+  writable: false
+  requires_roles:
+    - jsequeira

@@ -38,12 +38,20 @@
 # drmaa installation
 # munge configuration
 
-- name: Fetch RabbitMQ certificates from galaxy1
+- name: Fetch slurm configuration from slurmctld1
   ansible.builtin.fetch:
     src: /etc/slurm/slurm.conf
-    dest: /etc/slurm/slurm.conf
+    dest: /tmp/slurm.conf
     flat: true
   delegate_to: slurmctld1
+
+- name: Copy Slurm configuration to right place
+  ansible.builtin.copy:
+    src: /tmp/slurm.conf
+    dest: /etc/slurm/slurm.conf
+    owner: slurm
+    group: slurm
+    mode: '0644'
 
 - name: Ensure venv bin/ has bin_t SELinux context
   community.general.sefcontext:
@@ -103,3 +111,17 @@
     dest: "{{ pulsar_root }}/config/local_env.sh"
     line: 'export DRMAA_LIBRARY_PATH=/opt/slurm-drmaa/lib/libdrmaa.so'
   notify: Restart Pulsar
+
+- name: Configure sudo permissions for Pulsar real-user DRMAA
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/pulsar
+    owner: root
+    group: root
+    mode: '0440'
+    content: |
+      Defaults:pulsar env_keep += "DRMAA_LIBRARY_PATH"
+
+      pulsar ALL=(root) NOPASSWD:SETENV: /mnt/pulsar/venv/bin/pulsar-chown-working-directory *
+      pulsar ALL=(ALL) NOPASSWD:SETENV: /mnt/pulsar/venv/bin/pulsar-drmaa-launch *
+      pulsar ALL=(ALL) NOPASSWD:SETENV: /mnt/pulsar/venv/bin/pulsar-drmaa-kill *
+    validate: '/usr/sbin/visudo -cf %s'

@@ -12,7 +12,7 @@ pulsar_systemd: true
 pulsar_systemd_runner: webless
 
 pulsar_create_user: false                           # provided by LDAP
-# pulsar_user: {name: pulsar, shell: /bin/bash}     # LDAP
+pulsar_user: {name: pulsar, shell: /bin/bash}       # provided by LDAP
 
 pulsar_optional_dependencies:
   - pyOpenSSL
@@ -59,7 +59,8 @@ pulsar_yaml_config:
 
   managers:
     _default_:
-      type: queued_drmaa
+      type: queued_external_drmaa
+      production: true
 
 # Pulsar should use the same job metrics plugins as Galaxy. This will automatically set `job_metrics_config_file` in
 # `pulsar_yaml_config` and create `{{ pulsar_config_dir }}/job_metrics_conf.yml`.

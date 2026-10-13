@@ -1,9 +1,17 @@
 # For more on TPV: https://training.galaxyproject.org/training-material/topics/admin/tutorials/job-destinations/tutorial.html#more-on-tpv
+global:
+  default_inherits: default
+
 tools:
   default:
     abstract: true
     cores: 1
     mem: cores * 4
+    params:
+      walltime: 8
+    scheduling:
+      require:
+        - pulsar
   .*testing.*:
     cores: 2
     mem: cores * 4
@@ -25,14 +33,14 @@ tools:
         cores: int(job.get_param_values(app)['__job_resource']['cores'])
         params:
           walltime: "{int(job.get_param_values(app)['__job_resource']['time'])}"
-  .*/bwa/.*:
-    scheduling:
-      require:
-        - pulsar
-  .*/bwa_mem/.*:
-    scheduling:
-      require:
-        - pulsar
+  # .*/bwa/.*:
+  #   scheduling:
+  #     require:
+  #       - pulsar
+  # .*/bwa_mem/.*:
+  #   scheduling:
+  #     require:
+  #       - pulsar
 
 destinations:
   local_env:
@@ -68,6 +76,10 @@ destinations:
       native_specification: --nodes=1 --ntasks=1 --cpus-per-task={cores} --mem={round(mem*1024)} --time={entity.params['walltime']}:00:00
   pulsar:
     runner: pulsar_runner
+    max_accepted_cores: 24
+    max_accepted_mem: 256
+    max_cores: 2
+    max_mem: 8
     params:
       default_file_action: remote_transfer
       dependency_resolution: remote
@@ -78,6 +90,17 @@ destinations:
       rewrite_parameters: true
       transport: curl
       outputs_to_working_directory: false
+      submit_user: "$__user_name__"
+
+    submit_native_specification: >-
+        --account=galaxy
+        --partition=cpu
+        --nodes=1
+        --ntasks=1
+        --cpus-per-task={cores}
+        --mem={round(mem*1024)}
+        --time={entity.params['walltime']}:00:00
+
     scheduling:
       require:
         - pulsar

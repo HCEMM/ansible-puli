@@ -1,0 +1,49 @@
+---
+# This whole playbook checks, for one group/role/grp_... which are its supposed members, and adds them all in one go
+- name: Resolve Galaxy role for LDAP group
+  ansible.builtin.set_fact:
+    galaxy_target_role: >-
+      {{
+        galaxy_roles.json
+        | selectattr(
+            'name',
+            'equalto',
+            ldap_group.name | regex_replace('^grp_', '')
+          )
+        | first
+      }}
+
+- name: Find LDAP users belonging to this research group
+  ansible.builtin.set_fact:
+    ldap_group_users: >-
+      {{
+        galaxy_ldap_users
+        | selectattr('groups', 'contains', ldap_group.name)
+        | list
+      }}
+
+- name: Resolve Galaxy user IDs for this research group
+  ansible.builtin.set_fact:
+    galaxy_target_user_ids: >-
+      {{
+        galaxy_users.json
+        | selectattr(
+            'username',
+            'in',
+            ldap_group_users | map(attribute='username') | list
+          )
+        | map(attribute='id')
+        | list
+      }}
+
+- name: Synchronize Galaxy role users
+  ansible.builtin.uri:
+    url: "{{ galaxy_url }}/api/roles/{{ galaxy_target_role.id }}"
+    method: PUT
+    headers:
+      x-api-key: "{{ galaxy_api_key }}"
+    body_format: json
+    body:
+      user_ids: "{{ galaxy_target_user_ids }}"
+    status_code:
+      - 200

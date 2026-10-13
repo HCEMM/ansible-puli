@@ -1,0 +1,15 @@
+{% for group in ldap_groups
+   if group.name.startswith('grp_')
+   and group.name != 'grp_hcemm' %}
+
+{% set galaxy_role = group.name | regex_replace('^grp_', '') %}
+
+- type: posix
+  id: "scratch_{{ group.name }}"
+  label: "/scratch/{{ group.name }}"
+  doc: "{{ group.name }} group HPC scratch"
+  root: "/scratch/{{ group.name }}"
+  writable: false
+  requires_roles: "{{ group.name }}"
+
+{% endfor %}
