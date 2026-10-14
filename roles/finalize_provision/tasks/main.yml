@@ -2,6 +2,7 @@
 # for ((i=0; i<$num_computes; i++)) ; do
 #   wwctl node add --image=${image[$i]} --profile=nodes ${c_name[$i]}
 # done
+
 - name: Get current node list
   ansible.builtin.command: wwctl node list
   register: wwctl_node_list
@@ -77,8 +78,6 @@
     label: "{{ item.c_name }}"
   changed_when:
     - nodes_to_add_filtered | length > 0
-  when:
-    - inventory_hostname in groups['sms']
 
 # wwctl node list ${actual_node_name} -a
 - name: Get current node network configuration
@@ -93,8 +92,6 @@
   register: current_node_configs
   changed_when: false
   check_mode: false
-  when:
-    - inventory_hostname in groups['sms']
 
 # Parse Warewulf network fields into a FIELD -> VALUE map.
 # This allows exact comparison of each network setting instead of
@@ -125,43 +122,54 @@
   loop_control:
     label: "{{ item.item.c_name }}"
 
-# wwctl node set -y ${c_name} --netname=bond0 --netdev=bond0 --type=Bond \
-#   --ipaddr=${c_ip} --netmask=${internal_netmask} --gateway=${ipv4_gateway} \
+# wwctl node set -y ${c_name} --netname=bond0 --netdev=bond0 --type=Bond --mtu=9000 \
+#   --ipaddr=${c_ip} --netmask=${internal_netmask} \
 #   --nettagadd=DNS=${bridge_dns} --nettagadd=miimon=${bond_miimon} \
-#   --nettagadd=mode=${bond_mode} --nettagadd=xmit_hash_policy=${bond_xmit_hash_policy}
+#   --nettagadd=mode=${bond_mode} --nettagadd=xmit_hash_policy=${bond_xmit_hash_policy} \
+#   --nettagadd=route1=0.0.0.0/0,10.0.150.101,300 \
+#   --nettagadd=route1_options=mtu=1500
 - name: Configure bond interface when required
-  ansible.builtin.command: >
-    wwctl node set -y
-    {{ existing_node_name_map.get(item.item.c_name | lower, item.item.c_name) }}
-    --netname={{ bond_name }}
-    --netdev={{ bond_name }}
-    --type=Bond
-    --ipaddr={{ item.item.c_ip }}
-    --netmask={{ internal_netmask }}
-    --gateway={{ ipv4_gateway }}
-    --nettagadd=DNS={{ bridge_dns }}
-    --nettagadd=miimon={{ bond_miimon }}
-    --nettagadd=mode={{ bond_mode }}
-    --nettagadd=xmit_hash_policy={{ bond_xmit_hash_policy }}
+  ansible.builtin.command:
+    argv:
+      - wwctl
+      - node
+      - set
+      - -y
+      - "{{ existing_node_name_map.get(item.item.c_name | lower, item.item.c_name) }}"
+      - "--netname={{ bond_name }}"
+      - "--netdev={{ bond_name }}"
+      - --type=Bond
+      - --mtu=9000
+      - "--ipaddr={{ item.item.c_ip }}"
+      - "--netmask={{ internal_netmask }}"
+      - "--nettagadd=DNS={{ bridge_dns }}"
+      - "--nettagadd=miimon={{ bond_miimon }}"
+      - "--nettagadd=mode={{ bond_mode }}"
+      - "--nettagadd=xmit_hash_policy={{ bond_xmit_hash_policy }}"
+      - "--nettagadd=route1=0.0.0.0/0,{{ ipv4_gateway }},300"
+      - --nettagadd=route1_options=mtu=1500
   loop: "{{ current_node_configs.results }}"
   loop_control:
     label: "{{ item.item.c_name }}"
   register: bond_config_result
-  when:
-    - inventory_hostname in groups['sms']
-    - >
-      current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Type', '') != 'Bond'
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Device', '') != bond_name
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Ipaddr', '') != item.item.c_ip
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Netmask', '') != internal_netmask
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Gateway', '') != ipv4_gateway
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[DNS]', '') != bridge_dns
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[miimon]', '') != (bond_miimon | string)
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[mode]', '') != bond_mode
-      or current_node_fields.get(item.item.c_name | lower, {}).get('NetDevs[' ~ bond_name ~ '].Tags[xmit_hash_policy]', '') != bond_xmit_hash_policy
+  vars:
+    bond_fields: "{{ current_node_fields.get(item.item.c_name | lower, {}) }}"
+  when: >
+    bond_fields.get('NetDevs[' ~ bond_name ~ '].Type', '') != 'Bond'
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Device', '') != bond_name
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Ipaddr', '') != item.item.c_ip
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Netmask', '') != internal_netmask
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Gateway', '') != ''
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[DNS]', '') != bridge_dns
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[miimon]', '') != (bond_miimon | string)
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[mode]', '') != bond_mode
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[xmit_hash_policy]', '') != bond_xmit_hash_policy
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[route1]', '') != ('0.0.0.0/0,' ~ ipv4_gateway ~ ',300')
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].Tags[route1_options]', '') != 'mtu=1500'
+    or bond_fields.get('NetDevs[' ~ bond_name ~ '].MTU', '') != '9000'
 
-# wwctl node set -y ${c_name} --netname=${nic} --netdev=${nic} \
-#   --hwaddr=${mac} --nettagadd=master=bond0
+# wwctl node set -y ${c_name} --netname=${nic} --netdev=${nic} \\
+#   --hwaddr=${mac} --mtu=9000 --nettagadd=master=bond0
 # The first NIC also keeps the node IP/netmask used for provisioning/PXE.
 - name: Configure physical bond members when required
   ansible.builtin.command: >
@@ -170,6 +178,7 @@
     --netname={{ item.1.name }}
     --netdev={{ item.1.name }}
     --hwaddr={{ item.1.mac }}
+    --mtu=9000
     --nettagadd=master={{ bond_name }}
     {% if item.1.name == item.0.bond_members[0].name %}
     --ipaddr={{ item.0.c_ip }}
@@ -179,19 +188,18 @@
   loop_control:
     label: "{{ item.0.c_name }} -> {{ item.1.name }}"
   register: physical_nic_config_result
-  when:
-    - inventory_hostname in groups['sms']
-    - >
-      current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Device', '') != item.1.name
-      or (current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Hwaddr', '') | lower) != (item.1.mac | lower)
-      or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Tags[master]', '') != bond_name
-      or (
-        item.1.name == item.0.bond_members[0].name
-        and (
-          current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Ipaddr', '') != item.0.c_ip
-          or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Netmask', '') != internal_netmask
-        )
+  when: >
+    current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Device', '') != item.1.name
+    or (current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Hwaddr', '') | lower) != (item.1.mac | lower)
+    or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Tags[master]', '') != bond_name
+    or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].MTU', '') != '9000'
+    or (
+      item.1.name == item.0.bond_members[0].name
+      and (
+        current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Ipaddr', '') != item.0.c_ip
+        or current_node_fields.get(item.0.c_name | lower, {}).get('NetDevs[' ~ item.1.name ~ '].Netmask', '') != internal_netmask
       )
+    )
 
 # wwctl node set -y ${c_name} --primarynet=${first_bond_member}
 - name: Configure primary network interface when required
@@ -204,7 +212,6 @@
     label: "{{ item.c_name }} -> {{ item.bond_members[0].name }}"
   register: primary_net_config_result
   when:
-    - inventory_hostname in groups['sms']
     - current_node_fields.get(item.c_name | lower, {}).get('PrimaryNetDev', '') != item.bond_members[0].name
 
 - name: Trigger overlay/configure after node or network config change
@@ -233,7 +240,7 @@
   when: overlay_needs_rebuild
 
 # for ((i=0; i<${num_computes}; i++)) ; do
-#   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} \
+#   ipmitool -E -I lanplus -H ${c_bmc[$i]} -U ${bmc_username} \\
 #     -P ${bmc_password} chassis power reset
 # done
 - name: Get WW node status
@@ -242,27 +249,26 @@
   changed_when: false
   check_mode: false
 
+# wwctl node status
+# Identify nodes whose last-seen value is missing or exceeds the threshold.
 - name: Find nodes that are missing or stale
   ansible.builtin.set_fact:
     nodes_to_reset: >-
-      {{
-        node_status.stdout_lines
-        | select('match', '^scc-')
-        | map('split')
-        | selectattr('3', 'defined')
-        | selectattr(
-            '3',
-            'in',
-            ['--']
-            + (
-                range(finalize_provision_node_lastseen_threshold, 1000000)
-                | map('string')
-                | list
-              )
-          )
-        | map(attribute=0)
-        | list
-      }}
+      {%- set ns = namespace(nodes=[]) -%}
+      {%- for line in node_status.stdout_lines -%}
+        {%- set parts = line.split() -%}
+        {%- if parts | length >= 4 and parts[0] is match('^scc-') -%}
+          {%- set last_seen = parts[3] -%}
+          {%- if last_seen == '--' or
+                 (last_seen is match('^[0-9]+$') and
+                  (last_seen | int) >= (finalize_provision_node_lastseen_threshold | int)) -%}
+            {%- set ns.nodes = ns.nodes + [parts[0]] -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.nodes }}
+  when:
+    - finalize_provision_allow_reset | default(false) | bool
 
 - name: Reset non-available nodes
   ansible.builtin.command: >
@@ -271,11 +277,11 @@
     -U {{ bmc_username }}
     -P {{ bmc_password }}
     chassis power reset
-  loop: "{{ nodes_to_reset }}"
+  loop: "{{ nodes_to_reset | default([]) }}"
   loop_control:
     label: "{{ item }}"
-  changed_when: nodes_to_reset | length > 0
+  changed_when: nodes_to_reset | default([]) | length > 0
   when:
-    - nodes_to_reset | length > 0
+    - finalize_provision_allow_reset | default(false) | bool
+    - nodes_to_reset | default([]) | length > 0
     - (item | lower) in compute_node_map
-    - inventory_hostname in groups['sms']

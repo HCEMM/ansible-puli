@@ -18,7 +18,13 @@
         internal_network: "{{ ansible_default_ipv4.gateway }}"    # network gateway
         internal_netmask: "{{ ansible_default_ipv4.netmask }}"
 
-    # "--noautoconsole" prevents virt-install from trying to open an interactive console, allows to run in ansible
+    # virt-install --name <vm_name> --memory <memory> --vcpus <vcpus> \
+    #   --os-variant almalinux9 \
+    #   --disk path=/var/lib/libvirt/images/<vm_name>.qcow2,format=qcow2 \
+    #   --network bridge=br0,mac=<mac>,model=virtio,mtu=9000 \
+    #   --graphics none --console pty,target_type=serial \
+    #   --location /tmp/<base_image> \
+    #   --extra-args "inst.ks=http://<master_ip>:<port>/ks/<vm_name>-ks.cfg console=ttyS0"
     - name: Create VM using virt-install
       ansible.builtin.command: >
         virt-install
@@ -27,13 +33,14 @@
         --vcpus {{ vm_params.vcpus }}
         --os-variant almalinux9
         --disk path=/var/lib/libvirt/images/{{ vm_name }}.qcow2,format=qcow2
-        --network bridge=br0,mac={{ vm_params.mac }},model=virtio
+        --network bridge=br0,mac={{ vm_params.mac }},model=virtio,mtu=9000
         --graphics none
         --console pty,target_type=serial
         --location /tmp/{{ setup_vms_base_image_name }}
         --extra-args "inst.ks=http://{{ ansible_default_ipv4.address }}:{{ setup_vms_kickstart_port }}/ks/{{ vm_name }}-ks.cfg console=ttyS0"
       changed_when: true
 
+# virsh start <vm_name>
 - name: Ensure VM is started
   community.libvirt.virt:
     name: "{{ vm_name }}"
@@ -42,7 +49,9 @@
   until: vm_start_results is success
   retries: 15
   delay: 2
+  when: vm_name not in existing_vms.list_vms
 
+# rm -f /tmp/<base_image>
 - name: Ensure temporary file is deleted
   ansible.builtin.file:
     path: "/tmp/{{ setup_vms_base_image_name }}"

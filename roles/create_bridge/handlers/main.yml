@@ -1,14 +1,16 @@
 ---
-# nmcli connection up bond0
+# Activate bond0 only if it is not already active
 - name: Bring up LACP bond
   community.general.nmcli:
     conn_name: "{{ bond_name }}"
     state: up
+  when: bond_name not in active_network_connections.stdout_lines
   listen: Activate SMS network
 
-# nmcli connection up br0
+# Activate br0 only if it is not already active
 - name: Bring up bridge
   community.general.nmcli:
     conn_name: "{{ bridge_name }}"
     state: up
+  when: bridge_name not in active_network_connections.stdout_lines
   listen: Activate SMS network

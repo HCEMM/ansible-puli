@@ -17,14 +17,21 @@
     enabled: true
     state: started
 
+- name: Get active NetworkManager connections
+  ansible.builtin.command:
+    cmd: nmcli -g NAME connection show --active
+  register: active_network_connections
+  changed_when: false
+  check_mode: false
+
 # nmcli connection modify br0 \
 #   ipv4.addresses 10.0.150.101/24 \
-#   ipv4.gateway 10.0.150.254 \
+#   ipv4.routes "0.0.0.0/0 10.0.150.254 425 mtu=1500" \
 #   ipv4.dns 10.0.150.203 \
 #   ipv4.dns-search cluster.hcemm.eu \
 #   ipv4.ignore-auto-dns yes \
 #   ipv4.method manual \
-#   bridge.stp yes \
+#   bridge.stp no \
 #   bridge.priority 32768 \
 #   connection.autoconnect yes
 - name: Configure bridge interface
@@ -34,17 +41,34 @@
     type: bridge
     ip4:
       - "{{ sms_ip }}/24"
-    gw4: "{{ sms_gateway }}"
+    routes4_extended:
+      - ip: "0.0.0.0/0"
+        next_hop: "{{ sms_gateway }}"
+        metric: 425
+        mtu: 1500
     dns4:
       - "{{ bridge_dns }}"
     dns4_search:
       - "{{ cluster_domain }}"
     dns4_ignore_auto: true
     method4: manual
-    stp: true
+    stp: false
     priority: 32768
     autoconnect: true
     state: present
+  notify: Activate SMS network
+
+- name: Check current bridge MTU configuration
+  ansible.builtin.command:
+    cmd: "nmcli -g 802-3-ethernet.mtu connection show {{ bridge_name }}"
+  register: bridge_mtu_current
+  changed_when: false
+  check_mode: false
+
+- name: Ensure bridge MTU is 9000
+  ansible.builtin.command:
+    cmd: "nmcli connection modify {{ bridge_name }} 802-3-ethernet.mtu 9000"
+  when: bridge_mtu_current.stdout | trim != "9000"
   notify: Activate SMS network
 
 # nmcli connection add type bond \
@@ -57,12 +81,14 @@
 #   connection.slave-type bridge \
 #   ipv4.method disabled \
 #   ipv6.method disabled \
-#   connection.autoconnect yes
+#   connection.autoconnect yes \
+#   802-3-ethernet.mtu 9000
 - name: Configure LACP bond
   community.general.nmcli:
     conn_name: "{{ bond_name }}"
     ifname: "{{ bond_name }}"
     type: bond
+    mtu: 9000
     mode: "{{ bond_mode }}"
     miimon: "{{ bond_miimon }}"
     xmit_hash_policy: "{{ bond_xmit_hash_policy }}"
@@ -80,6 +106,7 @@
 #   master bond0
 
 # nmcli connection modify <interface> \
+#   802-3-ethernet.mtu 9000 \
 #   connection.master bond0 \
 #   connection.slave-type bond \
 #   ipv4.method disabled \
@@ -90,6 +117,7 @@
     conn_name: "{{ item }}"
     ifname: "{{ item }}"
     type: ethernet
+    mtu: 9000
     master: "{{ bond_name }}"
     slave_type: bond
     method4: disabled

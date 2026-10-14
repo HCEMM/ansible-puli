@@ -6,7 +6,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=sh /usr/local/sbin/node-init.sh
+ExecStart=/bin/bash /usr/local/sbin/node-init.sh
 RemainAfterExit=yes
 
 [Install]

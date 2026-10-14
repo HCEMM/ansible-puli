@@ -58,6 +58,16 @@
   register: existing_vms
   changed_when: false
 
+- name: Identify new VMs to be created
+  ansible.builtin.set_fact:
+    setup_vms_new_vm_list: >-
+      {{
+        setup_vms_vm_list
+        | dict2items
+        | rejectattr('key', 'in', existing_vms.list_vms)
+        | list
+      }}
+
 - name: Process each VM
   ansible.builtin.include_tasks: create-vm.yml
   loop: "{{ setup_vms_vm_list | dict2items }}"
@@ -114,6 +124,89 @@
   register: ssh_wait_result
   until: ssh_wait_result is succeeded
 
+# nmcli -g GENERAL.CONNECTION device show enp1s0
+- name: Get active network connection on newly created VMs
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - -g
+      - GENERAL.CONNECTION
+      - device
+      - show
+      - enp1s0
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_new_vm_list }}"
+  register: vm_active_connections
+  changed_when: false
+  failed_when: >
+    vm_active_connections.rc != 0 or
+    (vm_active_connections.stdout | trim) in ['', '--']
+
+# nmcli connection modify <connection_name> \
+#   802-3-ethernet.mtu 9000 \
+#   ipv4.gateway "" \
+#   ipv4.routes "0.0.0.0/0 10.0.150.254 100 mtu=1500"
+- name: Configure persistent MTU 9000 and default route MTU 1500 on new VMs
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - modify
+      - "{{ item.stdout | trim }}"
+      - 802-3-ethernet.mtu
+      - "9000"
+      - ipv4.gateway
+      - ""
+      - ipv4.routes
+      - "0.0.0.0/0 {{ ansible_default_ipv4.gateway }} 100 mtu=1500"
+  delegate_to: "{{ item.item.key }}"
+  loop: "{{ vm_active_connections.results }}"
+  changed_when: true
+
+# nmcli device reapply enp1s0
+- name: Apply network settings on newly created VMs
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - device
+      - reapply
+      - enp1s0
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_new_vm_list }}"
+  when: setup_vms_new_vm_list | length > 0
+
+# ip -4 route show default
+- name: Verify active default route MTU on newly created VMs
+  ansible.builtin.command:
+    argv:
+      - ip
+      - -4
+      - route
+      - show
+      - default
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_new_vm_list }}"
+  register: vm_default_routes
+  changed_when: false
+  failed_when: >
+    vm_default_routes.rc != 0 or
+    ('via ' ~ ansible_default_ipv4.gateway) not in vm_default_routes.stdout or
+    'mtu 1500' not in vm_default_routes.stdout
+
+# cat /sys/class/net/enp1s0/mtu
+- name: Verify active interface MTU on newly created VMs
+  ansible.builtin.command:
+    argv:
+      - cat
+      - /sys/class/net/enp1s0/mtu
+  delegate_to: "{{ item.key }}"
+  loop: "{{ setup_vms_new_vm_list }}"
+  register: vm_interface_mtu
+  changed_when: false
+  failed_when: >
+    vm_interface_mtu.rc != 0 or
+    (vm_interface_mtu.stdout | trim) != '9000'
+
 - name: Add VMs to known_hosts file (ansible user)
   ansible.builtin.command: >
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts {{ item.key }} exit
@@ -136,13 +229,24 @@
   delegate_to: "{{ item.key }}"
   loop: "{{ setup_vms_vm_list | dict2items }}"
 
-# dnf config-manager --set-enabled crb
-- name: Ensure the crb repository is enabled
-  community.general.dnf_config_manager:
-    name: crb
-    state: enabled
+- name: Get OS major version of each VM
+  ansible.builtin.command:
+    argv:
+      - rpm
+      - -E
+      - "%{rhel}"
   delegate_to: "{{ item.key }}"
   loop: "{{ setup_vms_vm_list | dict2items }}"
+  register: vm_os_versions
+  changed_when: false
+
+- name: Enable CRB or PowerTools repository
+  community.general.dnf_config_manager:
+    name: "{{ 'powertools' if (item.stdout | trim) == '8' else 'crb' }}"
+    state: enabled
+  delegate_to: "{{ item.item.key }}"
+  loop: "{{ vm_os_versions.results }}"
+  when: (item.stdout | trim) in ['8', '9']
 
 - name: Add 10.0.150.101 as ntp server
   ansible.builtin.lineinfile:

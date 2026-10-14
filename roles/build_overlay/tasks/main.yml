@@ -1,9 +1,14 @@
 ---
-- name: Create /etc/systemd/system/NetworkManager-wait-online.service.d directory if it does not exist
+# mkdir -p /etc/systemd/system/NetworkManager-wait-online.service.d
+# mkdir -p /etc/systemd/system/slurmd.service.d
+- name: Create systemd override directories if they do not exist
   ansible.builtin.file:
-    path: /etc/systemd/system/NetworkManager-wait-online.service.d
+    path: "{{ item }}"
     state: directory
-    mode: '0700'
+    mode: '0755'
+  loop:
+    - /etc/systemd/system/NetworkManager-wait-online.service.d
+    - /etc/systemd/system/slurmd.service.d
 
 - name: Put files on /etc folder before importing into overlay
   ansible.builtin.copy:
@@ -34,6 +39,7 @@
 - name: Check if overlay file exists
   ansible.builtin.stat:
     path: "/srv/warewulf/overlays/nodeconfig/rootfs/{{ item.dest }}"
+    get_checksum: true
   loop:
     # wwctl overlay import --parents nodeconfig /etc/subuid
     # - { src: /etc/subuid, dest: etc/subuid }
@@ -62,12 +68,41 @@
     label: "{{ item.dest }}"
   register: overlay_file_stat
 
-- name: Support unprivileged user namespaces, and configure chrony, systemd, NetworkManager and Slurm server
-  ansible.builtin.command: wwctl overlay import --parents nodeconfig {{ item.item.src }}
+# Compare source files with the copies in nodeconfig overlay
+- name: Check source files before importing into overlay
+  ansible.builtin.stat:
+    path: "{{ item.item.src }}"
+    get_checksum: true
   loop: "{{ overlay_file_stat.results }}"
-  changed_when: not item.stat.exists
+  loop_control:
+    label: "{{ item.item.src }}"
+  register: overlay_source_stat
+
+# test -f <source_file>
+- name: Verify overlay source files exist
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Overlay source file is missing: {{ item.item.item.src }}"
+  loop: "{{ overlay_source_stat.results }}"
+  loop_control:
+    label: "{{ item.item.item.src }}"
+
+# wwctl overlay import --parents --overwrite nodeconfig <source_file>
+- name: Support unprivileged user namespaces, and configure chrony, systemd, NetworkManager and Slurm server
+  ansible.builtin.command: >
+    wwctl overlay import --parents --overwrite nodeconfig {{ item.item.item.src }}
+  loop: "{{ overlay_source_stat.results }}"
+  loop_control:
+    label: "{{ item.item.item.src }}"
   when:
-    - not item.stat.exists
+    - item.stat.exists
+    - >
+      not item.item.stat.exists or
+      item.stat.checksum != item.item.stat.checksum
+  changed_when: true
+  notify:
+    - Build overlays if image was changed
 
 - name: Enable node-init service
   ansible.builtin.command: >

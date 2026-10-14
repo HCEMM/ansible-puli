@@ -11,34 +11,47 @@ if [ -f "$FLAG" ]; then
     exit 0
 fi
 
-# Fix DNS
-nmcli conn mod default ipv4.dns {{ ldap_vm_ip }} || true
-systemctl restart NetworkManager
+# Fix DNS on the connection that owns the default route
+DEFAULT_DEV=$(ip -4 route show default | awk 'NR==1 {print $5}')
+
+if [ -n "$DEFAULT_DEV" ]; then
+    DEFAULT_CONN=$(nmcli -g GENERAL.CONNECTION device show "$DEFAULT_DEV" 2>/dev/null || true)
+
+    if [ -n "$DEFAULT_CONN" ] && [ "$DEFAULT_CONN" != "--" ]; then
+        CURRENT_DNS=$(nmcli -g ipv4.dns connection show "$DEFAULT_CONN" 2>/dev/null || true)
+
+        if [ "$CURRENT_DNS" != "{{ ldap_vm_ip }}" ]; then
+            nmcli connection modify "$DEFAULT_CONN" ipv4.dns {{ ldap_vm_ip }}
+        fi
+    fi
+fi
 
 # Install checkmk agent if missing
 if ! rpm -q check-mk-agent; then
     dnf install -y {{ checkmk_agent_rpm_url }}
 fi
 
-HOSTNAME=$(hostname -s)
+ORIGINAL_HOSTNAME=$(hostname -s)
+HOSTNAME=${ORIGINAL_HOSTNAME/G/g}
 SMALL_HOSTNAME=${HOSTNAME/G/g}                          # -10g, the way slurm likes it
-BIG_G=$(echo "$HOSTNAME" | sed 's/\([0-9]\)g/\1G/')     # -10g to -10G for Checkmk compatibility
+BIG_HOSTNAME=$(echo "$ORIGINAL_HOSTNAME" | sed 's/\([0-9]\)g/\1G/')  # -10g to -10G for Checkmk compatibility
+
+hostnamectl set-hostname ${HOSTNAME}.cluster.hcemm.eu
 
 # Configure Slurm to use the short hostname dynamically
-echo "SLURMD_OPTIONS=--conf-server {{ slurmctld_vm_ip }} -N ${SMALL_G}" > /etc/sysconfig/slurmd
-hostnamectl set-hostname ${SMALL_G}.cluster.hcemm.eu
+echo "SLURMD_OPTIONS=--conf-server {{ slurmctld_vm_ip }} -N ${SMALL_HOSTNAME}" > /etc/sysconfig/slurmd
 
 # Register with Checkmk
 cmk-agent-ctl register \
-    --hostname ${BIG_G} \
+    --hostname ${BIG_HOSTNAME} \
     --server {{ checkmk_vm_ip }} \
     --site {{ checkmk_site }} \
     --user {{ checkmk_username }} \
     --password {{ checkmk_password }} \
     --trust-cert || true
 
-# Join FreeIPA if not already joined
-if ! ipa-client-install --uninstall --unattended &>/dev/null; then
+# Join FreeIPA if not already configured
+if [ ! -f /etc/ipa/default.conf ]; then
     ipa-client-install \
         --domain="{{ ldap_domain }}" \
         --realm="{{ ldap_realm }}" \
@@ -46,11 +59,12 @@ if ! ipa-client-install --uninstall --unattended &>/dev/null; then
         --principal="{{ ldap_admin_user }}" \
         --password="{{ ldap_admin_password_raw }}" \
         --ntp-server="{{ ntp_server }}" \
+        --ca-cert-file=/etc/pki/ca-trust/source/anchors/freeipa-ca.crt \
         --force-join \
         --mkhomedir \
         --unattended
 fi
 
-touch "$FLAG"
-
 chronyc makestep
+
+touch "$FLAG"
